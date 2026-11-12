@@ -300,10 +300,10 @@ over. See the [migration guides](docs/migrations/index.md).
 <details>
 <summary><b>Is Clavis ready for production?</b></summary>
 
-The feature set for 1.0 is complete and the project is in its pre-release
-hardening phase: security review, load testing, and release verification.
-Follow the releases and read the security design before relying on it for
-critical systems. See the [roadmap](ROADMAP.md).
+Clavis is at v0.2, an early release. The feature set planned for 1.0 is in
+place, and the project is in its hardening phase: security review, load
+testing, and release verification. Read the security design and follow the
+releases before relying on it for critical systems. See the [roadmap](ROADMAP.md).
 </details>
 
 ## Documentation
