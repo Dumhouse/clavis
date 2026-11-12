@@ -28,6 +28,8 @@ var (
 	ErrInvalidKey = errors.New("crypto: key must be 32 bytes")
 	// ErrInvalidCiphertext is returned for malformed or truncated ciphertexts.
 	ErrInvalidCiphertext = errors.New("crypto: invalid ciphertext")
+	// ErrPlaintextTooLarge is returned when a value exceeds MaxPlaintextSize.
+	ErrPlaintextTooLarge = errors.New("crypto: plaintext too large")
 	// ErrUnknownVersion is returned for a ciphertext produced by a newer,
 	// unsupported format version.
 	ErrUnknownVersion = errors.New("crypto: unknown envelope version")
@@ -65,6 +67,10 @@ func (k *Key) Zero() {
 	}
 }
 
+// MaxPlaintextSize bounds the value Encrypt accepts (1 GiB), far above any
+// secret, so the output buffer size cannot overflow.
+const MaxPlaintextSize = 1 << 30
+
 // Encrypt seals plaintext with AES-256-GCM. The returned ciphertext uses the
 // versioned envelope format:
 //
@@ -82,6 +88,9 @@ func (k Key) Encrypt(keyVersion uint32, plaintext Secret, aad []byte) ([]byte, e
 		return nil, fmt.Errorf("crypto: new gcm: %w", err)
 	}
 
+	if len(plaintext) > MaxPlaintextSize {
+		return nil, ErrPlaintextTooLarge
+	}
 	out := make([]byte, headerSize, headerSize+len(plaintext)+TagSize)
 	out[0] = EnvelopeVersion
 	binary.BigEndian.PutUint32(out[1:5], keyVersion)
