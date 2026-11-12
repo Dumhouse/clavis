@@ -4,10 +4,13 @@ metadata:
   name: {{ include "clavis.fullname" . }}
   labels:
     {{- include "clavis.labels" . | nindent 4 }}
+{{- if and (gt (int .Values.replicaCount) 1) (eq .Values.database.driver "sqlite") }}
+{{- fail "replicaCount > 1 requires database.driver=postgres" }}
+{{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
-    type: Recreate
+    type: {{ if eq .Values.database.driver "sqlite" }}Recreate{{ else }}RollingUpdate{{ end }}
   selector:
     matchLabels:
       {{- include "clavis.selectorLabels" . | nindent 6 }}
@@ -34,7 +37,7 @@ spec:
         - name: clavis
           image: {{ include "clavis.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: ["server", "--config", "/etc/clavis/clavis.yaml"]
+          args: ["server", "--config", "/etc/clavis/clavis.yaml", "--role", {{ .Values.role | quote }}]
           ports:
             - name: http
               containerPort: 8080
@@ -46,6 +49,20 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.email.existingSecret }}
                   key: {{ .Values.email.passwordKey }}
+            {{- end }}
+            {{- if and (eq .Values.database.driver "postgres") .Values.database.existingSecret }}
+            - name: CLAVIS_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.dsnKey }}
+            {{- end }}
+            {{- if and (eq .Values.keys.provider "aws-kms") .Values.keys.awsExistingSecret }}
+            - name: CLAVIS_AWS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.keys.awsExistingSecret }}
+                  key: {{ .Values.keys.awsSecretKey }}
             {{- end }}
             {{- if and (eq .Values.keys.provider "env") .Values.keys.existingSecret }}
             - name: {{ .Values.keys.rootKeyEnv }}
@@ -71,6 +88,12 @@ spec:
               readOnly: true
             - name: data
               mountPath: /data
+            {{- if and (eq .Values.keys.provider "gcp-kms") .Values.keys.gcpServiceAccountExistingSecret }}
+            - name: gcp-service-account
+              mountPath: /etc/clavis/gcp-service-account.json
+              subPath: {{ .Values.keys.gcpServiceAccountKey }}
+              readOnly: true
+            {{- end }}
       volumes:
         - name: config
           configMap:
@@ -82,6 +105,11 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
+        {{- if and (eq .Values.keys.provider "gcp-kms") .Values.keys.gcpServiceAccountExistingSecret }}
+        - name: gcp-service-account
+          secret:
+            secretName: {{ .Values.keys.gcpServiceAccountExistingSecret }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

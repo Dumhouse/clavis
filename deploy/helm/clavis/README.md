@@ -56,11 +56,50 @@ auditExporters:
     format: json
 ```
 
-## Scaling
+## Postgres and scaling
 
-SQLite supports one writer. Keep `replicaCount: 1` until the Postgres backend
-in M3-01 lands. The deployment uses the `Recreate` strategy to avoid two pods
-writing the same PVC.
+```yaml
+database:
+  driver: postgres
+  existingSecret: clavis-postgres
+  dsnKey: database-dsn
+
+replicaCount: 3
+```
+
+SQLite stays at one replica and uses the `Recreate` strategy. Postgres allows
+multiple replicas with `RollingUpdate`; SSE events fan out over Postgres
+`LISTEN/NOTIFY` and job workers claim with `SKIP LOCKED`.
+
+Split process roles with `role: api` or `role: worker`; the default `all` runs
+both in each replica.
+
+## KMS root keys
+
+AWS KMS:
+
+```yaml
+keys:
+  provider: aws-kms
+  awsRegion: eu-central-1
+  awsKMSKeyID: arn:aws:kms:...
+  awsAccessKey: AKIA...
+  awsExistingSecret: clavis-aws
+  awsSecretKey: aws-secret-key
+```
+
+GCP KMS:
+
+```yaml
+keys:
+  provider: gcp-kms
+  gcpKMSKey: projects/p/locations/l/keyRings/r/cryptoKeys/k
+  gcpServiceAccountExistingSecret: clavis-gcp
+  gcpServiceAccountKey: gcp-service-account.json
+```
+
+The wrapped root key file still lives on `/data`; use shared storage if several
+replicas must read it. KMS protects the plaintext key, not the wrapped blob.
 
 ## Values
 

@@ -19,11 +19,24 @@ data:
       max_body_bytes: {{ .Values.server.maxBodyBytes }}
     database:
       driver: {{ .Values.database.driver | quote }}
+      {{- if eq .Values.database.driver "sqlite" }}
       path: {{ .Values.database.path | quote }}
+      {{- end }}
     keys:
       provider: {{ .Values.keys.provider | quote }}
       root_key_file: {{ .Values.keys.rootKeyFile | quote }}
       root_key_env: {{ .Values.keys.rootKeyEnv | quote }}
+      {{- if eq .Values.keys.provider "aws-kms" }}
+      aws_region: {{ .Values.keys.awsRegion | quote }}
+      aws_kms_key_id: {{ .Values.keys.awsKMSKeyID | quote }}
+      aws_access_key: {{ .Values.keys.awsAccessKey | quote }}
+      aws_kms_endpoint: {{ .Values.keys.awsKMSEndpoint | quote }}
+      {{- end }}
+      {{- if eq .Values.keys.provider "gcp-kms" }}
+      gcp_kms_key: {{ .Values.keys.gcpKMSKey | quote }}
+      gcp_service_account_file: "/etc/clavis/gcp-service-account.json"
+      gcp_kms_endpoint: {{ .Values.keys.gcpKMSEndpoint | quote }}
+      {{- end }}
     log:
       level: {{ .Values.log.level | quote }}
       format: {{ .Values.log.format | quote }}

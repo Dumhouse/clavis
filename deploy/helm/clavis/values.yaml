@@ -1,5 +1,8 @@
 replicaCount: 1
 
+# all runs the API and job worker. api and worker are useful for splitting load.
+role: all
+
 image:
   repository: ghcr.io/dumhouse/clavis
   pullPolicy: IfNotPresent
@@ -44,8 +47,11 @@ server:
   maxBodyBytes: 1048576
 
 database:
-  driver: sqlite
+  driver: sqlite       # sqlite | postgres
   path: /data/clavis.db
+  # Postgres DSN is supplied through existingSecret + dsnKey.
+  existingSecret: ""
+  dsnKey: database-dsn
 
 keys:
   # file: generated under /data and persisted by the PVC
@@ -55,6 +61,18 @@ keys:
   rootKeyEnv: CLAVIS_ROOT_KEY
   existingSecret: ""
   secretKey: root-key
+  # aws-kms
+  awsRegion: ""
+  awsKMSKeyID: ""
+  awsAccessKey: ""
+  awsKMSEndpoint: ""
+  awsExistingSecret: ""
+  awsSecretKey: aws-secret-key
+  # gcp-kms
+  gcpKMSKey: ""
+  gcpServiceAccountExistingSecret: ""
+  gcpServiceAccountKey: gcp-service-account.json
+  gcpKMSEndpoint: ""
 
 log:
   level: info
@@ -83,6 +101,7 @@ persistence:
   accessModes:
     - ReadWriteOnce
   size: 10Gi
+  # Use ReadWriteMany if several replicas need the same root key file.
   annotations: {}
 
 service:
