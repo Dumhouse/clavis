@@ -1,0 +1,5 @@
+# Fake demo values used only to render screenshots (web/scripts/capture-screenshots.mjs).
+# They were renamed to demo_key_* afterwards, but the original commit stays in history.
+7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:128
+7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:137
+7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:145
