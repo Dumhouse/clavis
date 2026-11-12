@@ -54,6 +54,7 @@ Clavis (Latin for *key*) stores your application secrets (API keys, database URL
 | [docs/data-model.md](docs/data-model.md) | Entities, secret resolution rules, versioning |
 | [docs/security.md](docs/security.md) | Threat model, key hierarchy, crypto, auth, authz, audit, supply chain |
 | [docs/design.md](docs/design.md) | Visual language, UX principles, key screens |
+| [operator/README.md](operator/README.md) | Kubernetes operator and `ClavisSecret` CRD |
 | [docs/commands.md](docs/commands.md) | Complete user command reference with examples |
 | [docs/cli.md](docs/cli.md) | CLI UX rules and command documentation conventions |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones M0–M6 with exit criteria, cut list, backlog |

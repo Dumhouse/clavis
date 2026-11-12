@@ -10,7 +10,7 @@ LDFLAGS     := -s -w \
 	-X $(MODULE)/internal/version.Commit=$(COMMIT) \
 	-X $(MODULE)/internal/version.Date=$(BUILD_DATE)
 
-.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools
+.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools operator
 
 all: build
 
@@ -36,6 +36,11 @@ dev:
 ## server: run the built binary
 server: build
 	./$(BIN) server
+
+## operator: build the Kubernetes operator
+operator:
+	@mkdir -p bin
+	cd operator && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-operator .
 
 ## test: unit and integration tests against SQLite
 test:

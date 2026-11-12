@@ -58,6 +58,21 @@ jobs:
           cache: true
       - run: go test ./internal/server ./internal/cli ./internal/jobs ./internal/store
 
+  operator:
+    name: Kubernetes operator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: operator/go.mod
+          cache: true
+          cache-dependency-path: operator/go.sum
+      - run: go test ./...
+        working-directory: operator
+      - run: go build ./...
+        working-directory: operator
+
   web:
     name: Web
     runs-on: ubuntu-latest

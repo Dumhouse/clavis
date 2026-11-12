@@ -39,8 +39,8 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [x] **M3-33** First-run preview: every new sync shows the diff and requires confirmation before its first push; "delete keys not in Clavis" off by default (S)
 
 ## Kubernetes
-- [ ] **M3-23** Operator: `ClavisSecret` CRD → K8s `Secret`, periodic + event-driven refresh, file secrets as keys for volume mounts (L)
-- [ ] **M3-24** Operator: rolling restart of annotated Deployments on change (S)
+- [x] **M3-23** Operator: `ClavisSecret` CRD → K8s `Secret`, periodic + event-driven refresh, file secrets as keys for volume mounts (L)
+- [x] **M3-24** Operator: rolling restart of annotated Deployments on change (S)
 - [ ] **M3-34** External Secrets Operator provider (Clavis as an ESO `SecretStore`, auth via K8s service account) (M)
 - [x] **M3-25** Helm chart for server (HA, external Postgres, KMS config, ServiceMonitor) (M)
 
