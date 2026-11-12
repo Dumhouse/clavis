@@ -202,7 +202,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*emptyOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		token, err := s.auth.CreateEmailVerification(ctx, principal.User)
 		if err != nil {
@@ -271,7 +271,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*mfaStatusOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		status, err := s.auth.MFAStatus(ctx, principal.User)
 		if err != nil {
@@ -292,7 +292,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*mfaEnrollOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		enrollment, err := s.auth.EnrollMFA(ctx, principal.User)
 		if err != nil {
@@ -313,7 +313,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *mfaCodeInput) (*mfaRecoveryOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		codes, err := s.auth.ActivateMFA(ctx, principal.User, in.Body.Code)
 		if err != nil {
@@ -333,7 +333,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *mfaCodeInput) (*emptyOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		if err := s.auth.DisableMFA(ctx, principal.User, in.Body.Code); err != nil {
 			return nil, s.apiError(ctx, err)
@@ -350,7 +350,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *mfaCodeInput) (*mfaRecoveryOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		codes, err := s.auth.RegenerateRecoveryCodes(ctx, principal.User, in.Body.Code)
 		if err != nil {
@@ -423,7 +423,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*meOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		body, err := s.sessionBody(ctx, &authn.SessionResult{
 			Session:   principal.Session,
@@ -449,7 +449,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*logoutOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		if err := s.auth.Logout(ctx, principal.Session.ID); err != nil {
 			return nil, s.apiError(ctx, err)
@@ -470,7 +470,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*sessionsOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		sessions, err := s.auth.ListSessions(ctx, principal.User.ID)
 		if err != nil {
@@ -503,7 +503,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *sessionPath) (*logoutOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		sessions, err := s.auth.ListSessions(ctx, principal.User.ID)
 		if err != nil {
@@ -517,7 +517,7 @@ func (s *Server) registerAuthRoutes() error {
 			}
 		}
 		if !found {
-			return nil, withRequestID(problem.NotFound("Session not found."), ctx)
+			return nil, withRequestID(ctx, problem.NotFound("Session not found."))
 		}
 		if err := s.auth.Logout(ctx, in.ID); err != nil {
 			return nil, s.apiError(ctx, err)
@@ -542,7 +542,7 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*logoutOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		if _, err := s.auth.RevokeAllSessions(ctx, principal.User.ID); err != nil {
 			return nil, s.apiError(ctx, err)
@@ -613,11 +613,11 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *deviceApproveInput) (*deviceApproveOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		code := authn.NormalizeUserCode(in.Body.UserCode)
 		if len(code) != 8 {
-			return nil, withRequestID(problem.New(http.StatusUnprocessableEntity, "invalid_code", "Invalid code", "Enter the 8-character code shown by the CLI."), ctx)
+			return nil, withRequestID(ctx, problem.New(http.StatusUnprocessableEntity, "invalid_code", "Invalid code", "Enter the 8-character code shown by the CLI."))
 		}
 		var err error
 		switch in.Body.Action {
@@ -646,14 +646,14 @@ func (s *Server) registerAuthRoutes() error {
 	}, func(ctx context.Context, in *preferencesInput) (*preferencesOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		body := preferencesBody{Theme: in.Body.Theme, Appearance: in.Body.Appearance}
 		if body.Theme != "dark" && body.Theme != "light" && body.Theme != "system" {
-			return nil, withRequestID(problem.New(http.StatusUnprocessableEntity, "invalid_theme", "Invalid theme", "Use system, dark, or light."), ctx)
+			return nil, withRequestID(ctx, problem.New(http.StatusUnprocessableEntity, "invalid_theme", "Invalid theme", "Use system, dark, or light."))
 		}
 		if body.Appearance != "classic" && body.Appearance != "warm" {
-			return nil, withRequestID(problem.New(http.StatusUnprocessableEntity, "invalid_appearance", "Invalid appearance", "Use classic or warm."), ctx)
+			return nil, withRequestID(ctx, problem.New(http.StatusUnprocessableEntity, "invalid_appearance", "Invalid appearance", "Use classic or warm."))
 		}
 		raw, _ := json.Marshal(body)
 		if err := s.store.UpdateUserPreferences(ctx, principal.User.ID, string(raw)); err != nil {

@@ -132,7 +132,7 @@ func BindAAD(orgID, projectID, envID, itemID, field string, version int) []byte 
 	out := make([]byte, 0, size)
 	var l [2]byte
 	for _, f := range fields {
-		binary.BigEndian.PutUint16(l[:], uint16(len(f)))
+		binary.BigEndian.PutUint16(l[:], uint16(len(f))) //nolint:gosec // G115: AAD fields are IDs and short labels, far below 64 KiB
 		out = append(out, l[:]...)
 		out = append(out, f...)
 	}

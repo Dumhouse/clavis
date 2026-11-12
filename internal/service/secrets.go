@@ -150,7 +150,7 @@ func parseTags(raw string) []string {
 	return tags
 }
 
-func (s *Service) resolveEnvironment(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug string) (*store.Org, *store.Project, *store.Environment, error) {
+func (s *Service) resolveEnvironment(ctx context.Context, _ authz.Actor, orgSlug, projectSlug, envSlug string) (*store.Org, *store.Project, *store.Environment, error) {
 	org, err := s.Store.GetOrgBySlug(ctx, orgSlug)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
@@ -388,7 +388,7 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 func etagForItems(items []store.Item) string {
 	h := sha256.New()
 	for _, item := range items {
-		fmt.Fprintf(h, "%s:%d:%d;", item.ID, item.Version, item.UpdatedAt.UnixNano())
+		_, _ = fmt.Fprintf(h, "%s:%d:%d;", item.ID, item.Version, item.UpdatedAt.UnixNano())
 	}
 	return `"` + hex.EncodeToString(h.Sum(nil)) + `"`
 }
@@ -523,7 +523,7 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 			s.Logger.Error("audit secret.reveal failed", "item_id", item.ID, "error", err)
 		}
 	}
-	if override, ok, err := s.overrideForKey(ctx, valueKey, org, project, env, actor.ID, blind); err != nil {
+	if override, ok, err := s.overrideForKey(ctx, env, actor.ID, blind); err != nil {
 		return nil, err
 	} else if ok {
 		view.Overridden = true
@@ -566,19 +566,19 @@ func (s *Service) CreateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	}
 	itemID := uuid.NewString()
 	blind := crypto.BlindIndex(indexKey, in.Key)
-	keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Key),
+	keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Key),
 		crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "key", 1))
 	if err != nil {
 		return nil, err
 	}
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+	valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 		crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "value", 1))
 	if err != nil {
 		return nil, err
 	}
 	var commentCT []byte
 	if in.Comment != "" {
-		commentCT, err = valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Comment),
+		commentCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Comment),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "comment", 1))
 		if err != nil {
 			return nil, err
@@ -591,7 +591,7 @@ func (s *Service) CreateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	}
 	var notesCT []byte
 	if in.Notes != "" {
-		notesCT, err = valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Notes),
+		notesCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Notes),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "notes", 1))
 		if err != nil {
 			return nil, err
@@ -690,14 +690,14 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 		return nil, err
 	}
 	next := item.Version + 1
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+	valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 		crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "value", next))
 	if err != nil {
 		return nil, err
 	}
 	var commentCT []byte
 	if in.Comment != "" {
-		commentCT, err = valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Comment),
+		commentCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Comment),
 			crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "comment", next))
 		if err != nil {
 			return nil, err
@@ -709,7 +709,7 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	}
 	var notesCT []byte
 	if in.Notes != "" {
-		notesCT, err = valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Notes),
+		notesCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Notes),
 			crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "notes", 1))
 		if err != nil {
 			return nil, err
@@ -857,7 +857,7 @@ func (s *Service) RollbackSecret(ctx context.Context, actor authz.Actor, orgSlug
 	}
 	defer plaintext.Zero()
 	next := item.Version + 1
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), plaintext,
+	valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), plaintext,
 		crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "value", next))
 	if err != nil {
 		return nil, err
@@ -871,7 +871,7 @@ func (s *Service) RollbackSecret(ctx context.Context, actor authz.Actor, orgSlug
 			return nil, fmt.Errorf("service: decrypt old comment: %w", err)
 		}
 		defer plain.Zero()
-		commentCT, err = valueKey.Encrypt(uint32(project.KeyVersion), plain,
+		commentCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), plain,
 			crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "comment", next))
 		if err != nil {
 			return nil, err
@@ -976,7 +976,7 @@ func (s *Service) environmentChain(ctx context.Context, env *store.Environment) 
 }
 
 // overrideForKey loads one personal override by blind index.
-func (s *Service) overrideForKey(ctx context.Context, valueKey crypto.Key, org *store.Org, project *store.Project, env *store.Environment, userID string, blind string) (*store.Item, bool, error) {
+func (s *Service) overrideForKey(ctx context.Context, env *store.Environment, userID, blind string) (*store.Item, bool, error) {
 	overlay, err := s.Store.GetOverlay(ctx, env.ID, userID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {

@@ -265,7 +265,7 @@ func (s *Server) registerMemberRoutes() error {
 	}, func(ctx context.Context, in *tokenPath) (*orgOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		org, err := s.svc.AcceptInviteExisting(ctx, in.Token, principal.User, metaFrom(ctx))
 		if err != nil {

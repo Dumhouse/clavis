@@ -199,7 +199,7 @@ func (s *Service) fetchSAMLMetadata(ctx context.Context, source string) ([]byte,
 	if err != nil {
 		return nil, fmt.Errorf("%w: could not fetch IdP metadata", ErrSSOUnavailable)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: IdP metadata returned %d", ErrSSOUnavailable, resp.StatusCode)
 	}
@@ -220,9 +220,7 @@ func (s *Service) BeginSAML(ctx context.Context, orgSlug, baseURL, returnPath st
 	if idpURL == "" {
 		return "", fmt.Errorf("%w: IdP does not advertise HTTP-Redirect SSO", ErrSSOUnavailable)
 	}
-	if returnPath == "" || !strings.HasPrefix(returnPath, "/") || strings.HasPrefix(returnPath, "//") {
-		returnPath = "/"
-	}
+	returnPath = SafeReturnPath(returnPath)
 	request, err := sp.MakeAuthenticationRequest(idpURL, saml.HTTPRedirectBinding, saml.HTTPPostBinding)
 	if err != nil {
 		return "", fmt.Errorf("%w: could not build AuthnRequest", ErrSSOUnavailable)
@@ -250,7 +248,7 @@ func (s *Service) FinishSAML(ctx context.Context, orgSlug, baseURL string, r *ht
 	}
 	assertion, err := sp.ParseResponse(r, []string{ticket.RequestID})
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("%w: %v", ErrSSOUnavailable, err)
+		return nil, nil, "", fmt.Errorf("%w: %w", ErrSSOUnavailable, err)
 	}
 	email, name := samlIdentity(assertion)
 	if email == "" {

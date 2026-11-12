@@ -110,7 +110,7 @@ func (r *Registry) Match(method, urlPath string) (Route, bool) {
 		found     bool
 	)
 	for _, route := range r.routes {
-		if route.Method != method && !(method == http.MethodHead && route.Method == http.MethodGet) {
+		if route.Method != method && (method != http.MethodHead || route.Method != http.MethodGet) {
 			continue
 		}
 		score, ok := matchRoute(route.Pattern, urlPath)

@@ -125,7 +125,7 @@ func (s *Service) BatchProjectSecrets(ctx context.Context, actor authz.Actor, or
 		}
 		if existing == nil {
 			itemID := uuid.NewString()
-			keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(change.Input.Key),
+			keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(change.Input.Key),
 				crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "key", 1))
 			if err != nil {
 				return nil, err

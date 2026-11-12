@@ -130,7 +130,7 @@ func (s *Store) ListAuditEvents(ctx context.Context, orgID string, afterSeq int6
 	if err != nil {
 		return nil, fmt.Errorf("store: list audit events: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var events []audit.Event
 	for rows.Next() {

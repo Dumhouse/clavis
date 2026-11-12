@@ -210,7 +210,7 @@ func (s *Service) ListIdentities(ctx context.Context, actor authz.Actor, orgSlug
 		if len(tokens) > 0 && tokens[0].Scopes != "" {
 			var decoded tokenScopes
 			if err := json.Unmarshal([]byte(tokens[0].Scopes), &decoded); err == nil {
-				scope = TokenScope{Role: decoded.Role, ProjectID: decoded.ProjectID, Environment: decoded.Environment}
+				scope = TokenScope(decoded)
 			}
 		}
 		view := IdentityView{Identity: &identities[i], Tokens: tokens, Scope: scope}

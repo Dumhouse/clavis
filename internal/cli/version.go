@@ -11,7 +11,7 @@ func newVersionCommand(opts *Options) *cobra.Command {
 		Use:   "version",
 		Short: "Print version information",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			out := opts.output()
 			if opts.JSON {
 				return out.PrintJSON(map[string]string{

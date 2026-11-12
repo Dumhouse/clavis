@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -298,7 +299,7 @@ func (s *Server) scimCreateUser(w http.ResponseWriter, r *http.Request) {
 	name := scimDisplayName(in, normalized)
 	user, err := s.store.GetUserByEmail(r.Context(), normalized)
 	if err != nil {
-		if err != store.ErrNotFound {
+		if !errors.Is(err, store.ErrNotFound) {
 			scimError(w, http.StatusInternalServerError, "could not look up user")
 			return
 		}
@@ -519,7 +520,7 @@ func (s *Server) scimDeleteGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func scimBaseURL(s *Server, orgSlug string) string {
+func scimBaseURL(s *Server, _ string) string {
 	base := strings.TrimRight(s.cfg.Server.BaseURL, "/")
 	return base + "/scim/v2"
 }
@@ -540,7 +541,7 @@ func scimDisplayName(in scimUser, fallback string) string {
 	return fallback
 }
 
-func scimUserFromStore(user *store.User, role, base string) scimUser {
+func scimUserFromStore(user *store.User, _, base string) scimUser {
 	active := true
 	return scimUser{
 		Schemas:     []string{"urn:ietf:params:scim:schemas:core:2.0:User"},

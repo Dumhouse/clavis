@@ -108,7 +108,7 @@ type fileCredentialStore struct {
 func (f *fileCredentialStore) Description() string { return "file " + f.path }
 
 func (f *fileCredentialStore) load() (map[string]string, error) {
-	b, err := os.ReadFile(f.path)
+	b, err := os.ReadFile(f.path) //nolint:gosec // G703: credentials file path is chosen by the CLI, not by remote input
 	if errors.Is(err, os.ErrNotExist) {
 		return map[string]string{}, nil
 	}

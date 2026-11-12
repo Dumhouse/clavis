@@ -51,8 +51,8 @@ func newExportCommand(opts *Options) *cobra.Command {
 			}
 
 			if outPath == "" || outPath == "-" {
-				fmt.Fprint(out.Out, content)
-				return nil
+				_, err := fmt.Fprint(out.Out, content)
+				return err
 			}
 			if err := os.WriteFile(outPath, []byte(content), 0o600); err != nil {
 				return fmt.Errorf("could not write %s: %w", outPath, err)

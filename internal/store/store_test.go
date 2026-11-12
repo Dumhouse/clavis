@@ -25,7 +25,7 @@ func TestMigrateCreatesSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	got := map[string]bool{}
 	for rows.Next() {
 		var name string

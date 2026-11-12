@@ -62,7 +62,7 @@ func (s *SMTPSender) Send(ctx context.Context, msg Message) error {
 	if err != nil {
 		return fmt.Errorf("email: connect: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(deadline)
 
 	if s.TLS == "tls" {
@@ -77,7 +77,7 @@ func (s *SMTPSender) Send(ctx context.Context, msg Message) error {
 	if err != nil {
 		return fmt.Errorf("email: smtp client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if s.TLS == "starttls" {
 		if ok, _ := client.Extension("STARTTLS"); !ok {

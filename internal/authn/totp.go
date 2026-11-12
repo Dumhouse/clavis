@@ -3,7 +3,7 @@ package authn
 import (
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // G505: RFC 6238 TOTP uses HMAC-SHA1 for authenticator compatibility
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base32"
@@ -35,7 +35,7 @@ func GenerateTOTPSecret() ([]byte, error) {
 
 // TOTPCode computes the 6-digit code for a time.
 func TOTPCode(secret []byte, at time.Time) string {
-	counter := uint64(at.Unix() / int64(totpPeriod/time.Second))
+	counter := uint64(at.Unix() / int64(totpPeriod/time.Second)) //nolint:gosec // G115: Unix time after 1970 is non-negative
 	var msg [8]byte
 	binary.BigEndian.PutUint64(msg[:], counter)
 	mac := hmac.New(sha1.New, secret)

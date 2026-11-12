@@ -76,7 +76,7 @@ func (s *Store) ListProjectBindings(ctx context.Context, orgID, projectID string
 	if err != nil {
 		return nil, fmt.Errorf("store: list bindings: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RoleBinding
 	for rows.Next() {
 		binding, err := scanBinding(rows)

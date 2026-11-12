@@ -139,7 +139,7 @@ func (e *exporter) send(ctx context.Context, event *audit.Event) error {
 		if err != nil {
 			return err
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		line := fmt.Sprintf("<14>1 %s clavis clavis - - - %s",
 			event.CreatedAt.UTC().Format(time.RFC3339), string(payload))
 		if len(line) > 60000 {
@@ -167,7 +167,7 @@ func (e *exporter) do(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("auditexport: destination returned %d", resp.StatusCode)

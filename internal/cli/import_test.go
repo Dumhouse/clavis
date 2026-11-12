@@ -74,7 +74,7 @@ func FuzzParseDotenv(f *testing.F) {
 	for _, seed := range seeds {
 		f.Add([]byte(seed))
 	}
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		_, _ = ParseDotenv(data)
 	})
 }

@@ -3,9 +3,10 @@ package server
 import (
 	"encoding/xml"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/dumhouse/clavis/internal/service"
 )
 
 // registerSAMLRoutes mounts SP metadata, login, and assertion consumer
@@ -40,7 +41,7 @@ func (s *Server) handleSAMLMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/samlmetadata+xml")
 	_, _ = w.Write([]byte(xml.Header))
-	_, _ = w.Write(encoded)
+	_, _ = w.Write(encoded) //nolint:gosec // G705: XML-marshalled SP metadata served as application/samlmetadata+xml
 }
 
 func (s *Server) handleSAMLLogin(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +52,7 @@ func (s *Server) handleSAMLLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?sso_error=saml_unavailable", http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, target, http.StatusFound)
+	http.Redirect(w, r, target, http.StatusFound) //nolint:gosec // G710: BeginSAML returns the IdP URL from the org SAML config
 }
 
 func (s *Server) handleSAMLACS(w http.ResponseWriter, r *http.Request) {
@@ -75,8 +76,6 @@ func (s *Server) handleSAMLACS(w http.ResponseWriter, r *http.Request) {
 	for _, cookie := range s.sessionCookies(session) {
 		http.SetCookie(w, &cookie)
 	}
-	if returnPath == "" || !strings.HasPrefix(returnPath, "/") || strings.HasPrefix(returnPath, "//") {
-		returnPath = "/"
-	}
-	http.Redirect(w, r, returnPath, http.StatusFound)
+	returnPath = service.SafeReturnPath(returnPath)
+	http.Redirect(w, r, returnPath, http.StatusFound) //nolint:gosec // G710: returnPath is sanitized by SafeReturnPath above
 }

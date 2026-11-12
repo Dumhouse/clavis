@@ -169,7 +169,7 @@ func Load(explicitPath string) (*Config, error) {
 		path = os.Getenv("CLAVIS_CONFIG")
 	}
 	if path != "" {
-		b, err := os.ReadFile(path)
+		b, err := os.ReadFile(path) //nolint:gosec // G703: the config path comes from the operator (flag or CLAVIS_CONFIG)
 		if err != nil {
 			return nil, fmt.Errorf("config: read %s: %w", path, err)
 		}

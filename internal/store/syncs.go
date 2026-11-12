@@ -102,7 +102,7 @@ func (s *Store) ListSyncs(ctx context.Context, projectID string) ([]Sync, error)
 	if err != nil {
 		return nil, fmt.Errorf("store: list syncs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Sync
 	for rows.Next() {
 		sync, err := scanSync(rows)
@@ -184,7 +184,7 @@ func (s *Store) ListSyncRuns(ctx context.Context, syncID string, limit int) ([]S
 	if err != nil {
 		return nil, fmt.Errorf("store: list sync runs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SyncRun
 	for rows.Next() {
 		var run SyncRun

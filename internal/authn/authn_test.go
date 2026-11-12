@@ -108,8 +108,10 @@ func TestLimiter(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	l := NewLimiter(2, time.Minute)
 	l.now = func() time.Time { return now }
-	if !l.Allow("k") || !l.Allow("k") {
-		t.Fatal("first two attempts rejected")
+	for i := 0; i < 2; i++ {
+		if !l.Allow("k") {
+			t.Fatalf("attempt %d rejected", i+1)
+		}
 	}
 	if l.Allow("k") {
 		t.Fatal("third attempt allowed")

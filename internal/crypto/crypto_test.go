@@ -108,7 +108,7 @@ func FuzzDecrypt(f *testing.F) {
 	ct, _ := key.Encrypt(1, NewSecret([]byte("seed")), aad)
 	f.Add(ct)
 	f.Add([]byte{})
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		got, _, err := key.Decrypt(data, aad)
 		if err == nil {
 			got.Zero()
@@ -280,7 +280,7 @@ func TestProvidersHonorContext(t *testing.T) {
 
 func TestFileProviderRejectsInsecurePermissions(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "root.key")
-	if err := os.WriteFile(path, []byte(base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{1}, KeySize))), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{1}, KeySize))), 0o644); err != nil { //nolint:gosec // G306: deliberately loose permissions under test
 		t.Fatal(err)
 	}
 	if _, err := NewFileProvider(path, false).Load(context.Background()); err == nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -71,7 +72,7 @@ func TestFileCredentialStore(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "creds.json")
 	t.Setenv("CLAVIS_CREDENTIAL_FILE", path)
 	store := credentialStore()
-	if _, err := store.Get("https://x"); err != ErrNoCredential {
+	if _, err := store.Get("https://x"); !errors.Is(err, ErrNoCredential) {
 		t.Fatalf("expected no credential, got %v", err)
 	}
 	if err := store.Set("https://x", "tok"); err != nil {
@@ -91,7 +92,7 @@ func TestFileCredentialStore(t *testing.T) {
 	if err := store.Delete("https://x"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Get("https://x"); err != ErrNoCredential {
+	if _, err := store.Get("https://x"); !errors.Is(err, ErrNoCredential) {
 		t.Fatal("credential not deleted")
 	}
 }
@@ -202,7 +203,7 @@ func TestAccessSubjectMatching(t *testing.T) {
 
 func TestCollectImportEntriesFromFolder(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "backend", "db"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "backend", "db"), 0o755); err != nil { //nolint:gosec // G301: test fixture directory
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("ROOT_KEY=one\n"), 0o600); err != nil {
@@ -320,7 +321,7 @@ func TestRotateRootKeyRewrapsOrgsAndMFA(t *testing.T) {
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	orgID := uuid.NewString()
 	wrapped, _, err := crypto.NewKeyring(oldRoot).NewOrgKey(orgID)
