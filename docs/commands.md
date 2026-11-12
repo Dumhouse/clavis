@@ -501,6 +501,9 @@ Run the API, job worker, and embedded web UI.
 ```sh
 clavis server
 clavis server --config /etc/clavis/clavis.yaml
+clavis server --role=api       # HTTP only
+clavis server --role=worker    # jobs only
+clavis server --role=all       # default
 ```
 
 ---

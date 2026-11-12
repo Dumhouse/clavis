@@ -154,3 +154,47 @@ func TestMigrateSQLiteToPostgres(t *testing.T) {
 		t.Fatal("expected non-empty destination refusal")
 	}
 }
+
+func TestPostgresEventNotify(t *testing.T) {
+	dsn := os.Getenv("CLAVIS_TEST_POSTGRES")
+	if dsn == "" {
+		t.Skip("set CLAVIS_TEST_POSTGRES to run Postgres integration tests")
+	}
+	ctx := context.Background()
+	st, err := store.OpenPostgres(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	listenCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	received := make(chan string, 1)
+	go func() {
+		_ = st.ListenEvents(listenCtx, func(payload string) {
+			select {
+			case received <- payload:
+			default:
+			}
+		})
+	}()
+	deadline := time.After(5 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	wanted := `{"hello":"postgres"}`
+	for {
+		select {
+		case payload := <-received:
+			if payload != wanted {
+				t.Fatalf("payload = %q", payload)
+			}
+			return
+		case <-ticker.C:
+			_ = st.NotifyEvent(ctx, wanted)
+		case <-deadline:
+			t.Fatal("notification not received")
+		}
+	}
+}

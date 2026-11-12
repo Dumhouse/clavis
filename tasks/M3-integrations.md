@@ -5,7 +5,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 ## Postgres & scale
 - [x] **M3-01** Postgres dialect: sqlc queries + goose migrations; CI matrix on SQLite + Postgres (testcontainers) (L)
 - [x] **M3-02** SQLite → Postgres migration tool (`clavis admin migrate-db`) (S)
-- [ ] **M3-03** Multi-replica support: Postgres LISTEN/NOTIFY event fan-out, `SKIP LOCKED` workers, `--role=api|worker` (M)
+- [x] **M3-03** Multi-replica support: Postgres LISTEN/NOTIFY event fan-out, `SKIP LOCKED` workers, `--role=api|worker` (M)
 
 ## Workload identity (no static tokens) 🔒
 - [x] **M3-04** 🔒 OIDC federation framework: trust config per identity (issuer, audience, claim conditions) → short-lived token (L)

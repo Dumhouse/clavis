@@ -142,7 +142,9 @@ database:
 ```
 
 Postgres runs the same migrations, queries, sessions, audit chain, and workers as
-SQLite. Use one replica until M3-03 lands the LISTEN/NOTIFY fan-out.
+SQLite. Multiple replicas are supported: SSE events fan out over Postgres
+`LISTEN/NOTIFY`, and job workers claim with `SKIP LOCKED`. Split process roles
+with `clavis server --role=api` and `clavis server --role=worker`.
 
 ## Configuration
 

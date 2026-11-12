@@ -22,6 +22,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 
 	"github.com/dumhouse/clavis/internal/auditexport"
 	"github.com/dumhouse/clavis/internal/authn"
@@ -43,23 +44,24 @@ import (
 
 // Server is the Clavis HTTP server.
 type Server struct {
-	cfg       *config.Config
-	store     *store.Store
-	logger    *slog.Logger
-	rootKey   crypto.Key
-	keyring   *crypto.Keyring
-	auth      *authn.Service
-	svc       *service.Service
-	bus       *events.Bus
-	mailer    email.Sender
-	limiter   *ratelimit.Limiter
-	registry  *authz.Registry
-	metrics   *metrics.Metrics
-	router    chi.Router
-	api       huma.API
-	http      *http.Server
-	webFS     fs.FS
-	awsSTSURL string
+	cfg        *config.Config
+	store      *store.Store
+	logger     *slog.Logger
+	rootKey    crypto.Key
+	keyring    *crypto.Keyring
+	auth       *authn.Service
+	svc        *service.Service
+	bus        *events.Bus
+	mailer     email.Sender
+	limiter    *ratelimit.Limiter
+	registry   *authz.Registry
+	metrics    *metrics.Metrics
+	router     chi.Router
+	api        huma.API
+	http       *http.Server
+	webFS      fs.FS
+	awsSTSURL  string
+	instanceID string
 }
 
 // Option customizes the server.
@@ -108,7 +110,23 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 		opt(s)
 	}
 	s.bus = events.NewBus()
+	s.instanceID = uuid.NewString()
 	s.svc = service.New(st, s.keyring, logger, s.bus)
+	if st.IsPostgres() {
+		s.bus.SetNotifier(func(orgID string, event events.Event) {
+			payload, err := json.Marshal(struct {
+				Origin string       `json:"origin"`
+				OrgID  string       `json:"org_id"`
+				Event  events.Event `json:"event"`
+			}{Origin: s.instanceID, OrgID: orgID, Event: event})
+			if err != nil {
+				return
+			}
+			if err := st.NotifyEvent(context.Background(), string(payload)); err != nil {
+				s.logger.Warn("publish event notification failed", "error", err)
+			}
+		})
+	}
 	signingKey, err := crypto.DeriveAuditSigningKey(rootKey)
 	if err != nil {
 		return nil, err
@@ -615,6 +633,35 @@ func (s *Server) bodyLimit(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// listenEvents mirrors Postgres notifications into the local SSE bus.
+func (s *Server) listenEvents(ctx context.Context) {
+	for {
+		err := s.store.ListenEvents(ctx, func(payload string) {
+			var envelope struct {
+				Origin string       `json:"origin"`
+				OrgID  string       `json:"org_id"`
+				Event  events.Event `json:"event"`
+			}
+			if json.Unmarshal([]byte(payload), &envelope) != nil || envelope.OrgID == "" {
+				return
+			}
+			if envelope.Origin == s.instanceID {
+				return
+			}
+			s.bus.PublishLocal(envelope.OrgID, envelope.Event)
+		})
+		if ctx.Err() != nil {
+			return
+		}
+		s.logger.Warn("event listener stopped; reconnecting", "error", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
+	}
 }
 
 // Run serves until ctx is cancelled, then shuts down gracefully.

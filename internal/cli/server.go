@@ -20,20 +20,24 @@ import (
 )
 
 func newServerCommand(opts *Options) *cobra.Command {
-	var configPath string
+	var configPath, role string
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Run the Clavis server",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runServer(cmd, opts, configPath)
+			if role != "all" && role != "api" && role != "worker" {
+				return fmt.Errorf("--role must be all, api, or worker")
+			}
+			return runServer(cmd, opts, configPath, role)
 		},
 	}
 	cmd.Flags().StringVarP(&configPath, "config", "c", "", "path to clavis.yaml")
+	cmd.Flags().StringVar(&role, "role", "all", "process role: all, api, or worker")
 	return cmd
 }
 
-func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
+func runServer(cmd *cobra.Command, opts *Options, configPath, role string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
@@ -71,6 +75,10 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 	if err := st.Migrate(ctx); err != nil {
 		return err
 	}
+	if role == "worker" {
+		queue := jobs.New(st, logger, jobs.WithWorkerID("worker-"+hostname()))
+		return queue.Run(ctx)
+	}
 
 	provider, err := rootKeyProvider(cfg)
 	if err != nil {
@@ -92,12 +100,14 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 		return err
 	}
 
-	queue := jobs.New(st, logger, jobs.WithWorkerID("api-"+hostname()))
-	go func() {
-		if err := queue.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			logger.Error("job worker stopped", "error", err)
-		}
-	}()
+	if role != "api" {
+		queue := jobs.New(st, logger, jobs.WithWorkerID("api-"+hostname()))
+		go func() {
+			if err := queue.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("job worker stopped", "error", err)
+			}
+		}()
+	}
 
 	return srv.Run(ctx)
 }

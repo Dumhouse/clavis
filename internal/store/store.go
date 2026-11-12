@@ -30,6 +30,7 @@ var migrations embed.FS
 type Store struct {
 	db      *sql.DB
 	dialect string
+	dsn     string
 }
 
 // Open opens (but does not migrate) a SQLite database at path.
@@ -76,8 +77,11 @@ func OpenPostgres(ctx context.Context, dsn string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("store: ping postgres: %w", err)
 	}
-	return &Store{db: db, dialect: "postgres"}, nil
+	return &Store{db: db, dialect: "postgres", dsn: dsn}, nil
 }
+
+// IsPostgres reports whether the store uses Postgres.
+func (s *Store) IsPostgres() bool { return s.dialect == "postgres" }
 
 // DB exposes the underlying handle for health checks and advanced queries.
 func (s *Store) DB() *sql.DB { return s.db }
