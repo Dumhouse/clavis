@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -13,13 +14,15 @@ import (
 )
 
 type syncBody struct {
-	ID           string     `json:"id"`
-	Environment  string     `json:"environment"`
-	Provider     string     `json:"provider"`
-	Status       string     `json:"status"`
-	Confirmed    bool       `json:"confirmed"`
-	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID             string     `json:"id"`
+	Environment    string     `json:"environment"`
+	Provider       string     `json:"provider"`
+	Status         string     `json:"status"`
+	Confirmed      bool       `json:"confirmed"`
+	DriftKeys      []string   `json:"drift_keys"`
+	DriftCheckedAt *time.Time `json:"drift_checked_at,omitempty"`
+	LastSyncedAt   *time.Time `json:"last_synced_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type syncsOutput struct {
@@ -228,13 +231,43 @@ func (s *Server) registerSyncRoutes() error {
 		}
 		return out, nil
 	})
+	type driftOutput struct {
+		Body struct {
+			Supported bool      `json:"supported"`
+			Keys      []string  `json:"keys"`
+			CheckedAt time.Time `json:"checked_at"`
+			Detail    string    `json:"detail"`
+		}
+	}
+	if err := s.registry.Declare(http.MethodPost, base+"/{id}/drift", authz.SyncsManage, "check sync drift"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "check-sync-drift", Method: http.MethodPost, Path: base + "/{id}/drift",
+		Summary: "Check for drift", Tags: []string{"syncs"},
+	}, func(ctx context.Context, in *syncPath) (*driftOutput, error) {
+		actor, _ := actorFrom(ctx)
+		result, err := s.svc.CheckSyncDrift(ctx, actor, in.Org, in.Project, in.ID)
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &driftOutput{}
+		out.Body.Supported = result.Supported
+		out.Body.Keys = result.Keys
+		out.Body.CheckedAt = result.CheckedAt
+		out.Body.Detail = result.Detail
+		return out, nil
+	})
 	return nil
 }
 
 func syncFromView(view service.SyncView) syncBody {
+	keys := []string{}
+	_ = json.Unmarshal([]byte(view.Sync.DriftKeys), &keys)
 	return syncBody{
 		ID: view.Sync.ID, Environment: view.Environment, Provider: view.Sync.Provider,
 		Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
+		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt,
 		LastSyncedAt: view.Sync.LastSyncedAt, CreatedAt: view.Sync.CreatedAt,
 	}
 }

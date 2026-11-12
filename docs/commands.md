@@ -420,6 +420,14 @@ clavis syncs run 123e4567 --dry-run
 clavis syncs run 123e4567 --yes
 ```
 
+### `clavis syncs drift ID`
+
+Compare local values with a readable remote provider.
+
+```sh
+clavis syncs drift 123e4567
+```
+
 ### `clavis syncs logs ID`
 
 Show recent run history, status, key count, and errors.

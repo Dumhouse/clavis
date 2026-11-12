@@ -2261,6 +2261,45 @@ func TestAWSWorkloadIdentity(t *testing.T) {
 	}
 }
 
+func TestGitLabDrift(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/variables") {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`[{"key":"GITLAB_KEY","value":"remote-old"},{"key":"MATCHED","value":"same"}]`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "gitlab", "base_url": srv.URL,
+		"gitlab_project": "group/project", "token": "glpat",
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	owner.request(http.MethodPost, dev, map[string]any{"key": "GITLAB_KEY", "value": "local-new"})
+	owner.request(http.MethodPost, dev, map[string]any{"key": "MATCHED", "value": "same"})
+	drift := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/drift", nil)
+	if drift.Code != http.StatusOK || !strings.Contains(drift.Body.String(), `"supported":true`) ||
+		!strings.Contains(drift.Body.String(), "GITLAB_KEY") || strings.Contains(drift.Body.String(), "MATCHED") {
+		t.Fatalf("drift = %d body=%s", drift.Code, drift.Body)
+	}
+	list := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/syncs", nil)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"drift_keys":["GITLAB_KEY"]`) {
+		t.Fatalf("list = %d body=%s", list.Code, list.Body)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

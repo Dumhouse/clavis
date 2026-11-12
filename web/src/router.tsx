@@ -14,6 +14,7 @@ import { SecretsPage } from '@/pages/secrets'
 import { SnapshotsPage } from '@/pages/snapshots'
 import { SectionPage } from '@/pages/section'
 import { SharedSetsPage } from '@/pages/sets'
+import { IntegrationsPage } from '@/pages/integrations'
 import { SettingsPage } from '@/pages/settings'
 
 const rootRoute = createRootRoute({
@@ -83,6 +84,12 @@ const membersRoute = createRoute({
   component: MembersPage,
 })
 
+const integrationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/integrations',
+  component: IntegrationsPage,
+})
+
 const setsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/sets',
@@ -120,6 +127,7 @@ const routeTree = rootRoute.addChildren([
   membersRoute,
   identitiesRoute,
   auditRoute,
+  integrationsRoute,
   setsRoute,
   docsRoute,
   settingsRoute,

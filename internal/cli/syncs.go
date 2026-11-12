@@ -51,6 +51,7 @@ func newSyncsCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newSyncsCreateCommand(opts))
 	cmd.AddCommand(newSyncsRunCommand(opts))
 	cmd.AddCommand(newSyncsLogsCommand(opts))
+	cmd.AddCommand(newSyncsDriftCommand(opts))
 	return cmd
 }
 
@@ -264,6 +265,47 @@ func newSyncsLogsCommand(opts *Options) *cobra.Command {
 			}
 			out.Table([]string{"STARTED", "STATUS", "KEYS", "ERROR"}, rows)
 			return nil
+		},
+	}
+}
+
+func newSyncsDriftCommand(opts *Options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "drift ID",
+		Short: "Check provider drift for a sync",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := opts.output()
+			resolved, err := opts.syncContext()
+			if err != nil {
+				return err
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			var result struct {
+				Supported bool     `json:"supported"`
+				Keys      []string `json:"keys"`
+				Detail    string   `json:"detail"`
+			}
+			path := syncsBase(resolved) + "/" + url.PathEscape(args[0]) + "/drift"
+			if err := c.Post(cmd.Context(), path, map[string]string{}, &result); err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(result)
+			}
+			if !result.Supported {
+				out.Info("%s", result.Detail)
+				return nil
+			}
+			if len(result.Keys) == 0 {
+				out.Success("No drift detected.")
+				return nil
+			}
+			out.Errorf("Drift in %d key(s): %s", len(result.Keys), strings.Join(result.Keys, ", "))
+			return &ExitError{Code: ExitGeneral, Err: fmt.Errorf("drift detected"), Silent: true}
 		},
 	}
 }

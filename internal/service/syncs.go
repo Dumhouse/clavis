@@ -1539,3 +1539,108 @@ func cloudflareStatusError(operation string, status int, body []byte) error {
 		return fmt.Errorf("cloudflare: %s returned %d: %s", operation, status, detail)
 	}
 }
+
+// SyncDrift is the result of comparing local values to a provider.
+type SyncDrift struct {
+	Supported bool
+	Keys      []string
+	CheckedAt time.Time
+	Detail    string
+}
+
+// CheckSyncDrift compares the environment's effective values with the remote
+// provider where the provider exposes readable values.
+func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, id string) (*SyncDrift, error) {
+	org, project, err := s.projectForWrite(ctx, actor, orgSlug, projectSlug, authz.SyncsManage)
+	if err != nil {
+		return nil, err
+	}
+	sync, err := s.Store.GetSync(ctx, project.ID, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	env, err := s.Store.GetEnvironmentByID(ctx, sync.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	var config syncConfig
+	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
+		return nil, err
+	}
+	values, _, err := s.syncValues(ctx, org, project, env)
+	if err != nil {
+		return nil, err
+	}
+	now := s.Now().UTC()
+	result := &SyncDrift{CheckedAt: now, Keys: []string{}}
+	switch sync.Provider {
+	case "gitlab":
+		keys, err := s.driftGitLab(ctx, org, sync, config, values)
+		if err != nil {
+			return nil, err
+		}
+		result.Supported = true
+		result.Keys = keys
+		result.Detail = "GitLab variable values compared"
+	default:
+		result.Supported = false
+		result.Detail = "Drift detection is not available for this provider yet"
+	}
+	if result.Supported {
+		encoded, _ := json.Marshal(result.Keys)
+		if err := s.Store.UpdateSyncDrift(ctx, sync.ID, string(encoded), now); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+func (s *Service) driftGitLab(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) ([]string, error) {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return nil, err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	endpoint := base + "/api/v4/projects/" + url.PathEscape(config.Project) + "/variables?per_page=100"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("PRIVATE-TOKEN", token)
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("gitlab drift: request failed: %v", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("gitlab drift: list returned %d", response.StatusCode)
+	}
+	var variables []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(body, &variables); err != nil {
+		return nil, fmt.Errorf("gitlab drift: invalid response")
+	}
+	remote := make(map[string]string, len(variables))
+	for _, variable := range variables {
+		remote[variable.Key] = variable.Value
+	}
+	keys := make([]string, 0)
+	for key, value := range values {
+		remoteValue, ok := remote[key]
+		if !ok || remoteValue != value {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys, nil
+}

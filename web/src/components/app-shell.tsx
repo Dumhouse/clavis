@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   BookOpen,
+  Cable,
   Bot,
   HeartPulse,
   Inbox,
@@ -34,6 +35,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon }
 const workspaceNav: NavItem[] = [
   { to: '/', label: 'Projects', icon: FolderKanban },
   { to: '/sets', label: 'Shared sets', icon: Layers },
+  { to: '/integrations', label: 'Integrations', icon: Cable },
   { to: '/health', label: 'Health', icon: HeartPulse },
   { to: '/requests', label: 'Requests', icon: Inbox },
 ]

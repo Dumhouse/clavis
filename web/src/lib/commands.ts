@@ -230,6 +230,11 @@ export const commandGroups: CommandGroup[] = [
         flags: ['--dry-run', '--yes'],
       },
       {
+        name: 'syncs drift',
+        usage: 'clavis syncs drift ID',
+        description: 'Compare local values with a readable remote provider.',
+      },
+      {
         name: 'syncs logs',
         usage: 'clavis syncs logs ID',
         description: 'Show recent run status, key counts, and errors.',

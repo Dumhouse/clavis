@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/auth/aws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange an AWS signed identity */
+        post: operations["exchange-aws"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/device/approve": {
         parameters: {
             query?: never;
@@ -1265,6 +1282,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check for drift */
+        post: operations["check-sync-drift"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/run": {
         parameters: {
             query?: never;
@@ -1585,6 +1619,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AWSStruct: {
+            account?: string;
+            arn_pattern?: string;
+            user_id_pattern?: string;
+        };
         AcceptInviteInputBody: {
             /** Format: email */
             email: string;
@@ -1641,6 +1680,16 @@ export interface components {
             last_seq: number;
             problem?: string;
             public_key?: string;
+        };
+        AwsExchangeInputBody: {
+            amz_date: string;
+            authorization: string;
+            content_sha256?: string;
+            content_type?: string;
+            host?: string;
+            identity: string;
+            org: string;
+            security_token?: string;
         };
         BatchChange: {
             comment?: string;
@@ -1732,6 +1781,7 @@ export interface components {
             name: string;
         };
         CreateIdentityInputBody: {
+            aws?: components["schemas"]["AWSStruct"];
             /** @description Environment glob, e.g. dev or * */
             environment?: string;
             /**
@@ -1883,6 +1933,13 @@ export interface components {
             token?: string;
             user?: components["schemas"]["UserBody"];
         };
+        DriftOutputBody: {
+            /** Format: date-time */
+            checked_at: string;
+            detail: string;
+            keys: string[] | null;
+            supported: boolean;
+        };
         EnvBody: {
             color: string;
             id: string;
@@ -2005,6 +2062,8 @@ export interface components {
             identities: components["schemas"]["IdentityBody"][] | null;
         };
         IdentityBody: {
+            aws_account?: string;
+            aws_arn?: string;
             /** Format: date-time */
             created_at: string;
             environment?: string;
@@ -2480,6 +2539,9 @@ export interface components {
             confirmed: boolean;
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            drift_checked_at?: string;
+            drift_keys: string[] | null;
             environment: string;
             id: string;
             /** Format: date-time */
@@ -2626,6 +2688,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "exchange-aws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AwsExchangeInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcExchangeOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "device-approve": {
         parameters: {
             query?: never;
@@ -5729,6 +5824,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "check-sync-drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftOutputBody"];
+                };
             };
             /** @description Error */
             default: {
