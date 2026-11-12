@@ -133,6 +133,17 @@ As an Owner or Admin, open **Members → Invite member**, choose a role and
 expiry, and copy the single-use link. Invites can be restricted to an email
 address. The same operation is available through the API.
 
+## Postgres
+
+```yaml
+database:
+  driver: postgres
+  dsn: postgres://clavis:secret@db:5432/clavis?sslmode=require
+```
+
+Postgres runs the same migrations, queries, sessions, audit chain, and workers as
+SQLite. Use one replica until M3-03 lands the LISTEN/NOTIFY fan-out.
+
 ## Configuration
 
 Environment variables override `clavis.yaml`:
@@ -143,6 +154,7 @@ Environment variables override `clavis.yaml`:
 | `CLAVIS_SERVER_BASE_URL` | derived | Public URL used in docs and cookies |
 | `CLAVIS_DATA_DIR` | `./data` | Data directory for defaults |
 | `CLAVIS_DB_PATH` | `<data>/clavis.db` | SQLite file |
+| `CLAVIS_DB_DSN` | — | Postgres DSN when `database.driver=postgres` |
 | `CLAVIS_KEY_PROVIDER` | `file` | `file` or `env` root key |
 | `CLAVIS_ROOT_KEY_FILE` | `<data>/root.key` | File provider path |
 | `CLAVIS_ROOT_KEY` | — | Base64 32-byte key for the `env` provider |

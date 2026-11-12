@@ -31,6 +31,33 @@ jobs:
         with:
           version: latest
 
+  postgres:
+    name: Go tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: clavis
+          POSTGRES_PASSWORD: clavis
+          POSTGRES_DB: clavis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clavis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CLAVIS_TEST_POSTGRES: postgres://clavis:clavis@localhost:5432/clavis_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/server ./internal/cli ./internal/jobs ./internal/store
+
   web:
     name: Web
     runs-on: ubuntu-latest

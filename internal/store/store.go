@@ -23,12 +23,13 @@ import (
 // digits.
 const timeFormat = "2006-01-02T15:04:05.000000000Z"
 
-//go:embed migrations/sqlite/*.sql
+//go:embed migrations/sqlite/*.sql migrations/postgres/*.sql
 var migrations embed.FS
 
 // Store owns the database handle.
 type Store struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect string
 }
 
 // Open opens (but does not migrate) a SQLite database at path.
@@ -58,7 +59,24 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("store: ping database: %w", err)
 	}
-	return &Store{db: db}, nil
+	return &Store{db: db, dialect: "sqlite"}, nil
+}
+
+// OpenPostgres opens a Postgres database. Queries use SQLite-style ?
+// placeholders and are rebound by the driver.
+func OpenPostgres(ctx context.Context, dsn string) (*Store, error) {
+	if dsn == "" {
+		return nil, fmt.Errorf("store: postgres DSN is required")
+	}
+	db, err := openPostgresDB(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("store: open postgres: %w", err)
+	}
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("store: ping postgres: %w", err)
+	}
+	return &Store{db: db, dialect: "postgres"}, nil
 }
 
 // DB exposes the underlying handle for health checks and advanced queries.
@@ -74,6 +92,15 @@ func (s *Store) Ping(ctx context.Context) error { return s.db.PingContext(ctx) }
 func (s *Store) Migrate(ctx context.Context) error {
 	goose.SetBaseFS(migrations)
 	goose.SetLogger(goose.NopLogger())
+	if s.dialect == "postgres" {
+		if err := goose.SetDialect("postgres"); err != nil {
+			return fmt.Errorf("store: set dialect: %w", err)
+		}
+		if err := goose.UpContext(ctx, s.db, "migrations/postgres"); err != nil {
+			return fmt.Errorf("store: migrate: %w", err)
+		}
+		return nil
+	}
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("store: set dialect: %w", err)
 	}
@@ -85,6 +112,9 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 // MigrateDown rolls back the most recent migration. Used by tests only.
 func (s *Store) MigrateDown(ctx context.Context) error {
+	if s.dialect == "postgres" {
+		return fmt.Errorf("store: migrate down is not supported on postgres")
+	}
 	goose.SetBaseFS(migrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("store: set dialect: %w", err)

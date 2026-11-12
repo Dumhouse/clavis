@@ -116,8 +116,9 @@ type ServerConfig struct {
 
 // DatabaseConfig controls the data store.
 type DatabaseConfig struct {
-	Driver string `yaml:"driver"` // sqlite (postgres arrives in M3)
+	Driver string `yaml:"driver"` // sqlite | postgres
 	Path   string `yaml:"path"`
+	DSN    string `yaml:"dsn"`
 }
 
 // KeysConfig controls the root key provider.
@@ -290,6 +291,7 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_SERVER_BASE_URL", &c.Server.BaseURL)
 	setString("CLAVIS_DB_DRIVER", &c.Database.Driver)
 	setString("CLAVIS_DB_PATH", &c.Database.Path)
+	setString("CLAVIS_DB_DSN", &c.Database.DSN)
 	setString("CLAVIS_KEY_PROVIDER", &c.Keys.Provider)
 	setString("CLAVIS_ROOT_KEY_FILE", &c.Keys.RootKeyFile)
 	setString("CLAVIS_ROOT_KEY_ENV", &c.Keys.RootKeyEnv)
@@ -397,13 +399,15 @@ func (c *Config) Validate() error {
 	}
 	switch c.Database.Driver {
 	case "sqlite":
+		if c.Database.Path == "" {
+			return fmt.Errorf("config: database.path is required for sqlite")
+		}
 	case "postgres":
-		return fmt.Errorf("config: database.driver postgres is not supported until M3")
+		if c.Database.DSN == "" {
+			return fmt.Errorf("config: database.dsn is required for postgres")
+		}
 	default:
-		return fmt.Errorf("config: unknown database.driver %q (supported: sqlite)", c.Database.Driver)
-	}
-	if c.Database.Path == "" {
-		return fmt.Errorf("config: database.path is required")
+		return fmt.Errorf("config: unknown database.driver %q (supported: sqlite, postgres)", c.Database.Driver)
 	}
 	switch c.Keys.Provider {
 	case "file":

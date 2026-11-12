@@ -46,13 +46,20 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if dir := filepath.Dir(cfg.Database.Path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return fmt.Errorf("server: create data directory: %w", err)
+	if cfg.Database.Driver == "sqlite" {
+		if dir := filepath.Dir(cfg.Database.Path); dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return fmt.Errorf("server: create data directory: %w", err)
+			}
 		}
 	}
 
-	st, err := store.Open(ctx, cfg.Database.Path)
+	var st *store.Store
+	if cfg.Database.Driver == "postgres" {
+		st, err = store.OpenPostgres(ctx, cfg.Database.DSN)
+	} else {
+		st, err = store.Open(ctx, cfg.Database.Path)
+	}
 	if err != nil {
 		return err
 	}

@@ -89,7 +89,12 @@ func rotateRootKey(ctx context.Context, out *Output, cfg *config.Config, path st
 		return err
 	}
 	defer oldKey.Zero()
-	st, err := store.Open(ctx, cfg.Database.Path)
+	var st *store.Store
+	if cfg.Database.Driver == "postgres" {
+		st, err = store.OpenPostgres(ctx, cfg.Database.DSN)
+	} else {
+		st, err = store.Open(ctx, cfg.Database.Path)
+	}
 	if err != nil {
 		return err
 	}

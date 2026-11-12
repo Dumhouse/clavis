@@ -4,7 +4,12 @@ package storetest
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"net/url"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +23,39 @@ import (
 func Open(t *testing.T) *store.Store {
 	t.Helper()
 	ctx := context.Background()
+	if dsn := os.Getenv("CLAVIS_TEST_POSTGRES"); dsn != "" {
+		schema := "clavis_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+		admin, err := sql.Open("pgx", dsn)
+		if err != nil {
+			t.Fatalf("storetest: postgres admin open: %v", err)
+		}
+		if _, err := admin.ExecContext(ctx, `CREATE SCHEMA `+schema); err != nil {
+			_ = admin.Close()
+			t.Fatalf("storetest: create schema: %v", err)
+		}
+		_ = admin.Close()
+		separator := "?"
+		if strings.Contains(dsn, "?") {
+			separator = "&"
+		}
+		testDSN := dsn + separator + "search_path=" + url.QueryEscape(schema)
+		st, err := store.OpenPostgres(ctx, testDSN)
+		if err != nil {
+			t.Fatalf("storetest: postgres open: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = st.Close()
+			cleanup, err := sql.Open("pgx", dsn)
+			if err == nil {
+				_, _ = cleanup.ExecContext(context.Background(), fmt.Sprintf(`DROP SCHEMA %s CASCADE`, schema))
+				_ = cleanup.Close()
+			}
+		})
+		if err := st.Migrate(ctx); err != nil {
+			t.Fatalf("storetest: postgres migrate: %v", err)
+		}
+		return st
+	}
 	s, err := store.Open(ctx, filepath.Join(t.TempDir(), "clavis.db"))
 	if err != nil {
 		t.Fatalf("storetest: open: %v", err)

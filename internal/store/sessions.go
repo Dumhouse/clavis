@@ -50,13 +50,13 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (*S
 		passwordHash                       sql.NullString
 	)
 	err := s.db.QueryRowContext(ctx, `SELECT
-			s.id, s.user_id, s.token_hash, COALESCE(s.csrf_hash, x''), s.ip, s.user_agent,
+			s.id, s.user_id, s.token_hash, COALESCE(s.csrf_hash, ?), s.ip, s.user_agent,
 			s.mfa_verified, s.created_at, s.last_seen_at, s.expires_at,
 			u.id, u.email, u.name, u.avatar_url, u.password_hash, u.mfa_enabled,
 			u.mfa_secret_ciphertext, u.email_verified, u.preferences, u.created_at, u.updated_at
 		FROM sessions s
 		JOIN users u ON u.id = s.user_id
-		WHERE s.token_hash = ?`, tokenHash).Scan(
+		WHERE s.token_hash = ?`, []byte{}, tokenHash).Scan(
 		&session.ID, &session.UserID, &session.TokenHash, &session.CSRFHash, &session.IP, &session.UserAgent,
 		&mfaVerified, &createdAt, &lastSeenAt, &expiresAt,
 		&user.ID, &user.Email, &user.Name, &user.AvatarURL, &passwordHash, &userMFA,

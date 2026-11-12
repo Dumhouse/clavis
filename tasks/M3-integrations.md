@@ -3,7 +3,7 @@
 Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived credentials; shared sets, preview envs, and file secrets.
 
 ## Postgres & scale
-- [ ] **M3-01** Postgres dialect: sqlc queries + goose migrations; CI matrix on SQLite + Postgres (testcontainers) (L)
+- [x] **M3-01** Postgres dialect: sqlc queries + goose migrations; CI matrix on SQLite + Postgres (testcontainers) (L)
 - [ ] **M3-02** SQLite → Postgres migration tool (`clavis admin migrate-db`) (S)
 - [ ] **M3-03** Multi-replica support: Postgres LISTEN/NOTIFY event fan-out, `SKIP LOCKED` workers, `--role=api|worker` (M)
 

@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ import (
 )
 
 func TestMigrateCreatesSchema(t *testing.T) {
+	if os.Getenv("CLAVIS_TEST_POSTGRES") != "" {
+		t.Skip("SQLite schema introspection")
+	}
 	s := storetest.Open(t)
 	want := []string{
 		"users", "sessions", "orgs", "memberships", "roles", "role_bindings",

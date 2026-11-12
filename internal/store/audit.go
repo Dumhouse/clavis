@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/dumhouse/clavis/internal/audit"
 )
 
@@ -122,7 +124,7 @@ func (s *Store) LastAuditEvent(ctx context.Context, orgID string) (*audit.Event,
 // ListAuditEvents returns events after afterSeq in ascending order.
 func (s *Store) ListAuditEvents(ctx context.Context, orgID string, afterSeq int64, limit int) ([]audit.Event, error) {
 	if limit <= 0 {
-		limit = -1
+		limit = 2147483647
 	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT `+auditColumns+` FROM audit_events WHERE org_id = ? AND seq > ? ORDER BY seq ASC LIMIT ?`,
@@ -159,5 +161,12 @@ func (s *Store) VerifyAuditChain(ctx context.Context, orgID string) error {
 }
 
 func isUniqueViolation(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return true
+	}
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
