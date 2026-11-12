@@ -4,8 +4,10 @@ import { Check, Copy, Loader2, RefreshCw, X } from 'lucide-react'
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { cn } from '@/lib/utils'
+import { Input, Select } from '@/components/ui/field'
 
 type Env = components['schemas']['EnvBody']
 type Secret = components['schemas']['SecretBody']
@@ -102,164 +104,160 @@ export function GenerateSecretDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-      <div className="w-full max-w-xl rounded-app border border-border bg-surface p-5 shadow-app">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-head text-[18px] font-semibold">Generate a secret</h2>
-            <p className="mt-0.5 text-[13px] text-muted">
-              Generated locally with the Web Crypto API. Nothing is stored until you save.
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="size-4" />
-          </Button>
-        </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Key</span>
-            <input
-              autoFocus
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="STRIPE_WEBHOOK_SECRET"
-              value={key}
-              onChange={(event) => {
-                setKey(event.target.value)
-              }}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
-            <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              value={env}
-              onChange={(event) => {
-                setEnv(event.target.value)
-              }}
-            >
-              {envs.map((candidate) => (
-                <option key={candidate.id} value={candidate.slug}>
-                  {candidate.name} ({candidate.slug})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Type</span>
-            <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              value={type}
-              onChange={(event) => {
-                setType(event.target.value as GenType)
-              }}
-            >
-              {types.map((candidate) => (
-                <option key={candidate.value} value={candidate.value}>
-                  {candidate.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">
-              Length {selectedType.bitsPerChar === 0 || type === 'rsa' ? '' : `(${String(length)})`}
-            </span>
-            <input
-              type="range"
-              min={8}
-              max={128}
-              value={length}
-              disabled={selectedType.bitsPerChar === 0 || type === 'rsa'}
-              className="w-full accent-[var(--color-accent)]"
-              onChange={(event) => {
-                setLength(Number(event.target.value))
-              }}
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 rounded-app-sm border border-border bg-bg p-3">
-          <div className="flex items-center gap-2">
-            <code className="min-h-10 flex-1 break-all font-mono text-[12.5px] text-text">
-              {value || <span className="text-dim">Generate a value to preview it.</span>}
-            </code>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={generating}
-              onClick={() => {
-                void generate()
-              }}
-            >
-              {generating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="size-3.5" />
-              )}
-              Generate
-            </Button>
-            {value && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  void copy()
-                }}
-                aria-label="Copy value"
-              >
-                {copied ? (
-                  <Check className="size-3.5 text-accent-text" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </Button>
-            )}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-elev">
-              <div
-                className={cn(
-                  'h-full rounded-full',
-                  entropy < 64 ? 'bg-danger' : entropy < 128 ? 'bg-amber-fg' : 'bg-accent-text',
-                )}
-                style={{ width: `${String(Math.min(100, (entropy / 256) * 100))}%` }}
-              />
-            </div>
-            <span className="w-20 text-right font-mono text-[11.5px] text-dim">
-              {Math.round(entropy)} bits
-            </span>
-          </div>
-        </div>
-
-        {error && (
-          <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-            {error}
+    <Modal onClose={onClose} className="max-w-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-head text-lg font-semibold">Generate a secret</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            Generated locally with the Web Crypto API. Nothing is stored until you save.
           </p>
-        )}
-        <p className="mt-2 text-[12px] text-muted">
-          {exists
-            ? 'This key exists in the environment; saving creates a new version.'
-            : 'The key will be created in the selected environment.'}
-        </p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <X className="size-4" />
+        </Button>
+      </div>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={busy || !key.trim() || !value || !env}
-            onClick={() => {
-              void save()
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Key</span>
+          <Input
+            autoFocus
+            className="h-9 font-mono"
+            placeholder="STRIPE_WEBHOOK_SECRET"
+            value={key}
+            onChange={(event) => {
+              setKey(event.target.value)
+            }}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Environment</span>
+          <Select
+            className="h-9"
+            value={env}
+            onChange={(event) => {
+              setEnv(event.target.value)
             }}
           >
-            {busy && <Loader2 className="size-3.5 animate-spin" />} {exists ? 'Update' : 'Create'}
+            {envs.map((candidate) => (
+              <option key={candidate.id} value={candidate.slug}>
+                {candidate.name} ({candidate.slug})
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Type</span>
+          <Select
+            className="h-9"
+            value={type}
+            onChange={(event) => {
+              setType(event.target.value as GenType)
+            }}
+          >
+            {types.map((candidate) => (
+              <option key={candidate.value} value={candidate.value}>
+                {candidate.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">
+            Length {selectedType.bitsPerChar === 0 || type === 'rsa' ? '' : `(${String(length)})`}
+          </span>
+          <input
+            type="range"
+            min={8}
+            max={128}
+            value={length}
+            disabled={selectedType.bitsPerChar === 0 || type === 'rsa'}
+            className="w-full accent-[var(--color-accent)]"
+            onChange={(event) => {
+              setLength(Number(event.target.value))
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 rounded-app-sm border border-border bg-bg p-3">
+        <div className="flex items-center gap-2">
+          <code className="min-h-10 flex-1 break-all font-mono text-xs text-text">
+            {value || <span className="text-dim">Generate a value to preview it.</span>}
+          </code>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={generating}
+            onClick={() => {
+              void generate()
+            }}
+          >
+            {generating ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
+            Generate
           </Button>
+          {value && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                void copy()
+              }}
+              aria-label="Copy value"
+            >
+              {copied ? (
+                <Check className="size-3.5 text-accent-text" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-elev">
+            <div
+              className={cn(
+                'h-full rounded-full',
+                entropy < 64 ? 'bg-danger' : entropy < 128 ? 'bg-amber-fg' : 'bg-accent-text',
+              )}
+              style={{ width: `${String(Math.min(100, (entropy / 256) * 100))}%` }}
+            />
+          </div>
+          <span className="w-20 text-right font-mono text-2xs text-dim">
+            {Math.round(entropy)} bits
+          </span>
         </div>
       </div>
-    </div>
+
+      {error && (
+        <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
+      )}
+      <p className="mt-2 text-xs text-muted">
+        {exists
+          ? 'This key exists in the environment; saving creates a new version.'
+          : 'The key will be created in the selected environment.'}
+      </p>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={busy || !key.trim() || !value || !env}
+          onClick={() => {
+            void save()
+          }}
+        >
+          {busy && <Loader2 className="size-3.5 animate-spin" />} {exists ? 'Update' : 'Create'}
+        </Button>
+      </div>
+    </Modal>
   )
 }
 

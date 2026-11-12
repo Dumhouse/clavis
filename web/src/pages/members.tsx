@@ -7,10 +7,13 @@ import type { components } from '@/api/schema'
 import { Groups } from '@/components/groups'
 import { Roles } from '@/components/roles'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useAuth } from '@/lib/auth'
 import { useCurrentOrg } from '@/lib/org'
 import { ensureReauth } from '@/lib/reauth'
+import { confirmAction } from '@/components/ui/dialogs'
+import { Input, Select } from '@/components/ui/field'
 
 type Member = components['schemas']['MemberBody']
 type Invite = components['schemas']['InviteBody']
@@ -26,7 +29,8 @@ export function MembersPage() {
   const [offboarding, setOffboarding] = useState<Member | null>(null)
 
   const members = useQuery({
-    queryKey: ['members', org?.slug],
+    // Own key: groups and access cache just the member array under ['members', org].
+    queryKey: ['members', org?.slug, 'with-invites'],
     enabled: Boolean(org),
     queryFn: async () => {
       if (!org) throw new Error('No organization.')
@@ -74,7 +78,7 @@ export function MembersPage() {
   const removeMember = useMutation({
     mutationFn: async (member: Member) => {
       if (!org) throw new Error('No organization.')
-      if (!window.confirm(`Remove ${member.name || member.email} from ${org.name}?`)) return
+      if (!(await confirmAction(`Remove ${member.name || member.email} from ${org.name}?`))) return
       const reauthToken = await ensureReauth()
       const result = await api.DELETE('/api/v1/orgs/{org}/members/{user}', {
         params: { path: { org: org.slug, user: member.user_id } },
@@ -112,8 +116,8 @@ export function MembersPage() {
   if (!canManage) {
     return (
       <div className="rounded-app border border-dashed border-border bg-panel p-8">
-        <h1 className="font-head text-[21px] font-semibold">Members</h1>
-        <p className="mt-1 text-[13.5px] text-muted">
+        <h1 className="font-head text-xl font-semibold">Members</h1>
+        <p className="mt-1 text-sm text-muted">
           You need the Admin or Owner role to manage members.
         </p>
       </div>
@@ -124,8 +128,8 @@ export function MembersPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-head text-[25px] font-semibold tracking-tight">Members</h1>
-          <p className="mt-1 text-[14px] text-muted">
+          <h1 className="font-head text-2xl font-semibold tracking-tight">Members</h1>
+          <p className="mt-1 text-base text-muted">
             People with access to {org?.name ?? 'this organization'}.
           </p>
         </div>
@@ -146,11 +150,11 @@ export function MembersPage() {
         <section className="rounded-app border border-accent-line bg-accent-soft p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-accent-text">Invite link created</p>
-              <p className="mt-0.5 text-[12.5px] text-muted">
+              <p className="text-sm font-semibold text-accent-text">Invite link created</p>
+              <p className="mt-0.5 text-xs text-muted">
                 Share this once. It expires automatically and can be revoked.
               </p>
-              <code className="mt-2 block truncate rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[12px] text-text">
+              <code className="mt-2 block truncate rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-xs text-text">
                 {inviteLink}
               </code>
             </div>
@@ -173,12 +177,12 @@ export function MembersPage() {
       )}
 
       {members.isLoading && (
-        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-[13px] text-muted">
+        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-sm text-muted">
           <Loader2 className="size-4 animate-spin" /> Loading members…
         </div>
       )}
       {members.isError && (
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
+        <div className="rounded-app bg-danger-bg px-4 py-3 text-sm text-danger">
           {members.error instanceof Error ? members.error.message : 'Could not load members.'}
         </div>
       )}
@@ -186,7 +190,7 @@ export function MembersPage() {
       <section className="overflow-x-auto rounded-app border border-border bg-surface">
         <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
+            <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
               <th className="px-4 py-2.5 font-semibold">Member</th>
               <th className="px-4 py-2.5 font-semibold">Role</th>
               <th className="px-4 py-2.5 font-semibold">Joined</th>
@@ -198,25 +202,25 @@ export function MembersPage() {
               <tr key={member.user_id} className="border-b border-border-soft last:border-0">
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-elev text-[11px] font-semibold text-muted">
+                    <span className="flex size-7 items-center justify-center rounded-full bg-elev text-2xs font-semibold text-muted">
                       {(member.name || member.email).slice(0, 2).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-medium">
+                      <p className="truncate text-sm font-medium">
                         {member.name || member.email}
                         {member.user_id === user?.id && (
-                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">
+                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-2xs font-semibold text-accent-text">
                             you
                           </span>
                         )}
                       </p>
-                      <p className="truncate text-[12px] text-dim">{member.email}</p>
+                      <p className="truncate text-xs text-dim">{member.email}</p>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-2.5">
-                  <select
-                    className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  <Select
+                    className="h-7 px-1.5 text-xs"
                     value={member.role}
                     onChange={(event) => {
                       updateRole.mutate({ userID: member.user_id, role: event.target.value })
@@ -230,11 +234,9 @@ export function MembersPage() {
                           {role}
                         </option>
                       ))}
-                  </select>
+                  </Select>
                 </td>
-                <td className="px-4 py-2.5 text-[12.5px] text-dim">
-                  {formatDate(member.joined_at)}
-                </td>
+                <td className="px-4 py-2.5 text-xs text-dim">{formatDate(member.joined_at)}</td>
                 <td className="px-4 py-2.5 text-right">
                   <Button
                     variant="ghost"
@@ -263,7 +265,7 @@ export function MembersPage() {
           </tbody>
         </table>
         {(updateRole.error || removeMember.error) && (
-          <p className="px-4 py-3 text-[12.5px] text-danger">
+          <p className="px-4 py-3 text-xs text-danger">
             {errorMessage(updateRole.error) || errorMessage(removeMember.error)}
           </p>
         )}
@@ -286,8 +288,8 @@ export function MembersPage() {
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Mail className="size-4 text-muted" />
-          <h2 className="text-[14px] font-semibold">Pending invites</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
+          <h2 className="text-base font-semibold">Pending invites</h2>
+          <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
             {members.data?.invites?.length ?? 0}
           </span>
         </div>
@@ -295,8 +297,8 @@ export function MembersPage() {
           {(members.data?.invites ?? []).map((invite) => (
             <div key={invite.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium">{invite.email || 'Anyone with the link'}</p>
-                <p className="text-[12px] text-dim">
+                <p className="text-sm font-medium">{invite.email || 'Anyone with the link'}</p>
+                <p className="text-xs text-dim">
                   {invite.role} · expires {formatDate(invite.expires_at)}
                 </p>
               </div>
@@ -313,7 +315,7 @@ export function MembersPage() {
             </div>
           ))}
           {(members.data?.invites?.length ?? 0) === 0 && (
-            <p className="px-4 py-5 text-[13px] text-muted">No pending invites.</p>
+            <p className="px-4 py-5 text-sm text-muted">No pending invites.</p>
           )}
         </div>
       </section>
@@ -372,106 +374,103 @@ function InviteForm({
         <UserPlus className="size-4" /> Invite member
       </Button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-          <div className="w-full max-w-md rounded-app border border-border bg-surface p-5 shadow-app">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-head text-[18px] font-semibold">Invite member</h2>
-                <p className="mt-0.5 text-[13px] text-muted">
-                  Creates a single-use link. Email delivery is optional.
-                </p>
-              </div>
+        <Modal
+          onClose={() => {
+            setOpen(false)
+          }}
+          className="max-w-md"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-head text-lg font-semibold">Invite member</h2>
+              <p className="mt-0.5 text-sm text-muted">
+                Creates a single-use link. Email delivery is optional.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setOpen(false)
+              }}
+              aria-label="Close"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+          <form
+            onSubmit={(event) => {
+              void submit(event)
+            }}
+            className="mt-4 space-y-3"
+          >
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">Email (optional)</span>
+              <Input
+                type="email"
+                className="h-9"
+                placeholder="teammate@example.com"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                }}
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">Role</span>
+                <Select
+                  className="h-9"
+                  value={role}
+                  onChange={(event) => {
+                    setRole(event.target.value)
+                  }}
+                >
+                  {roles
+                    .filter((candidate) => candidate !== 'Owner' || actorRole === 'Owner')
+                    .map((candidate) => (
+                      <option key={candidate} value={candidate}>
+                        {candidate}
+                      </option>
+                    ))}
+                </Select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">Expires in</span>
+                <Select
+                  className="h-9"
+                  value={days}
+                  onChange={(event) => {
+                    setDays(Number(event.target.value))
+                  }}
+                >
+                  <option value={1}>1 day</option>
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                </Select>
+              </label>
+            </div>
+            {error && (
+              <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
               <Button
+                type="button"
                 variant="ghost"
-                size="icon"
+                size="sm"
                 onClick={() => {
                   setOpen(false)
                 }}
-                aria-label="Close"
               >
-                <X className="size-4" />
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={busy}>
+                {busy && <Loader2 className="size-3.5 animate-spin" />} Create link
               </Button>
             </div>
-            <form
-              onSubmit={(event) => {
-                void submit(event)
-              }}
-              className="mt-4 space-y-3"
-            >
-              <label className="block">
-                <span className="mb-1 block text-[12.5px] font-medium text-muted">
-                  Email (optional)
-                </span>
-                <input
-                  type="email"
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-                  placeholder="teammate@example.com"
-                  value={email}
-                  onChange={(event) => {
-                    setEmail(event.target.value)
-                  }}
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="mb-1 block text-[12.5px] font-medium text-muted">Role</span>
-                  <select
-                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-                    value={role}
-                    onChange={(event) => {
-                      setRole(event.target.value)
-                    }}
-                  >
-                    {roles
-                      .filter((candidate) => candidate !== 'Owner' || actorRole === 'Owner')
-                      .map((candidate) => (
-                        <option key={candidate} value={candidate}>
-                          {candidate}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[12.5px] font-medium text-muted">
-                    Expires in
-                  </span>
-                  <select
-                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-                    value={days}
-                    onChange={(event) => {
-                      setDays(Number(event.target.value))
-                    }}
-                  >
-                    <option value={1}>1 day</option>
-                    <option value={7}>7 days</option>
-                    <option value={14}>14 days</option>
-                    <option value={30}>30 days</option>
-                  </select>
-                </label>
-              </div>
-              {error && (
-                <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-                  {error}
-                </p>
-              )}
-              <div className="flex justify-end gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setOpen(false)
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" disabled={busy}>
-                  {busy && <Loader2 className="size-3.5 animate-spin" />} Create link
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
     </>
   )
@@ -537,114 +536,111 @@ function OffboardingDialog({
     },
   })
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="font-head text-[17px] font-semibold">Offboarding review</h2>
-            <p className="text-[11.5px] text-muted">
-              {member.email} · revealed secrets to rotate or mark safe
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="size-4" />
-          </Button>
+    <Modal onClose={onClose} className="max-w-2xl">
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="font-head text-md font-semibold">Offboarding review</h2>
+          <p className="text-2xs text-muted">
+            {member.email} · revealed secrets to rotate or mark safe
+          </p>
         </div>
-        {report.data && (
-          <p className="mt-3 text-[12px] text-muted">
-            {report.data.done}/{report.data.total} reviewed · {report.data.exported} export
-            reveal(s)
-          </p>
-        )}
-        {report.isError && (
-          <p className="mt-3 text-[12px] text-danger">
-            {report.error instanceof Error ? report.error.message : 'Could not load review.'}
-          </p>
-        )}
-        <div className="mt-3 max-h-72 overflow-auto rounded-app-sm border border-border">
-          <table className="w-full min-w-[620px] text-left text-[11.5px]">
-            <thead className="sticky top-0 bg-surface">
-              <tr className="border-b border-border text-[10px] uppercase tracking-[0.05em] text-dim">
-                <th className="px-3 py-2">Key</th>
-                <th className="px-3 py-2">Location</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {(report.data?.tasks ?? []).map((task) => (
-                <tr key={task.id} className="border-b border-border-soft last:border-0">
-                  <td className="px-3 py-2 font-mono">{task.key}</td>
-                  <td className="px-3 py-2 text-muted">
-                    {task.project}/{task.environment}
-                  </td>
-                  <td className="px-3 py-2">{task.status}</td>
-                  <td className="px-3 py-2 text-right">
-                    {task.status === 'pending' && (
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={mark.isPending}
-                          onClick={() => {
-                            mark.mutate({ id: task.id, status: 'rotated' })
-                          }}
-                        >
-                          Rotated
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={mark.isPending}
-                          onClick={() => {
-                            mark.mutate({ id: task.id, status: 'safe' })
-                          }}
-                        >
-                          Safe
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {(report.data?.tasks ?? []).length === 0 && !report.isLoading && (
-                <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-[12px] text-muted">
-                    No reveal history yet. Start a review to create tasks.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        {start.error && (
-          <p className="mt-2 text-[11.5px] text-danger">
-            {start.error instanceof Error ? start.error.message : 'Could not start.'}
-          </p>
-        )}
-        {mark.error && (
-          <p className="mt-2 text-[11.5px] text-danger">
-            {mark.error instanceof Error ? mark.error.message : 'Could not update.'}
-          </p>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          {!started && (report.data?.tasks ?? []).length === 0 && (
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={start.isPending}
-              onClick={() => {
-                start.mutate()
-              }}
-            >
-              {start.isPending && <Loader2 className="size-3.5 animate-spin" />} Start review
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <X className="size-4" />
+        </Button>
       </div>
-    </div>
+      {report.data && (
+        <p className="mt-3 text-xs text-muted">
+          {report.data.done}/{report.data.total} reviewed · {report.data.exported} export reveal(s)
+        </p>
+      )}
+      {report.isError && (
+        <p className="mt-3 text-xs text-danger">
+          {report.error instanceof Error ? report.error.message : 'Could not load review.'}
+        </p>
+      )}
+      <div className="mt-3 max-h-72 overflow-auto rounded-app-sm border border-border">
+        <table className="w-full min-w-[620px] text-left text-2xs">
+          <thead className="sticky top-0 bg-surface">
+            <tr className="border-b border-border text-3xs uppercase tracking-[0.05em] text-dim">
+              <th className="px-3 py-2">Key</th>
+              <th className="px-3 py-2">Location</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {(report.data?.tasks ?? []).map((task) => (
+              <tr key={task.id} className="border-b border-border-soft last:border-0">
+                <td className="px-3 py-2 font-mono">{task.key}</td>
+                <td className="px-3 py-2 text-muted">
+                  {task.project}/{task.environment}
+                </td>
+                <td className="px-3 py-2">{task.status}</td>
+                <td className="px-3 py-2 text-right">
+                  {task.status === 'pending' && (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={mark.isPending}
+                        onClick={() => {
+                          mark.mutate({ id: task.id, status: 'rotated' })
+                        }}
+                      >
+                        Rotated
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={mark.isPending}
+                        onClick={() => {
+                          mark.mutate({ id: task.id, status: 'safe' })
+                        }}
+                      >
+                        Safe
+                      </Button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {(report.data?.tasks ?? []).length === 0 && !report.isLoading && (
+              <tr>
+                <td colSpan={4} className="px-3 py-6 text-center text-xs text-muted">
+                  No reveal history yet. Start a review to create tasks.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {start.error && (
+        <p className="mt-2 text-2xs text-danger">
+          {start.error instanceof Error ? start.error.message : 'Could not start.'}
+        </p>
+      )}
+      {mark.error && (
+        <p className="mt-2 text-2xs text-danger">
+          {mark.error instanceof Error ? mark.error.message : 'Could not update.'}
+        </p>
+      )}
+      <div className="mt-4 flex justify-end gap-2">
+        {!started && (report.data?.tasks ?? []).length === 0 && (
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={start.isPending}
+            onClick={() => {
+              start.mutate()
+            }}
+          >
+            {start.isPending && <Loader2 className="size-3.5 animate-spin" />} Start review
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </Modal>
   )
 }

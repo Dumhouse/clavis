@@ -1,27 +1,15 @@
-import { createRootRoute, createRoute, createRouter, Link } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Link,
+} from '@tanstack/react-router'
 
 import { AppShell } from '@/components/app-shell'
-import { AuditPage } from '@/pages/audit'
 import { ProjectsPage } from '@/pages/projects'
-import { DevicePage } from '@/pages/device'
-import { DocsPage } from '@/pages/docs'
-import { EnvironmentsPage } from '@/pages/environments'
-import { IdentitiesPage } from '@/pages/identities'
-import { MembersPage } from '@/pages/members'
-import { ProjectAccessPage } from '@/pages/access'
-import { AccessMatrixPage } from '@/pages/access-matrix'
 import { SecretsPage } from '@/pages/secrets'
-import { SchemaPage } from '@/pages/schema'
-import { PromotePage } from '@/pages/promote'
-import { DynamicPage } from '@/pages/dynamic'
-import { RotationPage } from '@/pages/rotation'
-import { SnapshotsPage } from '@/pages/snapshots'
 import { SectionPage } from '@/pages/section'
-import { RequestsPage } from '@/pages/requests'
-import { HealthPage } from '@/pages/health'
-import { SharedSetsPage } from '@/pages/sets'
-import { IntegrationsPage } from '@/pages/integrations'
-import { SettingsPage } from '@/pages/settings'
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -45,109 +33,115 @@ const sections = ['/shared-sets'] as const
 const snapshotsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/snapshots',
-  component: SnapshotsPage,
+  component: lazyRouteComponent(() => import('@/pages/snapshots'), 'SnapshotsPage'),
 })
 
 const healthRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/health',
-  component: HealthPage,
+  component: lazyRouteComponent(() => import('@/pages/health'), 'HealthPage'),
 })
 
 const requestsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/requests',
-  component: RequestsPage,
+  component: lazyRouteComponent(() => import('@/pages/requests'), 'RequestsPage'),
 })
 
 const accessRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/access',
-  component: ProjectAccessPage,
+  component: lazyRouteComponent(() => import('@/pages/access'), 'ProjectAccessPage'),
 })
 
 const environmentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/environments',
-  component: EnvironmentsPage,
+  component: lazyRouteComponent(() => import('@/pages/environments'), 'EnvironmentsPage'),
 })
 
 const schemaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/schema',
-  component: SchemaPage,
+  component: lazyRouteComponent(() => import('@/pages/schema'), 'SchemaPage'),
 })
 
 const promoteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/promote',
-  component: PromotePage,
+  component: lazyRouteComponent(() => import('@/pages/promote'), 'PromotePage'),
 })
 
 const dynamicRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/dynamic',
-  component: DynamicPage,
+  component: lazyRouteComponent(() => import('@/pages/dynamic'), 'DynamicPage'),
 })
 
 const rotationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/rotation',
-  component: RotationPage,
+  component: lazyRouteComponent(() => import('@/pages/rotation'), 'RotationPage'),
 })
 
 const deviceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/device',
-  component: DevicePage,
+  component: lazyRouteComponent(() => import('@/pages/device'), 'DevicePage'),
 })
 
 const auditRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/audit',
-  component: AuditPage,
+  component: lazyRouteComponent(() => import('@/pages/audit'), 'AuditPage'),
 })
 
 const identitiesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/identities',
-  component: IdentitiesPage,
+  component: lazyRouteComponent(() => import('@/pages/identities'), 'IdentitiesPage'),
 })
 
 const accessMatrixRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/access',
-  component: AccessMatrixPage,
+  component: lazyRouteComponent(() => import('@/pages/access-matrix'), 'AccessMatrixPage'),
 })
 
 const membersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/members',
-  component: MembersPage,
+  component: lazyRouteComponent(() => import('@/pages/members'), 'MembersPage'),
 })
 
 const integrationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/integrations',
-  component: IntegrationsPage,
+  component: lazyRouteComponent(() => import('@/pages/integrations'), 'IntegrationsPage'),
 })
 
 const setsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/sets',
-  component: SharedSetsPage,
+  component: lazyRouteComponent(() => import('@/pages/sets'), 'SharedSetsPage'),
 })
 
 const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/docs',
-  component: DocsPage,
+  component: lazyRouteComponent(() => import('@/pages/docs'), 'DocsPage'),
 })
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: SettingsPage,
+  component: lazyRouteComponent(() => import('@/pages/settings'), 'OrgSettingsPage'),
+})
+
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/account',
+  component: lazyRouteComponent(() => import('@/pages/settings'), 'AccountSettingsPage'),
 })
 
 const sectionRoutes = sections.map((path) =>
@@ -179,6 +173,7 @@ const routeTree = rootRoute.addChildren([
   setsRoute,
   docsRoute,
   settingsRoute,
+  accountRoute,
   ...sectionRoutes,
 ])
 
@@ -196,12 +191,12 @@ declare module '@tanstack/react-router' {
 function NotFound() {
   return (
     <div className="flex flex-col items-start gap-3">
-      <p className="font-mono text-[13px] text-dim">404</p>
-      <h1 className="font-head text-[25px] font-semibold tracking-tight">Page not found</h1>
-      <p className="text-[14px] text-muted">The page you asked for does not exist.</p>
+      <p className="font-mono text-sm text-dim">404</p>
+      <h1 className="font-head text-2xl font-semibold tracking-tight">Page not found</h1>
+      <p className="text-base text-muted">The page you asked for does not exist.</p>
       <Link
         to="/"
-        className="rounded-app-sm bg-accent px-3.5 py-2 text-[13px] font-medium text-accent-fg hover:opacity-90"
+        className="rounded-app-sm bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg hover:opacity-90"
       >
         Back to projects
       </Link>

@@ -48,34 +48,32 @@ export function ApprovalPage() {
             <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
           </div>
           <div>
-            <h1 className="font-head text-[19px] font-semibold">Access approval</h1>
-            <p className="text-[12.5px] text-muted">
+            <h1 className="font-head text-lg font-semibold">Access approval</h1>
+            <p className="text-xs text-muted">
               Signed decision link. Re-authentication is required.
             </p>
           </div>
         </div>
         {!token && (
-          <p className="mt-5 text-[13px] text-danger">This link is missing its signed token.</p>
+          <p className="mt-5 text-sm text-danger">This link is missing its signed token.</p>
         )}
         {status === 'anonymous' && (
-          <p className="mt-5 rounded-app bg-amber-bg px-3 py-2 text-[13px] text-amber-fg">
+          <p className="mt-5 rounded-app bg-amber-bg px-3 py-2 text-sm text-amber-fg">
             Sign in first, then open this link again to apply the decision.
           </p>
         )}
         {state === 'busy' && (
-          <p className="mt-5 flex items-center gap-2 text-[13px] text-muted">
+          <p className="mt-5 flex items-center gap-2 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> {message}
           </p>
         )}
         {state === 'done' && (
-          <p className="mt-5 flex items-center gap-2 rounded-app border border-accent-line bg-accent-soft px-3 py-2 text-[13px] text-accent-text">
+          <p className="mt-5 flex items-center gap-2 rounded-app border border-accent-line bg-accent-soft px-3 py-2 text-sm text-accent-text">
             <ShieldCheck className="size-4" /> {message}
           </p>
         )}
         {state === 'error' && (
-          <p className="mt-5 rounded-app bg-danger-bg px-3 py-2 text-[13px] text-danger">
-            {message}
-          </p>
+          <p className="mt-5 rounded-app bg-danger-bg px-3 py-2 text-sm text-danger">{message}</p>
         )}
       </div>
     </div>

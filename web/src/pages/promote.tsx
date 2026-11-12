@@ -5,10 +5,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
+import { Cmd, PageIntro } from '@/components/page-intro'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
+import { Input, Select } from '@/components/ui/field'
 
 type Env = components['schemas']['EnvBody']
 type Plan = components['schemas']['PromotionPlanOutputBody']
@@ -176,22 +178,53 @@ export function PromotePage() {
         <Link
           to="/projects/$project"
           params={{ project: projectSlug }}
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> Secrets
         </Link>
-        <h1 className="mt-2 font-head text-[25px] font-semibold tracking-tight">Promote</h1>
-        <p className="mt-1 text-[14px] text-muted">
+        <h1 className="mt-2 font-head text-2xl font-semibold tracking-tight">Promote</h1>
+        <p className="mt-1 text-base text-muted">
           Review added, changed, missing, and unchanged keys. Selected keys are schema-checked,
           snapshotted, and copied to the target.
         </p>
       </div>
 
+      <PageIntro
+        id="promote"
+        summary={
+          <>
+            Promote copies values from one environment to the next, for example staging to
+            production, so you ship exactly the values you tested instead of retyping them.
+          </>
+        }
+        steps={[
+          {
+            title: 'Pick From and To',
+            body: 'Usually the environment you tested in, and the one you are releasing to.',
+          },
+          {
+            title: 'Review the differences',
+            body: 'Added keys are new to the target and Changed keys have a different value. Keys that exist only in the target are left alone. Tick what to copy.',
+          },
+          {
+            title: 'Promote',
+            body: 'Values are checked against the schema and a snapshot of the target is saved first, so you can undo. Protected targets wait for an Admin to approve.',
+          },
+        ]}
+        when="a new key or changed value worked in staging and should go live."
+        footer={
+          <p className="text-xs text-muted">
+            Terminal: <Cmd>clavis env diff staging production</Cmd>, then{' '}
+            <Cmd>clavis promote --from staging --to production</Cmd>.
+          </p>
+        }
+      />
+
       <section className="flex flex-wrap items-end gap-3 rounded-app border border-border bg-surface px-4 py-3">
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">From</span>
-          <select
-            className="h-9 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text"
+          <span className="mb-1 block text-xs font-medium text-muted">From</span>
+          <Select
+            className="h-9"
             value={source}
             onChange={(event) => {
               setSource(event.target.value)
@@ -202,13 +235,13 @@ export function PromotePage() {
                 {env.name} ({env.slug})
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <span className="pb-2 text-dim">→</span>
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">To</span>
-          <select
-            className="h-9 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text"
+          <span className="mb-1 block text-xs font-medium text-muted">To</span>
+          <Select
+            className="h-9"
             value={target}
             onChange={(event) => {
               setTarget(event.target.value)
@@ -219,12 +252,12 @@ export function PromotePage() {
                 {env.name} ({env.slug})
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block min-w-48 flex-1">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Message</span>
-          <input
-            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text"
+          <span className="mb-1 block text-xs font-medium text-muted">Message</span>
+          <Input
+            className="h-9"
             placeholder="Release 2026.11"
             value={message}
             onChange={(event) => {
@@ -232,7 +265,7 @@ export function PromotePage() {
             }}
           />
         </label>
-        <label className="flex items-center gap-1.5 pb-2 text-[12.5px] text-muted">
+        <label className="flex items-center gap-1.5 pb-2 text-xs text-muted">
           <input
             type="checkbox"
             checked={snapshot}
@@ -245,12 +278,12 @@ export function PromotePage() {
       </section>
 
       {notice && (
-        <p className="rounded-app border border-accent-line bg-accent-soft px-4 py-2.5 text-[13px] text-accent-text">
+        <p className="rounded-app border border-accent-line bg-accent-soft px-4 py-2.5 text-sm text-accent-text">
           {notice}
         </p>
       )}
       {(plan.error || apply.error || approve.error || reject.error) && (
-        <p className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
+        <p className="rounded-app bg-danger-bg px-4 py-3 text-sm text-danger">
           {plan.error instanceof Error
             ? plan.error.message
             : apply.error instanceof Error
@@ -266,7 +299,7 @@ export function PromotePage() {
       <div className="overflow-x-auto rounded-app border border-border bg-surface">
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
+            <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
               <th className="w-10 px-3 py-2.5" />
               <th className="px-3 py-2.5 font-semibold">Key</th>
               <th className="px-3 py-2.5 font-semibold">Status</th>
@@ -292,24 +325,24 @@ export function PromotePage() {
                     }}
                   />
                 </td>
-                <td className="px-3 py-2 font-mono text-[12.5px] text-text">{entry.key}</td>
+                <td className="px-3 py-2 font-mono text-xs text-text">{entry.key}</td>
                 <td className="px-3 py-2">
                   <StatusBadge status={entry.status} />
                 </td>
-                <td className="px-3 py-2 text-[12.5px] text-muted">{entry.kind || '—'}</td>
-                <td className="px-3 py-2 text-[12px] text-danger">{entry.schema_error || '—'}</td>
+                <td className="px-3 py-2 text-xs text-muted">{entry.kind || '—'}</td>
+                <td className="px-3 py-2 text-xs text-danger">{entry.schema_error || '—'}</td>
               </tr>
             ))}
             {plan.isLoading && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-muted">
+                <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted">
                   <Loader2 className="mr-2 inline size-3.5 animate-spin" /> Comparing…
                 </td>
               </tr>
             )}
             {!plan.isLoading && (plan.data?.entries ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-[13px] text-muted">
+                <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted">
                   Both environments have the same keys.
                 </td>
               </tr>
@@ -319,7 +352,7 @@ export function PromotePage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[12.5px] text-muted">
+        <span className="text-xs text-muted">
           {selected.size} selected · {schemaErrors.length} schema issue(s)
           {approvalRequired ? ' · protected target needs approval' : ''}
         </span>
@@ -358,8 +391,8 @@ export function PromotePage() {
 
       <section className="rounded-app border border-border bg-surface">
         <div className="border-b border-border px-4 py-2.5">
-          <h2 className="text-[14px] font-semibold">Pending approvals</h2>
-          <p className="text-[12px] text-dim">
+          <h2 className="text-base font-semibold">Pending approvals</h2>
+          <p className="text-xs text-dim">
             Protected-environment promotions waiting for an Admin or Owner.
           </p>
         </div>
@@ -367,10 +400,10 @@ export function PromotePage() {
           {(requests.data ?? []).map((request) => (
             <div key={request.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium">
+                <p className="text-sm font-medium">
                   {request.source} → {request.target}
                 </p>
-                <p className="text-[12px] text-dim">
+                <p className="text-xs text-dim">
                   {(request.keys ?? []).length} keys · requested by {request.requested_by} ·{' '}
                   {new Date(request.requested_at).toLocaleString()}
                 </p>
@@ -402,7 +435,7 @@ export function PromotePage() {
             </div>
           ))}
           {(requests.data ?? []).length === 0 && (
-            <p className="px-4 py-8 text-center text-[13px] text-muted">
+            <p className="px-4 py-8 text-center text-sm text-muted">
               No pending promotion requests.
             </p>
           )}
@@ -416,7 +449,7 @@ function StatusBadge({ status }: { status: Entry['status'] }) {
   return (
     <span
       className={cn(
-        'rounded px-1.5 py-0.5 text-[11px] font-medium',
+        'rounded px-1.5 py-0.5 text-2xs font-medium',
         status === 'added' && 'bg-success-bg text-success',
         status === 'changed' && 'bg-amber-bg text-amber-fg',
         status === 'missing' && 'bg-danger-bg text-danger',

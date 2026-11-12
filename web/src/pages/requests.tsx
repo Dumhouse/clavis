@@ -7,6 +7,7 @@ import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { Input, Select } from '@/components/ui/field'
 
 type Project = components['schemas']['ProjectBody']
 type Request = components['schemas']['AccessRequestBody']
@@ -124,27 +125,25 @@ export function RequestsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="font-head text-[25px] font-semibold tracking-tight">Requests</h1>
-        <p className="mt-1 text-[14px] text-muted">
+        <h1 className="font-head text-2xl font-semibold tracking-tight">Requests</h1>
+        <p className="mt-1 text-base text-muted">
           Just-in-time access requests. Approvals create a time-bound project grant; requesters
           cannot approve themselves.
         </p>
       </header>
 
       {message && (
-        <p className="rounded-app border border-accent-line bg-accent-soft px-4 py-2.5 text-[13px] text-accent-text">
+        <p className="rounded-app border border-accent-line bg-accent-soft px-4 py-2.5 text-sm text-accent-text">
           {message}
         </p>
       )}
-      {error && (
-        <p className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">{error}</p>
-      )}
+      {error && <p className="rounded-app bg-danger-bg px-4 py-3 text-sm text-danger">{error}</p>}
 
       <section className="flex flex-wrap items-end gap-3 rounded-app border border-border bg-surface px-4 py-3">
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Project</span>
-          <select
-            className="h-9 min-w-40 rounded-app-sm border border-border bg-bg px-2 text-[13px]"
+          <span className="mb-1 block text-xs font-medium text-muted">Project</span>
+          <Select
+            className="h-9 min-w-40"
             value={selectedProject}
             onChange={(e) => {
               setProjectSlug(e.target.value)
@@ -156,12 +155,12 @@ export function RequestsPage() {
                 {candidate.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
-          <select
-            className="h-9 rounded-app-sm border border-border bg-bg px-2 text-[13px]"
+          <span className="mb-1 block text-xs font-medium text-muted">Environment</span>
+          <Select
+            className="h-9"
             value={selectedEnv}
             onChange={(e) => {
               setEnvSlug(e.target.value)
@@ -172,12 +171,12 @@ export function RequestsPage() {
                 {env.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Role</span>
-          <select
-            className="h-9 rounded-app-sm border border-border bg-bg px-2 text-[13px]"
+          <span className="mb-1 block text-xs font-medium text-muted">Role</span>
+          <Select
+            className="h-9"
             value={role}
             onChange={(e) => {
               setRole(e.target.value)
@@ -186,12 +185,12 @@ export function RequestsPage() {
             <option>Developer</option>
             <option>Viewer</option>
             <option>Admin</option>
-          </select>
+          </Select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Hours</span>
-          <input
-            className="h-9 w-24 rounded-app-sm border border-border bg-bg px-2 text-[13px]"
+          <span className="mb-1 block text-xs font-medium text-muted">Hours</span>
+          <Input
+            className="h-9 w-24"
             type="number"
             min={1}
             max={24}
@@ -202,9 +201,9 @@ export function RequestsPage() {
           />
         </label>
         <label className="block min-w-56 flex-1">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Reason</span>
-          <input
-            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px]"
+          <span className="mb-1 block text-xs font-medium text-muted">Reason</span>
+          <Input
+            className="h-9"
             value={reason}
             onChange={(e) => {
               setReason(e.target.value)
@@ -232,7 +231,7 @@ export function RequestsPage() {
       <section className="overflow-x-auto rounded-app border border-border bg-surface">
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
+            <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
               <th className="px-4 py-2.5 font-semibold">Requester</th>
               <th className="px-4 py-2.5 font-semibold">Environment</th>
               <th className="px-4 py-2.5 font-semibold">Role</th>
@@ -244,18 +243,18 @@ export function RequestsPage() {
           <tbody>
             {(requests.data ?? []).map((request) => (
               <tr key={request.id} className="border-b border-border-soft last:border-0">
-                <td className="px-4 py-2 font-mono text-[11.5px] text-muted">
+                <td className="px-4 py-2 font-mono text-2xs text-muted">
                   {request.requester_id.slice(0, 8)}
                 </td>
-                <td className="px-4 py-2 text-[12.5px]">{request.environment}</td>
-                <td className="px-4 py-2 text-[12.5px]">{request.role}</td>
+                <td className="px-4 py-2 text-xs">{request.environment}</td>
+                <td className="px-4 py-2 text-xs">{request.role}</td>
                 <td
-                  className="px-4 py-2 max-w-64 truncate text-[12px] text-muted"
+                  className="px-4 py-2 max-w-64 truncate text-xs text-muted"
                   title={request.reason}
                 >
                   {request.reason}
                 </td>
-                <td className="px-4 py-2 text-[12px]">
+                <td className="px-4 py-2 text-xs">
                   {(request.approvals ?? []).length}/{request.required_approvals}
                 </td>
                 <td className="px-4 py-2">
@@ -286,7 +285,7 @@ export function RequestsPage() {
             ))}
             {(requests.data ?? []).length === 0 && !requests.isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-[13px] text-muted">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted">
                   No pending access requests.
                 </td>
               </tr>

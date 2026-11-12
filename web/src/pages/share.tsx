@@ -4,6 +4,7 @@ import { Copy, KeyRound, Loader2, ShieldCheck } from 'lucide-react'
 import { api } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
+import { Input } from '@/components/ui/field'
 
 export function SharePage() {
   const parts = window.location.pathname.split('/')
@@ -72,8 +73,8 @@ export function SharePage() {
             <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
           </div>
           <div>
-            <h1 className="font-head text-[19px] font-semibold">Clavis share link</h1>
-            <p className="text-[12.5px] text-muted">
+            <h1 className="font-head text-lg font-semibold">Clavis share link</h1>
+            <p className="text-xs text-muted">
               Decryption happens in your browser. The server only sees ciphertext.
             </p>
           </div>
@@ -87,10 +88,10 @@ export function SharePage() {
               void claim(password)
             }}
           >
-            <input
+            <Input
               autoFocus
               type="password"
-              className="h-9 flex-1 rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 flex-1"
               placeholder="Password"
               value={password}
               onChange={(event) => {
@@ -104,28 +105,28 @@ export function SharePage() {
         )}
 
         {busy && !value && (
-          <p className="mt-5 flex items-center gap-2 text-[13px] text-muted">
+          <p className="mt-5 flex items-center gap-2 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Claiming…
           </p>
         )}
         {error && (
-          <p className="mt-5 rounded-app bg-danger-bg px-3 py-2 text-[13px] text-danger">{error}</p>
+          <p className="mt-5 rounded-app bg-danger-bg px-3 py-2 text-sm text-danger">{error}</p>
         )}
 
         {value !== null && (
           <div className="mt-5">
             <div className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-accent-text">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-accent-text">
                 <ShieldCheck className="size-3.5" /> Decrypted locally
               </span>
               <Button variant="secondary" size="sm" onClick={() => void copy()}>
                 <Copy className="size-3.5" /> {copied ? 'Copied' : 'Copy'}
               </Button>
             </div>
-            <pre className="mt-2 max-h-[55vh] overflow-auto whitespace-pre-wrap break-all rounded-app-sm border border-border bg-bg p-3 font-mono text-[12.5px] text-text">
+            <pre className="mt-2 max-h-[55vh] overflow-auto whitespace-pre-wrap break-all rounded-app-sm border border-border bg-bg p-3 font-mono text-xs text-text">
               {value}
             </pre>
-            <p className="mt-2 text-[12px] text-dim">
+            <p className="mt-2 text-xs text-dim">
               This link may now be used up. Do not paste the value into untrusted tools.
             </p>
           </div>

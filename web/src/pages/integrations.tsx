@@ -1,12 +1,34 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Cable, Loader2, Play, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import {
+  ArrowRight,
+  Cable,
+  Loader2,
+  Play,
+  Plus,
+  RefreshCw,
+  ShieldAlert,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
+import { Field, Notice, Select } from '@/components/ui/field'
+import { Modal } from '@/components/ui/modal'
+import { toast } from '@/components/ui/toast'
+import { lastProject } from '@/lib/last-project'
+import {
+  CreateSyncDialog,
+  ProviderMark,
+  providers,
+  type Provider,
+} from '@/pages/integration-create'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { confirmAction } from '@/components/ui/dialogs'
 
 type Project = components['schemas']['ProjectBody']
 type Sync = components['schemas']['SyncBody']
@@ -17,7 +39,10 @@ export function IntegrationsPage() {
   const queryClient = useQueryClient()
   const [projectSlug, setProjectSlug] = useState('')
   const [selected, setSelected] = useState<Sync | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [creating, setCreating] = useState<Provider | null>(null)
+  const setNotice = (message: string | null) => {
+    if (message) toast(message, { tone: 'info' })
+  }
 
   const projects = useQuery({
     queryKey: ['projects', org?.slug],
@@ -32,7 +57,26 @@ export function IntegrationsPage() {
     },
   })
 
-  const project = projectSlug || projects.data?.[0]?.slug || ''
+  const remembered = lastProject()
+  const project =
+    projectSlug ||
+    projects.data?.find((item) => item.slug === remembered)?.slug ||
+    projects.data?.[0]?.slug ||
+    ''
+
+  const projectDetail = useQuery({
+    queryKey: ['project', org?.slug, project],
+    enabled: Boolean(org && project),
+    queryFn: async () => {
+      if (!org) throw new Error('No organization.')
+      const result = await api.GET('/api/v1/orgs/{org}/projects/{project}', {
+        params: { path: { org: org.slug, project } },
+      })
+      if (result.error)
+        throw new Error(apiErrorMessage(result.error, 'Could not load the project.'))
+      return result.data
+    },
+  })
 
   const syncs = useQuery({
     queryKey: ['syncs', org?.slug, project],
@@ -132,7 +176,8 @@ export function IntegrationsPage() {
   const remove = useMutation({
     mutationFn: async (sync: Sync) => {
       if (!org) throw new Error('No organization.')
-      if (!window.confirm('Delete this sync? The destination keeps its current values.')) return
+      if (!(await confirmAction('Delete this sync? The destination keeps its current values.')))
+        return
       const result = await api.DELETE('/api/v1/orgs/{org}/projects/{project}/syncs/{id}', {
         params: { path: { org: org.slug, project, id: sync.id } },
       })
@@ -153,17 +198,16 @@ export function IntegrationsPage() {
         <div>
           <div className="flex items-center gap-2">
             <Cable className="size-5 text-muted" />
-            <h1 className="font-head text-[25px] font-semibold tracking-tight">Integrations</h1>
+            <h1 className="font-head text-2xl font-semibold tracking-tight">Integrations</h1>
           </div>
-          <p className="mt-1 text-[14px] text-muted">
-            Syncs push resolved secrets to GitHub, GitLab, Vercel, AWS, GCP, Netlify, Cloudflare, or
-            a signed HTTP endpoint.
+          <p className="mt-1 text-base text-muted">
+            Syncs push resolved secrets to GitHub, GitLab, Forgejo, Vercel, AWS, GCP, Netlify,
+            Cloudflare, Vault, or a signed HTTP endpoint.
           </p>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Project</span>
-          <select
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
+        <Field label="Project">
+          <Select
+            className="min-w-44"
             value={project}
             onChange={(event) => {
               setProjectSlug(event.target.value)
@@ -175,20 +219,14 @@ export function IntegrationsPage() {
                 {item.name}
               </option>
             ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       </header>
-
-      {notice && (
-        <p className="rounded-app-sm border border-border bg-surface px-3 py-2 text-[12.5px] text-muted">
-          {notice}
-        </p>
-      )}
 
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-[14px] font-semibold">Syncs</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
+          <h2 className="text-base font-semibold">Syncs</h2>
+          <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
             {syncs.data?.length ?? 0}
           </span>
         </div>
@@ -198,28 +236,37 @@ export function IntegrationsPage() {
             return (
               <div key={sync.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-elev px-1.5 py-0.5 text-[11px] font-semibold uppercase text-muted">
-                    {sync.provider}
-                  </span>
-                  <span className="text-[13px] font-medium">{sync.environment}</span>
+                  {(() => {
+                    const meta = providers.find((candidate) => candidate.id === sync.provider)
+                    return meta ? (
+                      <>
+                        <ProviderMark provider={meta} size="sm" />
+                        <span className="text-sm font-medium">{meta.name}</span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-medium">{sync.provider}</span>
+                    )
+                  })()}
+                  <span className="text-dim">←</span>
+                  <span className="font-mono text-xs text-muted">{sync.environment}</span>
                   <span
                     className={
                       sync.status === 'success'
-                        ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-[11px] font-semibold text-success'
+                        ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-2xs font-semibold text-success'
                         : sync.status === 'failed'
-                          ? 'rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger'
-                          : 'rounded-full bg-elev px-1.5 py-0.5 text-[11px] font-semibold text-muted'
+                          ? 'rounded-full bg-danger-bg px-1.5 py-0.5 text-2xs font-semibold text-danger'
+                          : 'rounded-full bg-elev px-1.5 py-0.5 text-2xs font-semibold text-muted'
                     }
                   >
                     {sync.status}
                   </span>
                   {!sync.confirmed && (
-                    <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[11px] font-semibold text-amber-fg">
+                    <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-2xs font-semibold text-amber-fg">
                       first run unconfirmed
                     </span>
                   )}
                   {driftKeys.length > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-1.5 py-0.5 text-2xs font-semibold text-danger">
                       <ShieldAlert className="size-3" /> drift: {driftKeys.join(', ')}
                     </span>
                   )}
@@ -276,7 +323,7 @@ export function IntegrationsPage() {
                     </Button>
                   </span>
                 </div>
-                <label className="mt-1 flex items-center gap-1.5 text-[11.5px] text-dim">
+                <label className="mt-1 flex items-center gap-1.5 text-2xs text-dim">
                   <input
                     type="checkbox"
                     checked={sync.delete_missing}
@@ -287,7 +334,7 @@ export function IntegrationsPage() {
                   />
                   Delete remote keys not in Clavis
                 </label>
-                <p className="mt-1 text-[11.5px] text-dim">
+                <p className="mt-1 text-2xs text-dim">
                   Last synced{' '}
                   {sync.last_synced_at ? new Date(sync.last_synced_at).toLocaleString() : 'never'} ·
                   drift checked{' '}
@@ -299,39 +346,88 @@ export function IntegrationsPage() {
             )
           })}
           {syncs.isLoading && (
-            <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-muted">
+            <p className="flex items-center gap-2 px-4 py-5 text-sm text-muted">
               <Loader2 className="size-4 animate-spin" /> Loading syncs…
             </p>
           )}
           {!syncs.isLoading && (syncs.data?.length ?? 0) === 0 && (
-            <p className="px-4 py-6 text-[13px] text-muted">
-              No syncs for this project. Create one with{' '}
-              <code className="font-mono">clavis syncs create</code> or the API.
+            <p className="px-4 py-6 text-sm text-muted">
+              No syncs for this project yet. Pick a destination below.
             </p>
           )}
         </div>
       </section>
 
+      <section aria-labelledby="add-integration">
+        <h2 id="add-integration" className="mb-2 text-base font-semibold">
+          Add an integration
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {providers.map((provider) => (
+            <button
+              key={provider.id}
+              type="button"
+              disabled={!project || (projectDetail.data?.environments ?? []).length === 0}
+              onClick={() => {
+                setCreating(provider)
+              }}
+              className="group flex items-start gap-3 rounded-app border border-border bg-surface p-3 text-left transition-colors hover:border-accent-line hover:bg-hover-soft disabled:opacity-60"
+            >
+              <ProviderMark provider={provider} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-text">{provider.name}</span>
+                <span className="block text-xs text-muted">{provider.blurb}</span>
+              </span>
+              <Plus className="size-4 text-dim group-hover:text-accent-text" />
+            </button>
+          ))}
+          <Link
+            to="/docs"
+            className="group flex items-start gap-3 rounded-app border border-dashed border-border p-3 text-left hover:border-accent-line"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-app-sm bg-elev font-mono text-2xs font-bold text-blue-fg">
+              K8s
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-text">Kubernetes</span>
+              <span className="block text-xs text-muted">
+                Operator, External Secrets, or the CSI driver. Installed with Helm.
+              </span>
+            </span>
+            <ArrowRight className="size-4 text-dim group-hover:text-accent-text" />
+          </Link>
+        </div>
+      </section>
+
       {selected && (
-        <section className="rounded-app border border-border bg-surface">
-          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <h2 className="text-[14px] font-semibold">Run history</h2>
-            <code className="font-mono text-[11.5px] text-dim">{selected.id}</code>
+        <Modal
+          variant="sheet"
+          className="max-w-lg"
+          onClose={() => {
+            setSelected(null)
+          }}
+        >
+          <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+            <h2 className="font-head text-md font-semibold">Run history</h2>
+            <span className="font-mono text-2xs text-dim">
+              {selected.provider} ← {selected.environment}
+            </span>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               className="ml-auto"
+              aria-label="Close"
               onClick={() => {
                 setSelected(null)
               }}
             >
-              Close
+              <X className="size-4" />
             </Button>
           </div>
-          <div className="divide-y divide-border-soft">
+          <div className="flex-1 divide-y divide-border-soft overflow-y-auto">
             {(runs.data ?? []).map((item: Run) => (
               <div key={item.id} className="px-4 py-2">
-                <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   <span
                     className={
                       item.status === 'success'
@@ -350,23 +446,35 @@ export function IntegrationsPage() {
                     {new Date(item.started_at).toLocaleString()}
                   </span>
                 </div>
-                {item.error && (
-                  <p className="mt-1 rounded-app-sm bg-danger-bg px-2 py-1 text-[12px] text-danger">
-                    {item.error}
-                  </p>
-                )}
+                {item.error && <Notice className="mt-1">{item.error}</Notice>}
               </div>
             ))}
             {runs.isLoading && (
-              <p className="flex items-center gap-2 px-4 py-4 text-[13px] text-muted">
+              <p className="flex items-center gap-2 px-4 py-4 text-sm text-muted">
                 <Loader2 className="size-4 animate-spin" /> Loading runs…
               </p>
             )}
             {!runs.isLoading && (runs.data?.length ?? 0) === 0 && (
-              <p className="px-4 py-4 text-[13px] text-muted">No runs yet.</p>
+              <p className="px-4 py-4 text-sm text-muted">No runs yet.</p>
             )}
           </div>
-        </section>
+        </Modal>
+      )}
+      {creating && org && (
+        <CreateSyncDialog
+          orgSlug={org.slug}
+          projectSlug={project}
+          envs={projectDetail.data?.environments ?? []}
+          provider={creating}
+          onClose={() => {
+            setCreating(null)
+          }}
+          onCreated={() => {
+            setCreating(null)
+            toast(`Sync to ${creating.name} created. Run a preview before the first push.`)
+            void invalidate()
+          }}
+        />
       )}
     </div>
   )

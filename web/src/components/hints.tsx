@@ -61,7 +61,7 @@ export function HintBar({ pathname, onShowSheet }: { pathname: string; onShowShe
 
   if (!enabled) {
     return (
-      <div className="flex h-8 shrink-0 items-center gap-2 border-t border-border bg-panel px-4 text-[12px] text-dim">
+      <div className="hidden h-8 shrink-0 items-center gap-2 border-t border-border bg-panel sm:flex px-4 text-xs text-dim">
         <button
           type="button"
           className="rounded px-1.5 py-0.5 hover:bg-hover hover:text-text"
@@ -85,11 +85,11 @@ export function HintBar({ pathname, onShowSheet }: { pathname: string; onShowShe
   }
 
   return (
-    <div className="flex h-[34px] shrink-0 items-center gap-4 border-t border-border bg-panel px-4 text-[12px] text-dim">
+    <div className="hidden h-[34px] shrink-0 items-center gap-4 border-t sm:flex border-border bg-panel px-4 text-xs text-dim">
       <div className="flex items-center gap-3 overflow-hidden">
         {page.keys.slice(0, 3).map((shortcut) => (
           <span key={shortcut.keys} className="flex shrink-0 items-center gap-1.5">
-            <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[11px] text-muted">
+            <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-2xs text-muted">
               {shortcut.keys}
             </kbd>
             <span className="hidden lg:inline">{shortcut.label}</span>
@@ -115,7 +115,7 @@ export function HintBar({ pathname, onShowSheet }: { pathname: string; onShowShe
           onClick={() => {
             void copy()
           }}
-          className="hidden max-w-[340px] items-center gap-1.5 truncate rounded border border-border bg-bg px-1.5 py-0.5 font-mono text-[11.5px] text-muted hover:text-text md:flex"
+          className="hidden max-w-[340px] items-center gap-1.5 truncate rounded border border-border bg-bg px-1.5 py-0.5 font-mono text-2xs text-muted hover:text-text md:flex"
           title={`Copy: ${cli.cmd}`}
         >
           {copied ? <Check className="size-3 text-accent-text" /> : <Copy className="size-3" />}
@@ -177,8 +177,8 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div>
-            <h2 className="font-head text-[19px] font-semibold">Shortcuts & commands</h2>
-            <p className="mt-0.5 text-[13px] text-muted">
+            <h2 className="font-head text-lg font-semibold">Shortcuts & commands</h2>
+            <p className="mt-0.5 text-sm text-muted">
               {page.title} · everything here has a CLI equivalent.
             </p>
           </div>
@@ -189,16 +189,16 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
 
         <div className="grid gap-5 overflow-y-auto p-5 sm:grid-cols-2">
           <section>
-            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+            <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
               This page
             </h3>
             <ul className="space-y-1.5">
               {page.keys.length === 0 && (
-                <li className="text-[13px] text-dim">No page-specific shortcuts yet.</li>
+                <li className="text-sm text-dim">No page-specific shortcuts yet.</li>
               )}
               {page.keys.map((shortcut) => (
-                <li key={shortcut.keys} className="flex items-center gap-2 text-[13px]">
-                  <kbd className="min-w-14 rounded border border-border bg-bg px-1.5 py-0.5 text-center font-mono text-[11.5px] text-muted">
+                <li key={shortcut.keys} className="flex items-center gap-2 text-sm">
+                  <kbd className="min-w-14 rounded border border-border bg-bg px-1.5 py-0.5 text-center font-mono text-2xs text-muted">
                     {shortcut.keys}
                   </kbd>
                   <span className="text-text">{shortcut.label}</span>
@@ -208,13 +208,13 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
           </section>
 
           <section>
-            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+            <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
               Global
             </h3>
             <ul className="space-y-1.5">
               {globalShortcuts.map((shortcut) => (
-                <li key={shortcut.keys} className="flex items-center gap-2 text-[13px]">
-                  <kbd className="min-w-14 rounded border border-border bg-bg px-1.5 py-0.5 text-center font-mono text-[11.5px] text-muted">
+                <li key={shortcut.keys} className="flex items-center gap-2 text-sm">
+                  <kbd className="min-w-14 rounded border border-border bg-bg px-1.5 py-0.5 text-center font-mono text-2xs text-muted">
                     {shortcut.keys}
                   </kbd>
                   <span className="text-text">{shortcut.label}</span>
@@ -224,7 +224,7 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
           </section>
 
           <section className="sm:col-span-2">
-            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+            <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
               CLI equivalents
             </h3>
             <ul className="space-y-1.5">
@@ -235,7 +235,7 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
                     onClick={() => {
                       void copy(command.cmd)
                     }}
-                    className="flex flex-1 items-center gap-2 rounded-app-sm border border-border bg-bg px-2.5 py-1.5 text-left font-mono text-[12.5px] text-text hover:border-accent-line"
+                    className="flex flex-1 items-center gap-2 rounded-app-sm border border-border bg-bg px-2.5 py-1.5 text-left font-mono text-xs text-text hover:border-accent-line"
                   >
                     {copied === command.cmd ? (
                       <Check className="size-3.5 text-accent-text" />
@@ -244,7 +244,7 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
                     )}
                     <span className="flex-1 truncate">{command.cmd}</span>
                   </button>
-                  <span className="hidden w-56 text-[12px] text-dim sm:block">
+                  <span className="hidden w-56 text-xs text-dim sm:block">
                     {command.description}
                   </span>
                 </li>
@@ -253,12 +253,12 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
           </section>
 
           <section className="sm:col-span-2">
-            <h3 className="mb-2 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+            <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
               Tips
             </h3>
             <ul className="space-y-1.5">
               {page.tips.map((tip) => (
-                <li key={tip} className="flex gap-2 text-[13px] text-muted">
+                <li key={tip} className="flex gap-2 text-sm text-muted">
                   <span className={cn('mt-1.5 size-1 shrink-0 rounded-full bg-accent')} />
                   {tip}
                 </li>

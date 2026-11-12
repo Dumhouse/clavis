@@ -5,9 +5,7 @@ import { api } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { AuthLayout } from '@/pages/auth'
-
-const inputClass =
-  'h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none'
+import { Input } from '@/components/ui/field'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -38,10 +36,10 @@ export function ForgotPasswordPage() {
           <div className="flex size-10 items-center justify-center rounded-full bg-accent-soft">
             <Check className="size-5 text-accent-text" />
           </div>
-          <p className="text-[13.5px] text-muted">
+          <p className="text-sm text-muted">
             The link expires in 30 minutes and can be used once. Check spam if it does not arrive.
           </p>
-          <a className="text-[13px] text-accent-text hover:underline" href="/">
+          <a className="text-sm text-accent-text hover:underline" href="/">
             Back to sign in
           </a>
         </div>
@@ -61,13 +59,12 @@ export function ForgotPasswordPage() {
         className="space-y-3"
       >
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Email</span>
-          <input
+          <span className="mb-1 block text-xs font-medium text-muted">Email</span>
+          <Input
             required
             autoFocus
             type="email"
             autoComplete="email"
-            className={inputClass}
             value={email}
             onChange={(event) => {
               setEmail(event.target.value)
@@ -75,14 +72,12 @@ export function ForgotPasswordPage() {
           />
         </label>
         {error && (
-          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-            {error}
-          </p>
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
         )}
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
           {busy && <Loader2 className="size-4 animate-spin" />} Send reset link
         </Button>
-        <p className="text-center text-[12px] text-dim">
+        <p className="text-center text-xs text-dim">
           <a className="text-accent-text hover:underline" href="/">
             Back to sign in
           </a>
@@ -120,9 +115,9 @@ export function ResetPasswordPage() {
   if (token === '') {
     return (
       <AuthLayout title="Reset link invalid" subtitle="This link is missing its token.">
-        <p className="text-[13.5px] text-muted">Request a new reset link from the sign-in page.</p>
+        <p className="text-sm text-muted">Request a new reset link from the sign-in page.</p>
         <a
-          className="mt-4 block text-center text-[13px] text-accent-text hover:underline"
+          className="mt-4 block text-center text-sm text-accent-text hover:underline"
           href="/forgot"
         >
           Request a new link
@@ -164,14 +159,13 @@ export function ResetPasswordPage() {
         className="space-y-3"
       >
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">New password</span>
-          <input
+          <span className="mb-1 block text-xs font-medium text-muted">New password</span>
+          <Input
             required
             autoFocus
             type="password"
             minLength={12}
             autoComplete="new-password"
-            className={inputClass}
             value={password}
             onChange={(event) => {
               setPassword(event.target.value)
@@ -179,13 +173,12 @@ export function ResetPasswordPage() {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[12.5px] font-medium text-muted">Confirm password</span>
-          <input
+          <span className="mb-1 block text-xs font-medium text-muted">Confirm password</span>
+          <Input
             required
             type="password"
             minLength={12}
             autoComplete="new-password"
-            className={inputClass}
             value={confirm}
             onChange={(event) => {
               setConfirm(event.target.value)
@@ -193,9 +186,7 @@ export function ResetPasswordPage() {
           />
         </label>
         {error && (
-          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-            {error}
-          </p>
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
         )}
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
           {busy && <Loader2 className="size-4 animate-spin" />} Update password
@@ -235,7 +226,7 @@ export function VerifyEmailPage() {
   if (state === 'loading') {
     return (
       <AuthLayout title="Verifying your email" subtitle="One moment.">
-        <div className="flex items-center justify-center gap-2 py-4 text-[13px] text-muted">
+        <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted">
           <Loader2 className="size-4 animate-spin" /> Checking the link…
         </div>
       </AuthLayout>
@@ -248,7 +239,7 @@ export function VerifyEmailPage() {
         title="Verification failed"
         subtitle="The link may have expired or already been used."
       >
-        <p className="text-[13.5px] text-muted">{error}</p>
+        <p className="text-sm text-muted">{error}</p>
         <Button
           variant="primary"
           size="md"

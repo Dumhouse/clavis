@@ -16,10 +16,13 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
+import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
 import { cn } from '@/lib/utils'
+import { confirmAction } from '@/components/ui/dialogs'
+import { Input } from '@/components/ui/field'
 
 type Project = components['schemas']['ProjectBody']
 type Env = components['schemas']['EnvBody']
@@ -96,9 +99,9 @@ export function ProjectsPage() {
     mutationFn: async (project: Project) => {
       if (!org) throw new Error('No organization selected.')
       if (
-        !window.confirm(
+        !(await confirmAction(
           `Delete ${project.name}? Every environment and secret in it will be removed.`,
-        )
+        ))
       )
         return
       const result = await api.DELETE('/api/v1/orgs/{org}/projects/{project}', {
@@ -132,8 +135,8 @@ export function ProjectsPage() {
   if (!org) {
     return (
       <section className="rounded-app border border-dashed border-border bg-panel p-8">
-        <h1 className="font-head text-[21px] font-semibold">No organization yet</h1>
-        <p className="mt-1 text-[13.5px] text-muted">
+        <h1 className="font-head text-xl font-semibold">No organization yet</h1>
+        <p className="mt-1 text-sm text-muted">
           Create an organization through the API or finish setup again.
         </p>
       </section>
@@ -144,8 +147,8 @@ export function ProjectsPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-head text-[25px] font-semibold tracking-tight">Projects</h1>
-          <p className="mt-1 text-[14px] text-muted">
+          <h1 className="font-head text-2xl font-semibold tracking-tight">Projects</h1>
+          <p className="mt-1 text-base text-muted">
             Secrets, environments, and access for everything your team ships.
           </p>
         </div>
@@ -163,12 +166,12 @@ export function ProjectsPage() {
       <GettingStarted projectCount={projects.data?.length ?? 0} />
 
       {projects.isLoading && (
-        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-[13px] text-muted">
+        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-sm text-muted">
           <Loader2 className="size-4 animate-spin" /> Loading projects…
         </div>
       )}
       {projects.isError && (
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
+        <div className="rounded-app bg-danger-bg px-4 py-3 text-sm text-danger">
           {projects.error instanceof Error ? projects.error.message : 'Could not load projects.'}
         </div>
       )}
@@ -177,8 +180,8 @@ export function ProjectsPage() {
           <div className="mx-auto flex size-10 items-center justify-center rounded-app-sm bg-elev">
             <Folder className="size-5 text-dim" />
           </div>
-          <h2 className="mt-3 text-[14.5px] font-semibold">Create your first project</h2>
-          <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted">
+          <h2 className="mt-3 text-base font-semibold">Create your first project</h2>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
             A project groups environments like dev, staging, and production. Default environments
             are created for you.
           </p>
@@ -260,8 +263,8 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[14.5px] font-semibold">Finish setting up Clavis</h2>
-            <span className="text-[12px] text-dim">
+            <h2 className="text-base font-semibold">Finish setting up Clavis</h2>
+            <span className="text-xs text-dim">
               {completed} of {steps.length} done
             </span>
           </div>
@@ -273,7 +276,7 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
           </div>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
             {steps.map((step) => (
-              <span key={step.label} className="flex items-center gap-1.5 text-[13px]">
+              <span key={step.label} className="flex items-center gap-1.5 text-sm">
                 <span
                   className={
                     step.done
@@ -316,8 +319,8 @@ function ProjectCard({
             <Folder className="size-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[14.5px] font-semibold">{project.name}</h3>
-            <p className="mt-0.5 text-[13px] text-muted">{project.slug}</p>
+            <h3 className="truncate text-base font-semibold">{project.name}</h3>
+            <p className="mt-0.5 text-sm text-muted">{project.slug}</p>
           </div>
           <span className="w-14" />
         </div>
@@ -330,7 +333,7 @@ function ProjectCard({
           ))}
         </div>
 
-        <div className="mt-4 flex items-center gap-4 border-t border-border-soft pt-3 text-[12.5px] text-dim">
+        <div className="mt-4 flex items-center gap-4 border-t border-border-soft pt-3 text-xs text-dim">
           <span>{envs.length} environments</span>
           <span className="ml-auto text-muted">Open secrets →</span>
         </div>
@@ -365,13 +368,13 @@ function CliCard(): ReactNode {
           <TerminalSquare className="size-4 text-muted" />
         </div>
         <div>
-          <h2 className="text-[14px] font-semibold">Get secrets into your app</h2>
-          <p className="mt-0.5 text-[13px] text-muted">
+          <h2 className="text-base font-semibold">Get secrets into your app</h2>
+          <p className="mt-0.5 text-sm text-muted">
             Run any command with secrets injected and output masked.
           </p>
         </div>
       </div>
-      <code className="rounded-app-sm border border-border bg-bg px-3 py-2 font-mono text-[13px] text-accent-text">
+      <code className="rounded-app-sm border border-border bg-bg px-3 py-2 font-mono text-sm text-accent-text">
         clavis run -- npm run dev
       </code>
     </section>
@@ -432,65 +435,61 @@ function ProjectDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-      <div className="w-full max-w-md rounded-app border border-border bg-surface p-5 shadow-app">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-head text-[18px] font-semibold">{title}</h2>
-            <p className="mt-0.5 text-[13px] text-muted">
-              Dev, staging, and production environments are created automatically.
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="size-4" />
+    <Modal onClose={onClose} className="max-w-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-head text-lg font-semibold">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            Dev, staging, and production environments are created automatically.
+          </p>
+        </div>
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <X className="size-4" />
+        </Button>
+      </div>
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Name</span>
+          <Input
+            autoFocus
+            required
+            className="h-9"
+            placeholder="Payments API"
+            value={name}
+            onChange={(event) => {
+              const value = event.target.value
+              setName(value)
+              if (slugAuto) setSlug(slugify(value))
+            }}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Slug</span>
+          <Input
+            required
+            className="h-9 font-mono"
+            placeholder="payments-api"
+            value={slug}
+            onChange={(event) => {
+              setSlugAuto(false)
+              setSlug(event.target.value)
+            }}
+          />
+        </label>
+        {error && (
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
+        )}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" disabled={busy}>
+            {busy && <Loader2 className="size-3.5 animate-spin" />}{' '}
+            {initialName ? 'Save' : 'Create project'}
           </Button>
         </div>
-        <form onSubmit={submit} className="mt-4 space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Name</span>
-            <input
-              autoFocus
-              required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="Payments API"
-              value={name}
-              onChange={(event) => {
-                const value = event.target.value
-                setName(value)
-                if (slugAuto) setSlug(slugify(value))
-              }}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Slug</span>
-            <input
-              required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="payments-api"
-              value={slug}
-              onChange={(event) => {
-                setSlugAuto(false)
-                setSlug(event.target.value)
-              }}
-            />
-          </label>
-          {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="sm" disabled={busy}>
-              {busy && <Loader2 className="size-3.5 animate-spin" />}{' '}
-              {initialName ? 'Save' : 'Create project'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   )
 }
 
