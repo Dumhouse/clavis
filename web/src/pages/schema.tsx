@@ -213,7 +213,12 @@ export function SchemaPage() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-app border border-border bg-surface">
+      <div
+        className="overflow-x-auto rounded-app border border-border bg-surface"
+        role="region"
+        aria-label="Schema entries"
+        tabIndex={0}
+      >
         {busy ? (
           <div className="flex items-center gap-2 px-4 py-10 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading schema…
@@ -237,8 +242,9 @@ export function SchemaPage() {
                 <tr key={index} className="border-b border-border-soft last:border-0">
                   <td className="px-3 py-2 align-top">
                     <Input
+                      aria-label={`Key ${String(index + 1)}`}
                       className={cn(
-                        'h-8 w-44 rounded border border-border bg-bg px-2 font-mono text-xs',
+                        'h-9 w-44 rounded border border-border bg-bg px-2 font-mono text-xs',
                         errors[index]?.startsWith('Key') && 'border-danger',
                       )}
                       placeholder="DATABASE_URL"
@@ -251,7 +257,8 @@ export function SchemaPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <Select
-                      className="h-8 w-24 rounded px-1.5 text-xs"
+                      aria-label={`Type ${String(index + 1)}`}
+                      className="w-24 rounded px-1.5 text-xs"
                       value={draft.type}
                       disabled={!canManage}
                       onChange={(event) => {
@@ -271,7 +278,8 @@ export function SchemaPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <Select
-                      className="h-8 w-24 rounded px-1.5 text-xs"
+                      aria-label={`Kind ${String(index + 1)}`}
+                      className="w-24 rounded px-1.5 text-xs"
                       value={draft.kind}
                       disabled={!canManage}
                       onChange={(event) => {
@@ -291,6 +299,7 @@ export function SchemaPage() {
                         <label key={env.id} className="flex items-center gap-1 text-2xs text-muted">
                           <input
                             type="checkbox"
+                            aria-label={`Required in ${env.type} for key ${String(index + 1)}`}
                             checked={Boolean(draft.required[env.type])}
                             disabled={!canManage}
                             onChange={(event) => {
@@ -306,8 +315,9 @@ export function SchemaPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <Input
+                      aria-label={`Pattern ${String(index + 1)}`}
                       className={cn(
-                        'h-8 w-40 rounded border border-border bg-bg px-2 font-mono text-xs',
+                        'h-9 w-40 rounded border border-border bg-bg px-2 font-mono text-xs',
                         errors[index]?.startsWith('Pattern') && 'border-danger',
                       )}
                       placeholder="^postgres://"
@@ -320,7 +330,8 @@ export function SchemaPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <Input
-                      className="h-8 w-52 rounded text-xs"
+                      aria-label={`Description ${String(index + 1)}`}
+                      className="h-9 w-52 rounded text-xs"
                       placeholder="What this key is for"
                       value={draft.description}
                       disabled={!canManage}
@@ -332,7 +343,8 @@ export function SchemaPage() {
                   <td className="px-3 py-2 align-top">
                     {draft.type === 'enum' ? (
                       <Input
-                        className="h-8 w-52 rounded font-mono text-xs"
+                        aria-label={`Enum values ${String(index + 1)}`}
+                        className="h-9 w-52 rounded font-mono text-xs"
                         placeholder="debug, info, warn, error"
                         value={draft.enum.join(', ')}
                         disabled={!canManage}
@@ -347,7 +359,8 @@ export function SchemaPage() {
                       />
                     ) : (
                       <Input
-                        className="h-8 w-52 rounded text-xs"
+                        aria-label={`Example ${String(index + 1)}`}
+                        className="h-9 w-52 rounded text-xs"
                         placeholder="example (never a real secret)"
                         value={draft.example}
                         disabled={!canManage}

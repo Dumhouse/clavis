@@ -20,6 +20,7 @@ import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { Input, Notice } from '@/components/ui/field'
+import { InfoHint } from '@/components/ui/info-hint'
 import { Menu } from '@/components/ui/menu'
 import { Modal } from '@/components/ui/modal'
 import { Switch } from '@/components/ui/switch'
@@ -291,7 +292,14 @@ export function EnvironmentsPage() {
                 </div>
               </div>
               <label className="flex items-center gap-2 text-xs text-muted">
-                <span>Protected</span>
+                <span className="flex items-center gap-1">
+                  Protected
+                  <InfoHint label="What protected means">
+                    Only Admins and Owners can write or delete values here. Promotions into a
+                    protected environment become approval requests, and production also requires a
+                    reason to reveal values. Reads otherwise follow normal RBAC.
+                  </InfoHint>
+                </span>
                 <Switch
                   checked={env.protected}
                   label={`Protect ${env.name}`}

@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Cmd, PageIntro } from '@/components/page-intro'
 import { Input, Select } from '@/components/ui/field'
+import { InfoHint } from '@/components/ui/info-hint'
 
 type Identity = components['schemas']['IdentityBody']
 type Project = components['schemas']['ProjectBody']
@@ -288,7 +289,12 @@ export function IdentitiesPage() {
         </div>
       )}
 
-      <section className="overflow-x-auto rounded-app border border-border bg-surface">
+      <section
+        className="overflow-x-auto rounded-app border border-border bg-surface"
+        role="region"
+        aria-label="Identities"
+        tabIndex={0}
+      >
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
             <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
@@ -437,7 +443,12 @@ export function IdentitiesPage() {
           </div>
           {activity.isLoading && <Loader2 className="size-3.5 animate-spin text-dim" />}
         </div>
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto"
+          role="region"
+          aria-label="Recent agent activity"
+          tabIndex={0}
+        >
           <table className="w-full min-w-[760px] border-collapse text-left">
             <thead>
               <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
@@ -689,6 +700,7 @@ function CreateIdentityDialog({
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-muted">Project</span>
             <Select
+              aria-label="Project"
               className="h-9"
               value={project}
               onChange={(event) => {
@@ -781,7 +793,14 @@ function AgentCommandsDialog({
     <Modal onClose={onClose} className="max-w-lg">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-head text-lg font-semibold">Command allowlist</h2>
+          <h2 className="flex items-center gap-1.5 font-head text-lg font-semibold">
+            Command allowlist
+            <InfoHint label="How the allowlist behaves">
+              An allowed command receives decrypted values in its environment, and output masking is
+              best-effort — encoded or transformed values can still leak. Prefer exact commands,
+              short token lifetimes, and development/preview environments only.
+            </InfoHint>
+          </h2>
           <p className="mt-0.5 text-sm text-muted">
             {identity.name} · deny-all until a pattern matches. One pattern per line.
           </p>
@@ -793,6 +812,7 @@ function AgentCommandsDialog({
       <textarea
         autoFocus
         rows={8}
+        aria-label="Command patterns"
         className="mt-4 w-full rounded-app-sm border border-border bg-bg px-3 py-2 font-mono text-sm text-text focus:border-accent-line focus:outline-none"
         placeholder={'npm test\ngo test ./...\npnpm dev'}
         value={commands}

@@ -58,6 +58,16 @@ export const guides: DocGuide[] = [
           { code: 'clavis export --format dotenv -o .env.local' },
         ],
       },
+      {
+        title: 'CI and non-interactive machines',
+        body: 'A CI runner cannot complete the browser login. Create a machine identity scoped to one project and environment, then set its token as CLAVIS_TOKEN. If the repo commits .clavis.yaml, that is the only variable a job needs; add CLAVIS_SERVER when the instance is not on localhost.',
+        snippets: [
+          {
+            code: 'clavis identities create ci-deploy --role Developer --project web-app --identity-env staging',
+          },
+          { code: 'export CLAVIS_TOKEN=clv_mt_…\nclavis run -- npm test' },
+        ],
+      },
     ],
     note: {
       title: 'Never commit values',

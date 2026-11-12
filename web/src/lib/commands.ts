@@ -677,11 +677,11 @@ export const globalFlags: [string, string][] = [
 ]
 
 export const environmentVariables: [string, string][] = [
-  ['CLAVIS_SERVER', 'Server URL'],
-  ['CLAVIS_TOKEN', 'CLI token for CI'],
-  ['CLAVIS_ORG', 'Default organization'],
-  ['CLAVIS_PROJECT', 'Default project'],
-  ['CLAVIS_ENV', 'Default environment'],
+  ['CLAVIS_SERVER', 'Server URL (optional; defaults to .clavis.yaml or saved login)'],
+  ['CLAVIS_TOKEN', 'Machine or agent token for CI; overrides the saved login'],
+  ['CLAVIS_ORG', 'Organization override; defaults to .clavis.yaml'],
+  ['CLAVIS_PROJECT', 'Project override; defaults to .clavis.yaml'],
+  ['CLAVIS_ENV', 'Environment override; defaults to .clavis.yaml or dev'],
   ['CLAVIS_CREDENTIAL_FILE', 'Credential file location'],
   ['CLAVIS_CONFIG', 'Server configuration file'],
   ['CLAVIS_DATA_DIR', 'Data directory'],

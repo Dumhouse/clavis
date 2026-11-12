@@ -735,7 +735,7 @@ function ConfigReference() {
     { id: 'global-flags', title: 'Global flags', rows: globalFlags, head: 'Flag' },
     {
       id: 'environment-variables',
-      title: 'Environment variables',
+      title: 'CLI environment variables',
       rows: environmentVariables,
       head: 'Variable',
     },
@@ -836,7 +836,7 @@ function outlineFor(page: DocPage): OutlineItem[] {
   if (page.kind === 'config') {
     return [
       { id: 'global-flags', label: 'Global flags', mono: false },
-      { id: 'environment-variables', label: 'Environment variables', mono: false },
+      { id: 'environment-variables', label: 'CLI environment variables', mono: false },
       { id: 'exit-codes', label: 'Exit codes', mono: false },
     ]
   }

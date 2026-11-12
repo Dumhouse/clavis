@@ -224,6 +224,7 @@ export function PromotePage() {
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-muted">From</span>
           <Select
+            aria-label="From environment"
             className="h-9"
             value={source}
             onChange={(event) => {
@@ -241,6 +242,7 @@ export function PromotePage() {
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-muted">To</span>
           <Select
+            aria-label="To environment"
             className="h-9"
             value={target}
             onChange={(event) => {
@@ -296,7 +298,12 @@ export function PromotePage() {
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-app border border-border bg-surface">
+      <div
+        className="overflow-x-auto rounded-app border border-border bg-surface"
+        role="region"
+        aria-label="Promotion plan"
+        tabIndex={0}
+      >
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead>
             <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
@@ -313,6 +320,7 @@ export function PromotePage() {
                 <td className="px-3 py-2">
                   <input
                     type="checkbox"
+                    aria-label={`Select ${entry.key}`}
                     checked={selected.has(entry.key)}
                     disabled={entry.status === 'missing'}
                     onChange={(event) => {

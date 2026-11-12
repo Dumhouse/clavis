@@ -27,6 +27,7 @@ import type { components } from '@/api/schema'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { askRevealReason } from '@/components/ui/dialogs'
 import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
+import { InfoHint } from '@/components/ui/info-hint'
 import { Menu } from '@/components/ui/menu'
 import { Modal, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { toast } from '@/components/ui/toast'
@@ -739,21 +740,27 @@ export function SecretsPage() {
           <GitCompare className="size-3.5" /> Compare
         </Button>
         {overlaySlugs.length > 0 && (
-          <Select
-            size="sm"
-            aria-label="Tenant or region overlay"
-            value={overlaySlug}
-            onChange={(event) => {
-              setOverlaySlug(event.target.value)
-            }}
-          >
-            <option value="">No overlay</option>
-            {overlaySlugs.map((slug) => (
-              <option key={slug} value={slug}>
-                overlay: {slug}
-              </option>
-            ))}
-          </Select>
+          <>
+            <Select
+              size="sm"
+              aria-label="Tenant or region overlay"
+              value={overlaySlug}
+              onChange={(event) => {
+                setOverlaySlug(event.target.value)
+              }}
+            >
+              <option value="">No overlay</option>
+              {overlaySlugs.map((slug) => (
+                <option key={slug} value={slug}>
+                  overlay: {slug}
+                </option>
+              ))}
+            </Select>
+            <InfoHint label="What overlays do" align="right">
+              Overlays resolve per-region or per-tenant values without duplicating every key. Values
+              defined in the overlay win; missing keys fall back to the environment.
+            </InfoHint>
+          </>
         )}
         {compare && envs.length >= 2 && (
           <div className="flex items-center gap-1.5 text-xs text-muted">
@@ -793,7 +800,12 @@ export function SecretsPage() {
       {loadError && <Notice>{loadError}</Notice>}
 
       {compare ? (
-        <div className="overflow-x-auto rounded-app border border-border bg-surface">
+        <div
+          className="overflow-x-auto rounded-app border border-border bg-surface"
+          role="region"
+          aria-label="Environment comparison"
+          tabIndex={0}
+        >
           <table className="w-full min-w-[560px] border-collapse text-left">
             <caption className="sr-only">
               Keys that differ between {compareA} and {compareB}
@@ -876,7 +888,12 @@ export function SecretsPage() {
               </div>
             </nav>
           )}
-          <div className="min-w-0 flex-1 overflow-x-auto rounded-app border border-border bg-surface">
+          <div
+            className="min-w-0 flex-1 overflow-x-auto rounded-app border border-border bg-surface"
+            role="region"
+            aria-label="Secrets grid"
+            tabIndex={0}
+          >
             {loading && keys.length === 0 ? (
               <div className="flex items-center gap-2 px-4 py-8 text-sm text-muted">
                 <Loader2 className="size-4 animate-spin" /> Loading secrets…
