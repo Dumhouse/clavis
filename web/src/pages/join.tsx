@@ -63,7 +63,7 @@ export function JoinPage() {
   if (token === '' || invite.isError) {
     return (
       <Shell title="Invite not valid">
-        <p className="text-[12.5px] text-muted">
+        <p className="text-[13.5px] text-muted">
           {invite.error instanceof Error
             ? invite.error.message
             : 'This invite link is missing or has expired.'}
@@ -85,7 +85,7 @@ export function JoinPage() {
   if (invite.isLoading || !invite.data) {
     return (
       <Shell title="Loading invite">
-        <div className="flex items-center gap-2 text-[12px] text-muted">
+        <div className="flex items-center gap-2 text-[13px] text-muted">
           <Loader2 className="size-4 animate-spin" /> Checking your invite…
         </div>
       </Shell>
@@ -98,12 +98,12 @@ export function JoinPage() {
   if (status === 'authenticated') {
     return (
       <Shell title={`Join ${info.org}`}>
-        <p className="text-[12.5px] text-muted">
+        <p className="text-[13.5px] text-muted">
           You are signed in as <span className="font-medium text-text">{user?.email}</span>. You
           will join as <span className="font-medium text-text">{role}</span>.
         </p>
         {error && (
-          <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}
@@ -125,7 +125,7 @@ export function JoinPage() {
 
   return (
     <Shell title={`Join ${info.org}`}>
-      <p className="text-[12.5px] text-muted">
+      <p className="text-[13.5px] text-muted">
         You have been invited as <span className="font-medium text-text">{role}</span>. Create an
         account to accept.
       </p>
@@ -136,11 +136,11 @@ export function JoinPage() {
         className="mt-4 space-y-3"
       >
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Your name</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Your name</span>
           <input
             required
             autoFocus
-            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
             value={name}
             onChange={(event) => {
               setName(event.target.value)
@@ -148,12 +148,12 @@ export function JoinPage() {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Email</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Email</span>
           <input
             required
             type="email"
             readOnly={Boolean(info.email)}
-            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text read-only:text-muted focus:border-accent-line focus:outline-none"
+            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text read-only:text-muted focus:border-accent-line focus:outline-none"
             value={info.email || email}
             onChange={(event) => {
               setEmail(event.target.value)
@@ -161,7 +161,7 @@ export function JoinPage() {
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">
             Password (12+ characters)
           </span>
           <input
@@ -169,7 +169,7 @@ export function JoinPage() {
             type="password"
             minLength={12}
             autoComplete="new-password"
-            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+            className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
             value={password}
             onChange={(event) => {
               setPassword(event.target.value)
@@ -177,7 +177,7 @@ export function JoinPage() {
           />
         </label>
         {error && (
-          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}
@@ -186,7 +186,7 @@ export function JoinPage() {
           Create account and join
         </Button>
       </form>
-      <p className="mt-3 text-center text-[11px] text-dim">
+      <p className="mt-3 text-center text-[12px] text-dim">
         Already have an account?{' '}
         <a className="text-accent-text hover:underline" href="/">
           Sign in first
@@ -205,7 +205,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
           <div className="logo-mark mb-3 flex size-10 items-center justify-center rounded-[12px] shadow-app">
             <KeyRound className="size-5 text-[#06241c]" strokeWidth={2.6} />
           </div>
-          <h1 className="font-head text-[22px] font-semibold tracking-tight">{title}</h1>
+          <h1 className="font-head text-[23px] font-semibold tracking-tight">{title}</h1>
         </div>
         <div className="rounded-app border border-border bg-surface p-5 shadow-app">{children}</div>
       </div>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Loader2, Mail, Trash2, UserPlus, X } from 'lucide-react'
+import { Check, Copy, Loader2, Mail, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
@@ -23,6 +23,7 @@ export function MembersPage() {
   const queryClient = useQueryClient()
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [offboarding, setOffboarding] = useState<Member | null>(null)
 
   const members = useQuery({
     queryKey: ['members', org?.slug],
@@ -111,8 +112,8 @@ export function MembersPage() {
   if (!canManage) {
     return (
       <div className="rounded-app border border-dashed border-border bg-panel p-8">
-        <h1 className="font-head text-[20px] font-semibold">Members</h1>
-        <p className="mt-1 text-[12.5px] text-muted">
+        <h1 className="font-head text-[21px] font-semibold">Members</h1>
+        <p className="mt-1 text-[13.5px] text-muted">
           You need the Admin or Owner role to manage members.
         </p>
       </div>
@@ -123,8 +124,8 @@ export function MembersPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Members</h1>
-          <p className="mt-1 text-[13px] text-muted">
+          <h1 className="font-head text-[25px] font-semibold tracking-tight">Members</h1>
+          <p className="mt-1 text-[14px] text-muted">
             People with access to {org?.name ?? 'this organization'}.
           </p>
         </div>
@@ -145,11 +146,11 @@ export function MembersPage() {
         <section className="rounded-app border border-accent-line bg-accent-soft p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-accent-text">Invite link created</p>
-              <p className="mt-0.5 text-[11.5px] text-muted">
+              <p className="text-[13px] font-semibold text-accent-text">Invite link created</p>
+              <p className="mt-0.5 text-[12.5px] text-muted">
                 Share this once. It expires automatically and can be revoked.
               </p>
-              <code className="mt-2 block truncate rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[11px] text-text">
+              <code className="mt-2 block truncate rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[12px] text-text">
                 {inviteLink}
               </code>
             </div>
@@ -172,12 +173,12 @@ export function MembersPage() {
       )}
 
       {members.isLoading && (
-        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-[12px] text-muted">
+        <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-[13px] text-muted">
           <Loader2 className="size-4 animate-spin" /> Loading members…
         </div>
       )}
       {members.isError && (
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[12px] text-danger">
+        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
           {members.error instanceof Error ? members.error.message : 'Could not load members.'}
         </div>
       )}
@@ -185,7 +186,7 @@ export function MembersPage() {
       <section className="overflow-x-auto rounded-app border border-border bg-surface">
         <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-border text-[10.5px] uppercase tracking-[0.06em] text-dim">
+            <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
               <th className="px-4 py-2.5 font-semibold">Member</th>
               <th className="px-4 py-2.5 font-semibold">Role</th>
               <th className="px-4 py-2.5 font-semibold">Joined</th>
@@ -197,25 +198,25 @@ export function MembersPage() {
               <tr key={member.user_id} className="border-b border-border-soft last:border-0">
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-elev text-[10px] font-semibold text-muted">
+                    <span className="flex size-7 items-center justify-center rounded-full bg-elev text-[11px] font-semibold text-muted">
                       {(member.name || member.email).slice(0, 2).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-[12px] font-medium">
+                      <p className="truncate text-[13px] font-medium">
                         {member.name || member.email}
                         {member.user_id === user?.id && (
-                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">
+                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">
                             you
                           </span>
                         )}
                       </p>
-                      <p className="truncate text-[11px] text-dim">{member.email}</p>
+                      <p className="truncate text-[12px] text-dim">{member.email}</p>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-2.5">
                   <select
-                    className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[11.5px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
                     value={member.role}
                     onChange={(event) => {
                       updateRole.mutate({ userID: member.user_id, role: event.target.value })
@@ -231,10 +232,20 @@ export function MembersPage() {
                       ))}
                   </select>
                 </td>
-                <td className="px-4 py-2.5 text-[11.5px] text-dim">
+                <td className="px-4 py-2.5 text-[12.5px] text-dim">
                   {formatDate(member.joined_at)}
                 </td>
                 <td className="px-4 py-2.5 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Offboard ${member.email}`}
+                    onClick={() => {
+                      setOffboarding(member)
+                    }}
+                  >
+                    <UserMinus className="size-3.5" /> Offboard
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -252,11 +263,21 @@ export function MembersPage() {
           </tbody>
         </table>
         {(updateRole.error || removeMember.error) && (
-          <p className="px-4 py-3 text-[11.5px] text-danger">
+          <p className="px-4 py-3 text-[12.5px] text-danger">
             {errorMessage(updateRole.error) || errorMessage(removeMember.error)}
           </p>
         )}
       </section>
+
+      {offboarding && org && (
+        <OffboardingDialog
+          orgSlug={org.slug}
+          member={offboarding}
+          onClose={() => {
+            setOffboarding(null)
+          }}
+        />
+      )}
 
       <Roles />
 
@@ -265,8 +286,8 @@ export function MembersPage() {
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Mail className="size-4 text-muted" />
-          <h2 className="text-[13px] font-semibold">Pending invites</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+          <h2 className="text-[14px] font-semibold">Pending invites</h2>
+          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
             {members.data?.invites?.length ?? 0}
           </span>
         </div>
@@ -274,8 +295,8 @@ export function MembersPage() {
           {(members.data?.invites ?? []).map((invite) => (
             <div key={invite.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium">{invite.email || 'Anyone with the link'}</p>
-                <p className="text-[11px] text-dim">
+                <p className="text-[13px] font-medium">{invite.email || 'Anyone with the link'}</p>
+                <p className="text-[12px] text-dim">
                   {invite.role} · expires {formatDate(invite.expires_at)}
                 </p>
               </div>
@@ -292,7 +313,7 @@ export function MembersPage() {
             </div>
           ))}
           {(members.data?.invites?.length ?? 0) === 0 && (
-            <p className="px-4 py-5 text-[12px] text-muted">No pending invites.</p>
+            <p className="px-4 py-5 text-[13px] text-muted">No pending invites.</p>
           )}
         </div>
       </section>
@@ -355,8 +376,8 @@ function InviteForm({
           <div className="w-full max-w-md rounded-app border border-border bg-surface p-5 shadow-app">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-head text-[17px] font-semibold">Invite member</h2>
-                <p className="mt-0.5 text-[12px] text-muted">
+                <h2 className="font-head text-[18px] font-semibold">Invite member</h2>
+                <p className="mt-0.5 text-[13px] text-muted">
                   Creates a single-use link. Email delivery is optional.
                 </p>
               </div>
@@ -378,12 +399,12 @@ function InviteForm({
               className="mt-4 space-y-3"
             >
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Email (optional)
                 </span>
                 <input
                   type="email"
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   placeholder="teammate@example.com"
                   value={email}
                   onChange={(event) => {
@@ -393,9 +414,9 @@ function InviteForm({
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="mb-1 block text-[11.5px] font-medium text-muted">Role</span>
+                  <span className="mb-1 block text-[12.5px] font-medium text-muted">Role</span>
                   <select
-                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                     value={role}
                     onChange={(event) => {
                       setRole(event.target.value)
@@ -411,11 +432,11 @@ function InviteForm({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                  <span className="mb-1 block text-[12.5px] font-medium text-muted">
                     Expires in
                   </span>
                   <select
-                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                     value={days}
                     onChange={(event) => {
                       setDays(Number(event.target.value))
@@ -429,7 +450,7 @@ function InviteForm({
                 </label>
               </div>
               {error && (
-                <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+                <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
                   {error}
                 </p>
               )}
@@ -464,4 +485,166 @@ function formatDate(value: string): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : ''
+}
+
+function OffboardingDialog({
+  orgSlug,
+  member,
+  onClose,
+}: {
+  orgSlug: string
+  member: Member
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [started, setStarted] = useState(false)
+  const report = useQuery({
+    queryKey: ['offboarding', orgSlug, member.user_id],
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/members/{user}/offboarding', {
+        params: { path: { org: orgSlug, user: member.user_id } },
+      })
+      if (result.error)
+        throw new Error(apiErrorMessage(result.error, 'Could not load offboarding review.'))
+      return result.data
+    },
+  })
+  const start = useMutation({
+    mutationFn: async () => {
+      const result = await api.POST('/api/v1/orgs/{org}/members/{user}/offboarding', {
+        params: { path: { org: orgSlug, user: member.user_id } },
+      })
+      if (result.error)
+        throw new Error(apiErrorMessage(result.error, 'Could not start offboarding.'))
+      return result.data
+    },
+    onSuccess: async () => {
+      setStarted(true)
+      await queryClient.invalidateQueries({ queryKey: ['offboarding', orgSlug, member.user_id] })
+    },
+  })
+  const mark = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'safe' | 'rotated' }) => {
+      const result = await api.POST('/api/v1/orgs/{org}/members/{user}/offboarding/{id}', {
+        params: { path: { org: orgSlug, user: member.user_id, id } },
+        body: { status },
+      })
+      if (result.error) throw new Error(apiErrorMessage(result.error, 'Could not update the task.'))
+      return result.data
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['offboarding', orgSlug, member.user_id] })
+    },
+  })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="font-head text-[17px] font-semibold">Offboarding review</h2>
+            <p className="text-[11.5px] text-muted">
+              {member.email} · revealed secrets to rotate or mark safe
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+            <X className="size-4" />
+          </Button>
+        </div>
+        {report.data && (
+          <p className="mt-3 text-[12px] text-muted">
+            {report.data.done}/{report.data.total} reviewed · {report.data.exported} export
+            reveal(s)
+          </p>
+        )}
+        {report.isError && (
+          <p className="mt-3 text-[12px] text-danger">
+            {report.error instanceof Error ? report.error.message : 'Could not load review.'}
+          </p>
+        )}
+        <div className="mt-3 max-h-72 overflow-auto rounded-app-sm border border-border">
+          <table className="w-full min-w-[620px] text-left text-[11.5px]">
+            <thead className="sticky top-0 bg-surface">
+              <tr className="border-b border-border text-[10px] uppercase tracking-[0.05em] text-dim">
+                <th className="px-3 py-2">Key</th>
+                <th className="px-3 py-2">Location</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {(report.data?.tasks ?? []).map((task) => (
+                <tr key={task.id} className="border-b border-border-soft last:border-0">
+                  <td className="px-3 py-2 font-mono">{task.key}</td>
+                  <td className="px-3 py-2 text-muted">
+                    {task.project}/{task.environment}
+                  </td>
+                  <td className="px-3 py-2">{task.status}</td>
+                  <td className="px-3 py-2 text-right">
+                    {task.status === 'pending' && (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={mark.isPending}
+                          onClick={() => {
+                            mark.mutate({ id: task.id, status: 'rotated' })
+                          }}
+                        >
+                          Rotated
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={mark.isPending}
+                          onClick={() => {
+                            mark.mutate({ id: task.id, status: 'safe' })
+                          }}
+                        >
+                          Safe
+                        </Button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {(report.data?.tasks ?? []).length === 0 && !report.isLoading && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-[12px] text-muted">
+                    No reveal history yet. Start a review to create tasks.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {start.error && (
+          <p className="mt-2 text-[11.5px] text-danger">
+            {start.error instanceof Error ? start.error.message : 'Could not start.'}
+          </p>
+        )}
+        {mark.error && (
+          <p className="mt-2 text-[11.5px] text-danger">
+            {mark.error instanceof Error ? mark.error.message : 'Could not update.'}
+          </p>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          {!started && (report.data?.tasks ?? []).length === 0 && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={start.isPending}
+              onClick={() => {
+                start.mutate()
+              }}
+            >
+              {start.isPending && <Loader2 className="size-3.5 animate-spin" />} Start review
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 }

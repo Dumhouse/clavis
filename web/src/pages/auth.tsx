@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 export function AuthLoading() {
   return (
     <div className="flex h-full items-center justify-center bg-bg">
-      <div className="flex items-center gap-2 text-[12px] text-muted">
+      <div className="flex items-center gap-2 text-[13px] text-muted">
         <Loader2 className="size-4 animate-spin" />
         Loading Clavis…
       </div>
@@ -40,11 +40,11 @@ export function AuthLayout({
           <div className="logo-mark mb-3 flex size-10 items-center justify-center rounded-[12px] shadow-app">
             <KeyRound className="size-5 text-[#06241c]" strokeWidth={2.6} />
           </div>
-          <h1 className="font-head text-[22px] font-semibold tracking-tight">{title}</h1>
-          <p className="mt-1 max-w-sm text-[12.5px] text-muted">{subtitle}</p>
+          <h1 className="font-head text-[23px] font-semibold tracking-tight">{title}</h1>
+          <p className="mt-1 max-w-sm text-[13.5px] text-muted">{subtitle}</p>
         </div>
         <div className="rounded-app border border-border bg-surface p-5 shadow-app">{children}</div>
-        <p className="mt-4 text-center text-[11px] text-dim">
+        <p className="mt-4 text-center text-[12px] text-dim">
           Apache-2.0 · every feature included · no enterprise edition
         </p>
       </div>
@@ -55,9 +55,9 @@ export function AuthLayout({
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 flex items-baseline justify-between gap-2 text-[11.5px] font-medium text-muted">
+      <span className="mb-1 flex items-baseline justify-between gap-2 text-[12.5px] font-medium text-muted">
         {label}
-        {hint && <span className="text-[10.5px] font-normal text-dim">{hint}</span>}
+        {hint && <span className="text-[11.5px] font-normal text-dim">{hint}</span>}
       </span>
       {children}
     </label>
@@ -65,7 +65,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 const inputClass =
-  'h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text placeholder:text-dim focus:border-accent-line focus:outline-none'
+  'h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text placeholder:text-dim focus:border-accent-line focus:outline-none'
 
 export function LoginPage() {
   const { login, verifyMFA } = useAuth()
@@ -151,7 +151,7 @@ export function LoginPage() {
           className="space-y-3"
         >
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">
               {useRecovery ? 'Recovery code' : 'Authenticator code'}
             </span>
             <input
@@ -160,7 +160,7 @@ export function LoginPage() {
               inputMode={useRecovery ? 'text' : 'numeric'}
               autoComplete="one-time-code"
               maxLength={useRecovery ? 32 : 6}
-              className={cn(inputClass, 'text-center font-mono text-[18px] tracking-[0.2em]')}
+              className={cn(inputClass, 'text-center font-mono text-[19px] tracking-[0.2em]')}
               value={code}
               onChange={(event) => {
                 setCode(event.target.value.trim())
@@ -168,7 +168,7 @@ export function LoginPage() {
             />
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}
@@ -177,7 +177,7 @@ export function LoginPage() {
           </Button>
           <button
             type="button"
-            className="w-full text-center text-[11.5px] text-accent-text hover:underline"
+            className="w-full text-center text-[12.5px] text-accent-text hover:underline"
             onClick={() => {
               setUseRecovery((current) => !current)
               setCode('')
@@ -188,7 +188,7 @@ export function LoginPage() {
           </button>
           <button
             type="button"
-            className="w-full text-center text-[11px] text-dim hover:text-muted"
+            className="w-full text-center text-[12px] text-dim hover:text-muted"
             onClick={() => {
               setChallenge(null)
               setCode('')
@@ -239,7 +239,7 @@ export function LoginPage() {
           />
         </Field>
         {error && (
-          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}
@@ -247,7 +247,7 @@ export function LoginPage() {
           {busy ? <Loader2 className="size-4 animate-spin" /> : null}
           {busy ? 'Signing in…' : 'Sign in'}
         </Button>
-        <div className="flex items-center gap-2 py-1 text-[10.5px] text-dim">
+        <div className="flex items-center gap-2 py-1 text-[11.5px] text-dim">
           <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
         </div>
         <Button
@@ -269,7 +269,7 @@ export function LoginPage() {
         </Button>
         <div className="flex items-end gap-2 border-t border-border-soft pt-3">
           <label className="block min-w-0 flex-1">
-            <span className="mb-1 block text-[11px] font-medium text-muted">Organization SSO</span>
+            <span className="mb-1 block text-[12px] font-medium text-muted">Organization SSO</span>
             <input
               className={inputClass}
               placeholder="acme"
@@ -342,7 +342,7 @@ export function SetupPage() {
       >
         <Field label="Setup token" hint="one-time">
           <input
-            className={cn(inputClass, 'font-mono text-[11.5px]')}
+            className={cn(inputClass, 'font-mono text-[12.5px]')}
             required
             autoFocus
             value={form.token}
@@ -413,7 +413,7 @@ export function SetupPage() {
           </div>
         </div>
         {error && (
-          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}

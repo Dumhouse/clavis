@@ -14,7 +14,7 @@ type Secret = components['schemas']['SecretBody']
 type SecretVersion = components['schemas']['SecretVersionBody']
 
 const inputClass =
-  'h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none'
+  'h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none'
 
 export function PasteEnvDialog({
   orgSlug,
@@ -102,8 +102,8 @@ export function PasteEnvDialog({
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-head text-[17px] font-semibold">Paste .env</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
+            <h2 className="font-head text-[18px] font-semibold">Paste .env</h2>
+            <p className="mt-0.5 text-[13px] text-muted">
               Parsed locally. Nothing is written until you review the diff and apply.
             </p>
           </div>
@@ -114,7 +114,7 @@ export function PasteEnvDialog({
 
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">
               Target environment
             </span>
             <select
@@ -131,14 +131,14 @@ export function PasteEnvDialog({
               ))}
             </select>
           </label>
-          <span className="text-[11px] text-dim">
+          <span className="text-[12px] text-dim">
             {diff.added.length} new · {diff.changed.length} changed · {diff.unchanged.length}{' '}
             unchanged
           </span>
         </div>
 
         <textarea
-          className="mt-3 min-h-40 w-full flex-1 resize-y rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+          className="mt-3 min-h-40 w-full flex-1 resize-y rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
           placeholder={
             'DATABASE_URL=postgres://…\nexport STRIPE_KEY="sk_live_…"\n# comments are ignored'
           }
@@ -150,19 +150,19 @@ export function PasteEnvDialog({
         />
 
         {parsed.error && (
-          <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {parsed.error}
           </p>
         )}
         {error && (
-          <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="mt-2 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}
 
         {parsed.entries.length > 0 && !parsed.error && (
           <div className="mt-3 max-h-40 overflow-y-auto rounded-app-sm border border-border">
-            <table className="w-full text-left text-[11.5px]">
+            <table className="w-full text-left text-[12.5px]">
               <tbody>
                 {parsed.entries.map((entry) => {
                   const status = !existing.has(entry.key)
@@ -176,7 +176,7 @@ export function PasteEnvDialog({
                       <td className="px-2.5 py-1.5">
                         <span
                           className={cn(
-                            'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                            'rounded px-1.5 py-0.5 text-[11px] font-medium',
                             status === 'new' && 'bg-success-bg text-success',
                             status === 'changed' && 'bg-amber-bg text-amber-fg',
                             status === 'same' && 'bg-elev text-dim',
@@ -244,6 +244,7 @@ export function EditSecretDialog({
   const [providerURL, setProviderURL] = useState(secret.provider_url ?? '')
   const [ownerGroupID, setOwnerGroupID] = useState(secret.owner_group_id ?? '')
   const [tags, setTags] = useState((secret.tags ?? []).join(', '))
+  const [expiresAt, setExpiresAt] = useState((secret.expires_at ?? '').slice(0, 10))
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -270,6 +271,7 @@ export function EditSecretDialog({
         setProviderURL(result.data.provider_url ?? '')
         setOwnerGroupID(result.data.owner_group_id ?? '')
         setTags((result.data.tags ?? []).join(', '))
+        setExpiresAt((result.data.expires_at ?? '').slice(0, 10))
       }
       setLoaded(true)
     })()
@@ -322,6 +324,7 @@ export function EditSecretDialog({
             .split(',')
             .map((tag) => tag.trim())
             .filter((tag) => tag.length > 0),
+          ...(expiresAt ? { expires_at: `${expiresAt}T00:00:00Z` } : {}),
           message: message || 'Updated from the web UI',
         },
       },
@@ -369,8 +372,8 @@ export function EditSecretDialog({
       <div className="flex max-h-[90vh] w-full max-w-xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-mono text-[15px] font-semibold">{secret.key}</h2>
-            <p className="mt-0.5 text-[11.5px] text-dim">
+            <h2 className="font-mono text-[16px] font-semibold">{secret.key}</h2>
+            <p className="mt-0.5 text-[12.5px] text-dim">
               {secret.kind} · {env} · version {secret.version}
             </p>
           </div>
@@ -380,18 +383,18 @@ export function EditSecretDialog({
         </div>
 
         {!loaded ? (
-          <div className="mt-4 flex items-center gap-2 text-[12px] text-muted">
+          <div className="mt-4 flex items-center gap-2 text-[13px] text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading value…
           </div>
         ) : (
           <div className="mt-4 space-y-3 overflow-y-auto">
             <label className="block">
-              <span className="mb-1 flex items-center justify-between gap-2 text-[11.5px] font-medium text-muted">
+              <span className="mb-1 flex items-center justify-between gap-2 text-[12.5px] font-medium text-muted">
                 Value
                 {kind === 'file' && value !== '' && (
                   <button
                     type="button"
-                    className="text-[10.5px] font-normal text-accent-text hover:underline"
+                    className="text-[11.5px] font-normal text-accent-text hover:underline"
                     onClick={() => {
                       const blob = new Blob([value], { type: 'application/octet-stream' })
                       const href = URL.createObjectURL(blob)
@@ -408,7 +411,7 @@ export function EditSecretDialog({
               </span>
               <textarea
                 rows={kind === 'file' ? 6 : 3}
-                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                 value={value}
                 onChange={(event) => {
                   setValue(event.target.value)
@@ -417,7 +420,7 @@ export function EditSecretDialog({
               {kind === 'file' && (
                 <input
                   type="file"
-                  className="mt-1.5 block w-full text-[11.5px] text-muted"
+                  className="mt-1.5 block w-full text-[12.5px] text-muted"
                   onChange={(event) => {
                     const file = event.target.files?.[0]
                     if (!file) return
@@ -433,7 +436,7 @@ export function EditSecretDialog({
               )}
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Comment</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Comment</span>
               <input
                 className={inputClass}
                 value={comment}
@@ -443,7 +446,7 @@ export function EditSecretDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Kind</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Kind</span>
               <select
                 className={inputClass}
                 value={kind}
@@ -457,7 +460,7 @@ export function EditSecretDialog({
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Owner group</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Owner group</span>
               <select
                 className={inputClass}
                 value={ownerGroupID}
@@ -474,7 +477,19 @@ export function EditSecretDialog({
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Provider URL</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Expires on</span>
+              <input
+                type="date"
+                className={inputClass}
+                value={expiresAt}
+                readOnly={readOnly}
+                onChange={(event) => {
+                  setExpiresAt(event.target.value)
+                }}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Provider URL</span>
               <input
                 className={inputClass}
                 placeholder="https://dashboard.stripe.com/apikeys"
@@ -485,11 +500,11 @@ export function EditSecretDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Runbook notes</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Runbook notes</span>
               <textarea
                 rows={3}
                 readOnly={readOnly}
-                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 text-[12px] text-text focus:border-accent-line focus:outline-none read-only:text-muted"
+                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 text-[13px] text-text focus:border-accent-line focus:outline-none read-only:text-muted"
                 placeholder="How to rotate this secret, who owns it, and what breaks."
                 value={notes}
                 onChange={(event) => {
@@ -498,7 +513,7 @@ export function EditSecretDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Folder</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Folder</span>
               <input
                 className={inputClass}
                 placeholder="/backend/db"
@@ -509,7 +524,7 @@ export function EditSecretDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Tags</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Tags</span>
               <input
                 className={inputClass}
                 placeholder="billing, stripe, payments"
@@ -520,7 +535,7 @@ export function EditSecretDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">
                 Change message
               </span>
               <input
@@ -534,12 +549,12 @@ export function EditSecretDialog({
             </label>
 
             <div>
-              <p className="mb-1 text-[11.5px] font-medium text-muted">History</p>
+              <p className="mb-1 text-[12.5px] font-medium text-muted">History</p>
               <div className="max-h-36 divide-y divide-border-soft overflow-y-auto rounded-app-sm border border-border">
                 {(history.data ?? []).map((version: SecretVersion) => (
                   <div
                     key={version.version}
-                    className="flex items-center gap-2 px-2.5 py-1.5 text-[11px]"
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-[12px]"
                   >
                     <span className="font-mono text-dim">v{version.version}</span>
                     <span className="min-w-0 flex-1 truncate text-muted">
@@ -561,7 +576,7 @@ export function EditSecretDialog({
                   </div>
                 ))}
                 {history.isLoading && (
-                  <p className="px-2.5 py-2 text-[11px] text-dim">Loading history…</p>
+                  <p className="px-2.5 py-2 text-[12px] text-dim">Loading history…</p>
                 )}
               </div>
             </div>
@@ -569,7 +584,7 @@ export function EditSecretDialog({
         )}
 
         {error && (
-          <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+          <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
             {error}
           </p>
         )}

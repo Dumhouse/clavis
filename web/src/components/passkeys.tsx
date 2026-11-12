@@ -78,7 +78,7 @@ export function Passkeys() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Fingerprint className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">Passkeys</h2>
+        <h2 className="text-[14px] font-semibold">Passkeys</h2>
         <Button
           variant="secondary"
           size="sm"
@@ -92,16 +92,16 @@ export function Passkeys() {
           Add passkey
         </Button>
       </div>
-      <p className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <p className="border-b border-border-soft px-4 py-2 text-[12px] text-dim">
         Passkeys sign you in without a password and satisfy two-factor requirements.
       </p>
-      {error && <p className="px-4 py-3 text-[11.5px] text-danger">{error}</p>}
+      {error && <p className="px-4 py-3 text-[12.5px] text-danger">{error}</p>}
       <div className="divide-y divide-border-soft">
         {(passkeys.data ?? []).map((passkey) => (
           <div key={passkey.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-medium">{passkey.name}</p>
-              <p className="text-[11px] text-dim">
+              <p className="text-[13px] font-medium">{passkey.name}</p>
+              <p className="text-[12px] text-dim">
                 Added {new Date(passkey.created_at).toLocaleDateString()} · last used{' '}
                 {passkey.last_used_at
                   ? new Date(passkey.last_used_at).toLocaleDateString()
@@ -122,12 +122,12 @@ export function Passkeys() {
           </div>
         ))}
         {(passkeys.data?.length ?? 0) === 0 && !passkeys.isLoading && (
-          <p className="px-4 py-5 text-[12px] text-muted">
+          <p className="px-4 py-5 text-[13px] text-muted">
             No passkeys yet. Add one to sign in without typing a password.
           </p>
         )}
         {passkeys.isLoading && (
-          <p className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+          <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading passkeys…
           </p>
         )}

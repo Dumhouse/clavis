@@ -93,7 +93,7 @@ export function PersonalTokens() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
         <KeyRound className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">Personal access tokens</h2>
+        <h2 className="text-[14px] font-semibold">Personal access tokens</h2>
         <Button
           variant="secondary"
           size="sm"
@@ -108,12 +108,12 @@ export function PersonalTokens() {
 
       {token && (
         <div className="border-b border-border bg-accent-soft p-4">
-          <p className="text-[12px] font-semibold text-accent-text">Copy this token now</p>
-          <p className="text-[11.5px] text-muted">
+          <p className="text-[13px] font-semibold text-accent-text">Copy this token now</p>
+          <p className="text-[12.5px] text-muted">
             It is shown once and can be revoked at any time.
           </p>
           <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[11px] text-text">
+            <code className="min-w-0 flex-1 break-all rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[12px] text-text">
               {token}
             </code>
             <Button
@@ -152,7 +152,7 @@ export function PersonalTokens() {
         >
           <div className="grid gap-2 sm:grid-cols-2">
             {permissionOptions.map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 text-[12px]">
+              <label key={value} className="flex items-center gap-2 text-[13px]">
                 <input
                   type="checkbox"
                   checked={permissions.includes(value)}
@@ -168,10 +168,10 @@ export function PersonalTokens() {
               </label>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-2 text-[13px]">
             Expires in
             <select
-              className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={days}
               onChange={(event) => {
                 setDays(Number(event.target.value))
@@ -184,7 +184,7 @@ export function PersonalTokens() {
             </select>
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}
@@ -203,8 +203,8 @@ export function PersonalTokens() {
         {(tokens.data ?? []).map((item) => (
           <div key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-[11.5px] text-text">{item.prefix}</p>
-              <p className="truncate text-[10.5px] text-dim">
+              <p className="font-mono text-[12.5px] text-text">{item.prefix}</p>
+              <p className="truncate text-[11.5px] text-dim">
                 {item.permissions.join(', ')} · expires{' '}
                 {item.expires_at ? new Date(item.expires_at).toLocaleDateString() : 'never'} · last
                 used{' '}
@@ -224,7 +224,7 @@ export function PersonalTokens() {
           </div>
         ))}
         {(tokens.data?.length ?? 0) === 0 && (
-          <p className="px-4 py-5 text-[12px] text-muted">No personal tokens yet.</p>
+          <p className="px-4 py-5 text-[13px] text-muted">No personal tokens yet.</p>
         )}
       </div>
     </section>

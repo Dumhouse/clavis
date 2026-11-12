@@ -11,8 +11,14 @@ import { MembersPage } from '@/pages/members'
 import { ProjectAccessPage } from '@/pages/access'
 import { AccessMatrixPage } from '@/pages/access-matrix'
 import { SecretsPage } from '@/pages/secrets'
+import { SchemaPage } from '@/pages/schema'
+import { PromotePage } from '@/pages/promote'
+import { DynamicPage } from '@/pages/dynamic'
+import { RotationPage } from '@/pages/rotation'
 import { SnapshotsPage } from '@/pages/snapshots'
 import { SectionPage } from '@/pages/section'
+import { RequestsPage } from '@/pages/requests'
+import { HealthPage } from '@/pages/health'
 import { SharedSetsPage } from '@/pages/sets'
 import { IntegrationsPage } from '@/pages/integrations'
 import { SettingsPage } from '@/pages/settings'
@@ -34,12 +40,24 @@ const projectRoute = createRoute({
   component: SecretsPage,
 })
 
-const sections = ['/shared-sets', '/health', '/requests'] as const
+const sections = ['/shared-sets'] as const
 
 const snapshotsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/snapshots',
   component: SnapshotsPage,
+})
+
+const healthRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/health',
+  component: HealthPage,
+})
+
+const requestsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/requests',
+  component: RequestsPage,
 })
 
 const accessRoute = createRoute({
@@ -52,6 +70,30 @@ const environmentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$project/environments',
   component: EnvironmentsPage,
+})
+
+const schemaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project/schema',
+  component: SchemaPage,
+})
+
+const promoteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project/promote',
+  component: PromotePage,
+})
+
+const dynamicRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project/dynamic',
+  component: DynamicPage,
+})
+
+const rotationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project/rotation',
+  component: RotationPage,
 })
 
 const deviceRoute = createRoute({
@@ -120,8 +162,14 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   projectRoute,
   snapshotsRoute,
+  healthRoute,
+  requestsRoute,
   accessRoute,
   environmentsRoute,
+  schemaRoute,
+  promoteRoute,
+  dynamicRoute,
+  rotationRoute,
   deviceRoute,
   accessMatrixRoute,
   membersRoute,
@@ -148,12 +196,12 @@ declare module '@tanstack/react-router' {
 function NotFound() {
   return (
     <div className="flex flex-col items-start gap-3">
-      <p className="font-mono text-[12px] text-dim">404</p>
-      <h1 className="font-head text-[24px] font-semibold tracking-tight">Page not found</h1>
-      <p className="text-[13px] text-muted">The page you asked for does not exist.</p>
+      <p className="font-mono text-[13px] text-dim">404</p>
+      <h1 className="font-head text-[25px] font-semibold tracking-tight">Page not found</h1>
+      <p className="text-[14px] text-muted">The page you asked for does not exist.</p>
       <Link
         to="/"
-        className="rounded-app-sm bg-accent px-3.5 py-2 text-[12px] font-medium text-accent-fg hover:opacity-90"
+        className="rounded-app-sm bg-accent px-3.5 py-2 text-[13px] font-medium text-accent-fg hover:opacity-90"
       >
         Back to projects
       </Link>

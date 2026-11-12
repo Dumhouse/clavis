@@ -111,7 +111,7 @@ export function WebhookSettings() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Webhook className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">Outgoing webhooks</h2>
+        <h2 className="text-[14px] font-semibold">Outgoing webhooks</h2>
         <Button
           variant="secondary"
           size="sm"
@@ -123,7 +123,7 @@ export function WebhookSettings() {
           <Plus className="size-3.5" /> Add webhook
         </Button>
       </div>
-      <p className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <p className="border-b border-border-soft px-4 py-2 text-[12px] text-dim">
         Signed with HMAC-SHA256 in <code className="font-mono">X-Clavis-Signature</code> and retried
         five times with backoff.
       </p>
@@ -131,10 +131,10 @@ export function WebhookSettings() {
       {open && (
         <form onSubmit={submit} className="space-y-3 border-b border-border p-4">
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Endpoint URL</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Endpoint URL</span>
             <input
               required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               placeholder="https://example.com/hooks/clavis"
               value={url}
               onChange={(event) => {
@@ -144,9 +144,9 @@ export function WebhookSettings() {
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Type</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Type</span>
               <select
-                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                 value={kind}
                 onChange={(event) => {
                   setKind(event.target.value)
@@ -159,12 +159,12 @@ export function WebhookSettings() {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">
                 Signing secret
               </span>
               <input
                 type="password"
-                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                 value={secret}
                 onChange={(event) => {
                   setSecret(event.target.value)
@@ -172,11 +172,11 @@ export function WebhookSettings() {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">
                 Events (comma separated)
               </span>
               <input
-                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                 placeholder="secret.*, project.delete"
                 value={events}
                 onChange={(event) => {
@@ -185,7 +185,7 @@ export function WebhookSettings() {
               />
             </label>
           </div>
-          <label className="flex items-center gap-2 text-[12px]">
+          <label className="flex items-center gap-2 text-[13px]">
             <input
               type="checkbox"
               checked={protectedOnly}
@@ -196,7 +196,7 @@ export function WebhookSettings() {
             Only notify for protected environments
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}
@@ -222,8 +222,8 @@ export function WebhookSettings() {
         {(hooks.data ?? []).map((hook) => (
           <div key={hook.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="truncate font-mono text-[11.5px]">{hook.url}</p>
-              <p className="text-[10.5px] text-dim">
+              <p className="truncate font-mono text-[12.5px]">{hook.url}</p>
+              <p className="text-[11.5px] text-dim">
                 {hook.kind} · {(hook.events ?? []).join(', ') || 'All events'}
                 {hook.protected_only ? ' · protected only' : ''} ·{' '}
                 {hook.secret_set ? 'signed' : 'unsigned'}
@@ -243,18 +243,18 @@ export function WebhookSettings() {
           </div>
         ))}
         {(hooks.data?.length ?? 0) === 0 && !hooks.isLoading && (
-          <p className="px-4 py-5 text-[12px] text-muted">No webhooks configured.</p>
+          <p className="px-4 py-5 text-[13px] text-muted">No webhooks configured.</p>
         )}
       </div>
 
       <div className="border-t border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Send className="size-3.5 text-muted" />
-          <h3 className="text-[12px] font-semibold">Recent deliveries</h3>
+          <h3 className="text-[13px] font-semibold">Recent deliveries</h3>
         </div>
         <div className="mt-2 max-h-48 divide-y divide-border-soft overflow-y-auto">
           {(deliveries.data ?? []).slice(0, 20).map((delivery: Delivery) => (
-            <div key={delivery.id} className="flex items-center gap-2 py-1.5 text-[10.5px]">
+            <div key={delivery.id} className="flex items-center gap-2 py-1.5 text-[11.5px]">
               <span
                 className={
                   delivery.status === 'success'
@@ -270,7 +270,7 @@ export function WebhookSettings() {
             </div>
           ))}
           {(deliveries.data?.length ?? 0) === 0 && (
-            <p className="py-2 text-[11px] text-dim">No deliveries yet.</p>
+            <p className="py-2 text-[12px] text-dim">No deliveries yet.</p>
           )}
         </div>
       </div>

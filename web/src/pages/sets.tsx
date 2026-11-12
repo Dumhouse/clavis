@@ -12,7 +12,7 @@ type SharedSet = components['schemas']['SharedSetBody']
 type Project = components['schemas']['ProjectBody']
 
 const inputClass =
-  'h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none'
+  'h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none'
 
 export function SharedSetsPage() {
   const { org } = useCurrentOrg()
@@ -135,16 +135,19 @@ export function SharedSetsPage() {
       <header>
         <div className="flex items-center gap-2">
           <Layers className="size-5 text-muted" />
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Shared sets</h1>
+          <h1 className="font-head text-[25px] font-semibold tracking-tight">Shared sets</h1>
         </div>
-        <p className="mt-1 text-[13px] text-muted">
-          Org-level secret sets imported by environments. Local values always win; imported sets
-          resolve through <code className="font-mono">{'${set:KEY}'}</code>.
+        <p className="mt-1 max-w-3xl text-[14px] text-muted">
+          Reusable secrets shared across projects and environments. Import a set into an
+          environment; local values always win, and{' '}
+          <code className="font-mono">{'${set:KEY}'}</code> resolves the set value when no local
+          override exists. Sets are org-level, so updating a value applies everywhere it is
+          imported.
         </p>
       </header>
 
       {error && (
-        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-[11.5px] text-danger">{error}</p>
+        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-[12.5px] text-danger">{error}</p>
       )}
 
       <section className="rounded-app border border-border bg-surface px-4 py-3">
@@ -156,7 +159,7 @@ export function SharedSetsPage() {
           className="flex flex-wrap items-end gap-2"
         >
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Name</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Name</span>
             <input
               required
               className={inputClass}
@@ -168,7 +171,7 @@ export function SharedSetsPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Slug</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Slug</span>
             <input
               className={inputClass}
               value={slug}
@@ -185,7 +188,7 @@ export function SharedSetsPage() {
       </section>
 
       <section className="rounded-app border border-border bg-surface px-4 py-3">
-        <p className="mb-2 text-[12px] font-semibold">Import into an environment</p>
+        <p className="mb-2 text-[13px] font-semibold">Import into an environment</p>
         <div className="flex flex-wrap items-end gap-2">
           <select
             className={inputClass}
@@ -259,12 +262,12 @@ export function SharedSetsPage() {
           />
         ))}
         {sets.isLoading && (
-          <p className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-5 text-[12px] text-muted">
+          <p className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-5 text-[13px] text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading shared sets…
           </p>
         )}
         {!sets.isLoading && (sets.data?.length ?? 0) === 0 && (
-          <p className="rounded-app border border-dashed border-border bg-panel px-4 py-6 text-[12px] text-muted">
+          <p className="rounded-app border border-dashed border-border bg-panel px-4 py-6 text-[13px] text-muted">
             No shared sets yet.
           </p>
         )}
@@ -319,9 +322,9 @@ function SetCard({
   return (
     <section className="rounded-app border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <h2 className="text-[13px] font-semibold">{set.name}</h2>
-        <code className="font-mono text-[10.5px] text-dim">{set.slug}</code>
-        <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+        <h2 className="text-[14px] font-semibold">{set.name}</h2>
+        <code className="font-mono text-[11.5px] text-dim">{set.slug}</code>
+        <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
           {set.items?.length ?? 0} keys
         </span>
         <Button
@@ -334,7 +337,7 @@ function SetCard({
           <Trash2 className="size-3.5" />
         </Button>
       </div>
-      <div className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <div className="border-b border-border-soft px-4 py-2 text-[12px] text-dim">
         {(set.imports ?? []).length === 0
           ? 'Not imported by any environment.'
           : `Used by ${(set.imports ?? [])
@@ -344,9 +347,9 @@ function SetCard({
       <div className="divide-y divide-border-soft">
         {(set.items ?? []).map((item) => (
           <div key={item.key} className="flex items-center gap-3 px-4 py-2">
-            <code className="flex-1 font-mono text-[11.5px]">{item.key}</code>
-            <span className="text-[10.5px] text-dim">{item.kind}</span>
-            <span className="text-[10.5px] text-dim">v{item.version}</span>
+            <code className="flex-1 font-mono text-[12.5px]">{item.key}</code>
+            <span className="text-[11.5px] text-dim">{item.kind}</span>
+            <span className="text-[11.5px] text-dim">v{item.version}</span>
             <Button
               variant="ghost"
               size="icon"

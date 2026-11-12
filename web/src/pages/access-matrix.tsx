@@ -107,18 +107,18 @@ export function AccessMatrixPage() {
       <header>
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-5 text-muted" />
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Access matrix</h1>
+          <h1 className="font-head text-[25px] font-semibold tracking-tight">Access matrix</h1>
         </div>
-        <p className="mt-1 text-[13px] text-muted">
+        <p className="mt-1 text-[14px] text-muted">
           Effective permissions for every member and group. Click a cell to see why.
         </p>
       </header>
 
       <section className="flex flex-wrap items-end gap-3 rounded-app border border-border bg-surface px-4 py-3">
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Project</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Project</span>
           <select
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
             value={project}
             onChange={(event) => {
               setProject(event.target.value)
@@ -133,9 +133,9 @@ export function AccessMatrixPage() {
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Environment glob</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment glob</span>
           <input
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 rounded-app-sm border border-border bg-bg px-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
             value={environment}
             onChange={(event) => {
               setEnvironment(event.target.value)
@@ -160,14 +160,14 @@ export function AccessMatrixPage() {
       {explain && (
         <section className="rounded-app border border-accent-line bg-accent-soft p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[12.5px] font-semibold text-accent-text">
+            <p className="text-[13.5px] font-semibold text-accent-text">
               {explain.name} · {permissionShort[explain.permission] ?? explain.permission}
             </p>
             {explanation.isFetching && <Loader2 className="size-3.5 animate-spin text-muted" />}
           </div>
           {explanation.data && (
             <>
-              <p className="mt-1 text-[12px]">
+              <p className="mt-1 text-[13px]">
                 <span
                   className={
                     explanation.data.allowed
@@ -180,7 +180,7 @@ export function AccessMatrixPage() {
                 <span className="text-muted"> — {explanation.data.reason}</span>
               </p>
               {explanation.data.matched && (
-                <p className="mt-1 text-[11.5px] text-muted">
+                <p className="mt-1 text-[12.5px] text-muted">
                   Matched role <strong>{explanation.data.matched.role}</strong> (
                   {explanation.data.matched.source}) · {explanation.data.matched.environment || '*'}{' '}
                   · {explanation.data.matched.path || '/'}
@@ -189,7 +189,7 @@ export function AccessMatrixPage() {
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full min-w-[560px] border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-border text-[10px] uppercase tracking-[0.06em] text-dim">
+                    <tr className="border-b border-border text-[11px] uppercase tracking-[0.06em] text-dim">
                       <th className="py-1.5 pr-3 font-semibold">Role</th>
                       <th className="py-1.5 pr-3 font-semibold">Source</th>
                       <th className="py-1.5 pr-3 font-semibold">Environment</th>
@@ -199,7 +199,7 @@ export function AccessMatrixPage() {
                   </thead>
                   <tbody>
                     {(explanation.data.bindings ?? []).map((binding: Binding, index) => (
-                      <tr key={`${binding.role}-${String(index)}`} className="text-[11.5px]">
+                      <tr key={`${binding.role}-${String(index)}`} className="text-[12.5px]">
                         <td className="py-1 pr-3">{binding.role}</td>
                         <td className="py-1 pr-3 text-muted">{binding.source}</td>
                         <td className="py-1 pr-3 font-mono">{binding.environment || '*'}</td>
@@ -219,7 +219,7 @@ export function AccessMatrixPage() {
             </>
           )}
           {explanation.isError && (
-            <p className="mt-1 text-[11.5px] text-danger">
+            <p className="mt-1 text-[12.5px] text-danger">
               {explanation.error instanceof Error
                 ? explanation.error.message
                 : 'Could not explain.'}
@@ -230,19 +230,19 @@ export function AccessMatrixPage() {
 
       <section className="overflow-x-auto rounded-app border border-border bg-surface">
         {matrix.isLoading && (
-          <p className="flex items-center gap-2 px-4 py-6 text-[12px] text-muted">
+          <p className="flex items-center gap-2 px-4 py-6 text-[13px] text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading access…
           </p>
         )}
         {matrix.isError && (
-          <p className="px-4 py-4 text-[11.5px] text-danger">
+          <p className="px-4 py-4 text-[12.5px] text-danger">
             {matrix.error instanceof Error ? matrix.error.message : 'Could not load the matrix.'}
           </p>
         )}
         {!matrix.isLoading && !matrix.isError && (
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-border text-[10px] uppercase tracking-[0.02em] text-dim">
+              <tr className="border-b border-border text-[11px] uppercase tracking-[0.02em] text-dim">
                 <th className="sticky left-0 z-10 bg-surface px-3 py-2 font-semibold">Subject</th>
                 {permissions.map((permission) => (
                   <th
@@ -265,19 +265,19 @@ export function AccessMatrixPage() {
                   >
                     <td className="sticky left-0 z-10 bg-surface px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-elev px-1.5 py-0.5 text-[9.5px] font-semibold uppercase text-muted">
+                        <span className="rounded-full bg-elev px-1.5 py-0.5 text-[10.5px] font-semibold uppercase text-muted">
                           {row.subject_kind}
                         </span>
-                        <span className="whitespace-nowrap text-[11.5px] font-medium">
+                        <span className="whitespace-nowrap text-[12.5px] font-medium">
                           {row.name || row.email || row.subject_id}
                         </span>
                         {row.role && (
-                          <span className="whitespace-nowrap text-[10.5px] text-dim">
+                          <span className="whitespace-nowrap text-[11.5px] text-dim">
                             {row.role}
                           </span>
                         )}
                         {row.subject_kind === 'group' && (
-                          <span className="whitespace-nowrap text-[10px] text-dim">
+                          <span className="whitespace-nowrap text-[11px] text-dim">
                             {row.member_count ?? 0} members
                           </span>
                         )}
@@ -316,7 +316,7 @@ export function AccessMatrixPage() {
           </table>
         )}
         {!matrix.isLoading && !matrix.isError && rows.length === 0 && (
-          <p className="px-4 py-5 text-[12px] text-muted">No members or groups to show.</p>
+          <p className="px-4 py-5 text-[13px] text-muted">No members or groups to show.</p>
         )}
       </section>
     </div>

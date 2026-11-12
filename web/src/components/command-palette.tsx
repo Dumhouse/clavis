@@ -166,14 +166,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <Search className="size-4 text-dim" />
           <input
             ref={inputRef}
-            className="h-11 flex-1 bg-transparent text-[13px] text-text placeholder:text-dim focus:outline-none"
+            className="h-11 flex-1 bg-transparent text-[14px] text-text placeholder:text-dim focus:outline-none"
             placeholder="Search commands and pages…"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
             }}
           />
-          <kbd className="rounded border border-border bg-elev px-1.5 py-0.5 font-mono text-[10px] text-dim">
+          <kbd className="rounded border border-border bg-elev px-1.5 py-0.5 font-mono text-[11px] text-dim">
             esc
           </kbd>
         </div>
@@ -182,7 +182,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             <button
               key={command.id}
               className={cn(
-                'flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px]',
+                'flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13.5px]',
                 index === selected
                   ? 'bg-hover text-text'
                   : 'text-muted hover:bg-hover hover:text-text',
@@ -199,16 +199,16 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 className={cn('size-4', index === selected ? 'text-accent-text' : 'text-dim')}
               />
               <span className="flex-1">{command.label}</span>
-              <span className="text-[10.5px] text-dim">{command.hint}</span>
+              <span className="text-[11.5px] text-dim">{command.hint}</span>
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="px-3 py-6 text-center text-[12px] text-dim">
+            <p className="px-3 py-6 text-center text-[13px] text-dim">
               No commands match “{query}”.
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3 border-t border-border px-3 py-1.5 text-[10px] text-dim">
+        <div className="flex items-center gap-3 border-t border-border px-3 py-1.5 text-[11px] text-dim">
           <span>↑↓ navigate</span>
           <span>↵ select</span>
           <span className="ml-auto">⌘K to open</span>

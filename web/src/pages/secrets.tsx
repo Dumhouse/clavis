@@ -23,11 +23,16 @@ import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
-import { EditSecretDialog, PasteEnvDialog } from '@/pages/secrets-dialogs'
+import { EditSecretDialog } from '@/pages/secrets-dialogs'
+import { ImportSecretsDialog } from '@/pages/import-dialog'
+import { GenerateSecretDialog } from '@/pages/generate-dialog'
+import { isRequired, validateSchemaValue, type SchemaEntry } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 
 type Env = components['schemas']['EnvBody']
 type Secret = components['schemas']['SecretBody']
+type Overlay = components['schemas']['OverlayBody']
+type OverlaySecret = components['schemas']['OverlaySecretBody']
 
 const envOrder: Record<string, number> = { development: 0, preview: 1, staging: 2, production: 3 }
 const envClassNames: Record<string, string> = {
@@ -68,10 +73,12 @@ export function SecretsPage() {
   const [filter, setFilter] = useState('')
   const [folderFilter, setFolderFilter] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
+  const [overlaySlug, setOverlaySlug] = useState('')
   const [compareASlug, setCompareASlug] = useState('')
   const [compareBSlug, setCompareBSlug] = useState('')
   const [adding, setAdding] = useState(false)
   const [pasting, setPasting] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [editing, setEditing] = useState<{ env: string; secret: Secret } | null>(null)
   const [cells, setCells] = useState<Record<string, CellState>>({})
   const [edits, setEdits] = useState<Record<string, PendingEdit>>({})
@@ -106,6 +113,87 @@ export function SecretsPage() {
   })
 
   const envs = useMemo(() => sortEnvs(projectQuery.data?.environments), [projectQuery.data])
+
+  const schemaQuery = useQuery({
+    queryKey: ['schema', org?.slug, projectSlug],
+    enabled: Boolean(org && projectSlug),
+    queryFn: async () => {
+      if (!org) throw new Error('No organization.')
+      const result = await api.GET('/api/v1/orgs/{org}/projects/{project}/schema', {
+        params: { path: { org: org.slug, project: projectSlug } },
+      })
+      if (result.error) throw new Error(apiErrorMessage(result.error, 'Could not load the schema.'))
+      return result.data
+    },
+  })
+
+  const overlayLists = useQueries({
+    queries: envs.map((env) => ({
+      queryKey: ['overlays', org?.slug, projectSlug, env.slug],
+      enabled: Boolean(org && projectSlug),
+      queryFn: async (): Promise<Overlay[]> => {
+        if (!org) return []
+        const result = await api.GET(
+          '/api/v1/orgs/{org}/projects/{project}/environments/{env}/overlays',
+          { params: { path: { org: org.slug, project: projectSlug, env: env.slug } } },
+        )
+        if (result.error) return []
+        return result.data?.overlays ?? []
+      },
+    })),
+  })
+
+  const overlaySlugs = useMemo(() => {
+    const set = new Set<string>()
+    for (const result of overlayLists) {
+      for (const overlay of result.data ?? []) set.add(overlay.slug)
+    }
+    return [...set].sort()
+  }, [overlayLists])
+
+  const overlayQueries = useQueries({
+    queries: envs.map((env) => ({
+      queryKey: ['overlay-secrets', org?.slug, projectSlug, env.slug, overlaySlug],
+      enabled: Boolean(org && projectSlug && overlaySlug),
+      queryFn: async (): Promise<OverlaySecret[]> => {
+        if (!org || !overlaySlug) return []
+        const result = await api.GET(
+          '/api/v1/orgs/{org}/projects/{project}/environments/{env}/overlays/{overlay}/secrets',
+          {
+            params: {
+              path: {
+                org: org.slug,
+                project: projectSlug,
+                env: env.slug,
+                overlay: overlaySlug,
+              },
+              query: { reveal: true },
+            },
+          },
+        )
+        if (result.error) return []
+        return result.data?.secrets ?? []
+      },
+    })),
+  })
+
+  const overlayByEnv = useMemo(() => {
+    const map = new Map<string, Map<string, string>>()
+    envs.forEach((env, index) => {
+      const values = new Map<string, string>()
+      for (const secret of overlayQueries[index]?.data ?? []) {
+        values.set(secret.key, secret.value ?? '')
+      }
+      map.set(env.slug, values)
+    })
+    return map
+  }, [envs, overlayQueries])
+
+  const schemaByKey = useMemo(() => {
+    const map = new Map<string, SchemaEntry>()
+    for (const entry of schemaQuery.data?.schema ?? []) map.set(entry.key, entry)
+    return map
+  }, [schemaQuery.data])
 
   const secretQueries = useQueries({
     queries: envs.map((env) => ({
@@ -164,6 +252,16 @@ export function SecretsPage() {
         if (secret.inherited && secret.source_environment) {
           map.set(secret.key, secret.source_environment)
         }
+      }
+    }
+    return map
+  }, [secretsByEnv])
+
+  const expiringKeys = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const list of secretsByEnv.values()) {
+      for (const secret of list) {
+        if (secret.expires_at) map.set(secret.key, secret.expires_at)
       }
     }
     return map
@@ -403,6 +501,13 @@ export function SecretsPage() {
 
   async function saveEdits() {
     if (!org || editCount === 0) return
+    for (const edit of Object.values(edits)) {
+      const problem = validateSchemaValue(schemaByKey.get(edit.key), edit.value)
+      if (problem) {
+        setSaveError(`${edit.key} in ${edit.env}: ${problem}`)
+        return
+      }
+    }
     setSaving(true)
     setSaveError(null)
     const ifMatch: Record<string, string> = {}
@@ -456,11 +561,11 @@ export function SecretsPage() {
       <div className="space-y-3">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> Projects
         </Link>
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[12px] text-danger">
+        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
           {loadError ?? 'Project not found.'}
         </div>
       </div>
@@ -474,32 +579,76 @@ export function SecretsPage() {
       <div>
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> Projects
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-head text-[24px] font-semibold tracking-tight">
+            <h1 className="font-head text-[25px] font-semibold tracking-tight">
               {project?.name ?? projectSlug}
             </h1>
-            <p className="mt-1 font-mono text-[11.5px] text-dim">{projectSlug}</p>
+            <p className="mt-1 font-mono text-[12.5px] text-dim">{projectSlug}</p>
+            <p className="mt-2 max-w-2xl text-[14px] text-muted">
+              Secrets and typed configuration for every environment in this project. Edit a cell to
+              write a new version, then promote, sync, or validate values against the schema.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/projects/$project/snapshots"
-              params={{ project: projectSlug }}
-              className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[12px] font-medium text-text hover:bg-elev"
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 md:hidden">
+              <Link
+                to="/projects/$project/rotation"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Rotation
+              </Link>
+              <Link
+                to="/projects/$project/dynamic"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Dynamic
+              </Link>
+              <Link
+                to="/projects/$project/promote"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Promote
+              </Link>
+              <Link
+                to="/projects/$project/schema"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Schema
+              </Link>
+              <Link
+                to="/projects/$project/snapshots"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Snapshots
+              </Link>
+              <Link
+                to="/projects/$project/access"
+                params={{ project: projectSlug }}
+                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
+              >
+                Access
+              </Link>
+            </div>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                setGenerating(true)
+              }}
+              disabled={writableEnvs.length === 0}
             >
-              Snapshots
-            </Link>
-            <Link
-              to="/projects/$project/access"
-              params={{ project: projectSlug }}
-              className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[12px] font-medium text-text hover:bg-elev"
-            >
-              Access
-            </Link>
+              Generate
+            </Button>
             <Button
               variant="secondary"
               size="md"
@@ -508,7 +657,7 @@ export function SecretsPage() {
               }}
               disabled={envs.length === 0}
             >
-              Paste .env
+              Import
             </Button>
             <Button
               variant="primary"
@@ -528,7 +677,7 @@ export function SecretsPage() {
         <div className="flex h-8 min-w-60 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5">
           <Search className="size-3.5 text-dim" />
           <input
-            className="w-full bg-transparent text-[12px] text-text placeholder:text-dim focus:outline-none"
+            className="w-full bg-transparent text-[13px] text-text placeholder:text-dim focus:outline-none"
             placeholder="Filter keys…"
             value={filter}
             onChange={(event) => {
@@ -551,10 +700,27 @@ export function SecretsPage() {
         >
           Compare
         </Button>
+        {overlaySlugs.length > 0 && (
+          <select
+            className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            value={overlaySlug}
+            onChange={(event) => {
+              setOverlaySlug(event.target.value)
+            }}
+            title="Tenant/region overlay"
+          >
+            <option value="">No overlay</option>
+            {overlaySlugs.map((slug) => (
+              <option key={slug} value={slug}>
+                overlay: {slug}
+              </option>
+            ))}
+          </select>
+        )}
         {compare && envs.length >= 2 && (
-          <div className="flex items-center gap-1.5 text-[11px] text-muted">
+          <div className="flex items-center gap-1.5 text-[12px] text-muted">
             <select
-              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[11px] text-text focus:border-accent-line focus:outline-none"
+              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
               value={compareA}
               onChange={(event) => {
                 setCompareASlug(event.target.value)
@@ -568,7 +734,7 @@ export function SecretsPage() {
             </select>
             <span>vs</span>
             <select
-              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[11px] text-text focus:border-accent-line focus:outline-none"
+              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
               value={compareB}
               onChange={(event) => {
                 setCompareBSlug(event.target.value)
@@ -585,7 +751,7 @@ export function SecretsPage() {
       </div>
 
       {loadError && (
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[12px] text-danger">
+        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
           {loadError}
         </div>
       )}
@@ -594,7 +760,7 @@ export function SecretsPage() {
         <div className="overflow-x-auto rounded-app border border-border bg-surface">
           <table className="w-full min-w-[560px] border-collapse text-left">
             <thead>
-              <tr className="border-b border-border text-[10.5px] uppercase tracking-[0.06em] text-dim">
+              <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
                 <th className="px-4 py-2.5 font-semibold">Key</th>
                 <th className="px-4 py-2.5 font-semibold">{compareA}</th>
                 <th className="px-4 py-2.5 font-semibold">{compareB}</th>
@@ -603,15 +769,15 @@ export function SecretsPage() {
             <tbody>
               {compareRows.map((row) => (
                 <tr key={row.key} className="border-b border-border-soft last:border-0">
-                  <td className="px-4 py-2 font-mono text-[11.5px] text-text">{row.key}</td>
-                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[11px]">
+                  <td className="px-4 py-2 font-mono text-[12.5px] text-text">{row.key}</td>
+                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[12px]">
                     {row.left ? (
                       <span className="text-muted">{row.left.value || '(empty)'}</span>
                     ) : (
                       <span className="text-danger">missing</span>
                     )}
                   </td>
-                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[11px]">
+                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[12px]">
                     {row.right ? (
                       <span className="text-muted">{row.right.value || '(empty)'}</span>
                     ) : (
@@ -622,14 +788,14 @@ export function SecretsPage() {
               ))}
               {compareRows.length === 0 && !compareQueries.some((query) => query.isLoading) && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-10 text-center text-[12px] text-muted">
+                  <td colSpan={3} className="px-4 py-10 text-center text-[13px] text-muted">
                     These environments have identical keys and values.
                   </td>
                 </tr>
               )}
               {compareQueries.some((query) => query.isLoading) && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-[12px] text-muted">
+                  <td colSpan={3} className="px-4 py-6 text-center text-[13px] text-muted">
                     <Loader2 className="mr-2 inline size-3.5 animate-spin" /> Comparing…
                   </td>
                 </tr>
@@ -641,7 +807,7 @@ export function SecretsPage() {
         <div className="flex gap-4">
           <aside className="hidden w-44 shrink-0 md:block">
             <div className="rounded-app border border-border bg-surface p-2">
-              <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-dim">
+              <p className="px-1.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-dim">
                 Folders
               </p>
               <button
@@ -650,7 +816,7 @@ export function SecretsPage() {
                   setFolderFilter(null)
                 }}
                 className={cn(
-                  'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[11.5px]',
+                  'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[12.5px]',
                   folderFilter === null
                     ? 'bg-hover text-text'
                     : 'text-muted hover:bg-hover hover:text-text',
@@ -666,7 +832,7 @@ export function SecretsPage() {
                     setFolderFilter(path)
                   }}
                   className={cn(
-                    'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left font-mono text-[11px]',
+                    'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left font-mono text-[12px]',
                     folderFilter === path
                       ? 'bg-hover text-text'
                       : 'text-muted hover:bg-hover hover:text-text',
@@ -674,56 +840,75 @@ export function SecretsPage() {
                   title={path}
                 >
                   <span className="truncate">{path.replace(/^\//, '')}</span>
-                  <span className="ml-auto text-[10px] text-dim">{count}</span>
+                  <span className="ml-auto text-[11px] text-dim">{count}</span>
                 </button>
               ))}
               {folders.length === 0 && (
-                <p className="px-1.5 py-1 text-[10.5px] text-dim">No folders yet.</p>
+                <p className="px-1.5 py-1 text-[11.5px] text-dim">No folders yet.</p>
               )}
             </div>
           </aside>
           <div className="min-w-0 flex-1 overflow-x-auto rounded-app border border-border bg-surface">
             {loading && keys.length === 0 ? (
-              <div className="flex items-center gap-2 px-4 py-8 text-[12px] text-muted">
+              <div className="flex items-center gap-2 px-4 py-8 text-[13px] text-muted">
                 <Loader2 className="size-4 animate-spin" /> Loading secrets…
               </div>
             ) : (
               <table className="w-full min-w-[640px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+                    <th className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
                       Key
                     </th>
                     {envs.map((env) => (
                       <th
                         key={env.id}
-                        className="px-3 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
+                        className="px-3 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em]"
                       >
                         <span className={cn('env-chip', envClassNames[env.type])}>
                           {envShort[env.type] ?? env.type}
                         </span>
                       </th>
                     ))}
+                    {overlaySlug &&
+                      envs.map((env) => (
+                        <th
+                          key={env.id + '-overlay'}
+                          className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-dim"
+                        >
+                          {overlaySlug}:{envShort[env.type] ?? env.type}
+                        </th>
+                      ))}
                   </tr>
                 </thead>
                 <tbody>
                   {keys.map((key) => (
                     <tr key={key} className="border-b border-border-soft last:border-0">
                       <td className="sticky left-0 z-10 bg-surface px-4 py-2">
-                        <span className="font-mono text-[11.5px] text-text">{key}</span>
+                        <span className="font-mono text-[12.5px] text-text">{key}</span>
+                        {schemaByKey.get(key) && (
+                          <span className="ml-1.5 rounded-full border border-border bg-elev px-1.5 py-0.5 text-[10px] font-medium text-dim">
+                            {schemaByKey.get(key)?.type}
+                          </span>
+                        )}
                         {ownerGroups.get(key) && (
-                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[9.5px] font-medium text-accent-text">
+                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-medium text-accent-text">
                             {ownerGroups.get(key)}
                           </span>
                         )}
                         {inheritedSources.get(key) && (
-                          <span className="ml-1 rounded-full bg-elev px-1.5 py-0.5 font-mono text-[9px] text-dim">
+                          <span className="ml-1 rounded-full bg-elev px-1.5 py-0.5 font-mono text-[10px] text-dim">
                             from {inheritedSources.get(key)}
                           </span>
                         )}
                         {overriddenKeys.has(key) && (
-                          <span className="ml-1 rounded-full bg-amber-bg px-1.5 py-0.5 text-[9px] font-semibold text-amber-fg">
+                          <span className="ml-1 rounded-full bg-amber-bg px-1.5 py-0.5 text-[10px] font-semibold text-amber-fg">
                             override
+                          </span>
+                        )}
+                        {expiringKeys.has(key) && (
+                          <span className="ml-1 rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-medium text-dim">
+                            expires {new Date(expiringKeys.get(key) ?? '').toLocaleDateString()}
                           </span>
                         )}
                       </td>
@@ -734,25 +919,36 @@ export function SecretsPage() {
                         const id = `${env.slug}:${key}`
                         const cell = cells[id]
                         const edit = edits[id]
+                        const schemaEntry = schemaByKey.get(key)
                         if (edit) {
+                          const validation = validateSchemaValue(schemaEntry, edit.value)
                           return (
                             <td key={env.id} className="px-3 py-2">
-                              <input
-                                autoFocus
-                                className="h-7 w-full min-w-36 rounded border border-accent-line bg-bg px-2 font-mono text-[11px] text-text focus:outline-none"
-                                value={edit.value}
-                                onChange={(event) => {
-                                  updateEdit(id, { value: event.target.value })
-                                }}
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Escape') cancelEdit(id)
-                                  if (event.key === 'Enter') event.currentTarget.blur()
-                                }}
-                              />
+                              <div className="space-y-1">
+                                <input
+                                  autoFocus
+                                  className={cn(
+                                    'h-7 w-full min-w-36 rounded border border-accent-line bg-bg px-2 font-mono text-[12px] text-text focus:outline-none',
+                                    validation && 'border-danger',
+                                  )}
+                                  value={edit.value}
+                                  onChange={(event) => {
+                                    updateEdit(id, { value: event.target.value })
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Escape') cancelEdit(id)
+                                    if (event.key === 'Enter') event.currentTarget.blur()
+                                  }}
+                                />
+                                {validation && (
+                                  <p className="max-w-48 text-[11px] text-danger">{validation}</p>
+                                )}
+                              </div>
                             </td>
                           )
                         }
                         if (!secret) {
+                          const required = isRequired(schemaEntry, env.type)
                           return (
                             <td key={env.id} className="px-3 py-2">
                               <button
@@ -760,9 +956,19 @@ export function SecretsPage() {
                                 onClick={() => {
                                   void startEdit(env, key)
                                 }}
-                                className="inline-flex h-6 items-center rounded border border-dashed border-border px-2 text-[10.5px] text-dim hover:border-accent-line hover:text-text"
+                                className={cn(
+                                  'inline-flex h-6 items-center rounded border border-dashed px-2 text-[11.5px]',
+                                  required
+                                    ? 'border-danger/60 text-danger hover:border-danger'
+                                    : 'border-border text-dim hover:border-accent-line hover:text-text',
+                                )}
+                                title={
+                                  required
+                                    ? `Required in ${env.type}; click to add it`
+                                    : 'Add this key to the environment'
+                                }
                               >
-                                missing
+                                {required ? 'required' : 'missing'}
                               </button>
                             </td>
                           )
@@ -775,7 +981,7 @@ export function SecretsPage() {
                                 onClick={() => {
                                   void toggleCell(env, key)
                                 }}
-                                className="inline-flex h-6 max-w-48 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-[11px] text-muted hover:border-accent-line hover:text-text"
+                                className="inline-flex h-6 max-w-48 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-[12px] text-muted hover:border-accent-line hover:text-text"
                                 title={cell?.revealed ? 'Hide value' : 'Reveal value'}
                               >
                                 {cell?.loading ? (
@@ -829,13 +1035,21 @@ export function SecretsPage() {
                           </td>
                         )
                       })}
+                      {overlaySlug &&
+                        envs.map((env) => (
+                          <td key={env.id + '-overlay'} className="px-3 py-2">
+                            <span className="inline-flex h-6 max-w-36 items-center truncate rounded border border-border bg-elev px-2 font-mono text-[12px] text-muted">
+                              {overlayByEnv.get(env.slug)?.get(key) || '—'}
+                            </span>
+                          </td>
+                        ))}
                     </tr>
                   ))}
                   {keys.length === 0 && !loading && (
                     <tr>
                       <td
-                        colSpan={envs.length + 1}
-                        className="px-4 py-10 text-center text-[12px] text-muted"
+                        colSpan={envs.length * (overlaySlug ? 2 : 1) + 1}
+                        className="px-4 py-10 text-center text-[13px] text-muted"
                       >
                         No secrets yet. Add one to get started.
                       </td>
@@ -850,10 +1064,10 @@ export function SecretsPage() {
 
       {editCount > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-app border border-accent-line bg-accent-soft px-4 py-2.5">
-          <span className="text-[12px] font-medium text-accent-text">
+          <span className="text-[13px] font-medium text-accent-text">
             {editCount} unsaved {editCount === 1 ? 'change' : 'changes'}
           </span>
-          <span className="text-[11px] text-muted">
+          <span className="text-[12px] text-muted">
             Nothing is written until you review and save.
           </span>
           <div className="ml-auto flex gap-2">
@@ -879,7 +1093,7 @@ export function SecretsPage() {
         </div>
       )}
 
-      <p className="text-[11px] text-dim">
+      <p className="text-[12px] text-dim">
         Reveals are written to the audit log with the key's blind index and the reason. Values never
         appear in logs.
       </p>
@@ -902,8 +1116,25 @@ export function SecretsPage() {
         />
       )}
 
+      {generating && org && (
+        <GenerateSecretDialog
+          orgSlug={org.slug}
+          projectSlug={projectSlug}
+          envs={writableEnvs}
+          secretsForEnv={secretsForEnv}
+          onClose={() => {
+            setGenerating(false)
+          }}
+          onDone={(message) => {
+            setGenerating(false)
+            notify(message)
+            void queryClient.invalidateQueries({ queryKey: ['secrets', org.slug, projectSlug] })
+          }}
+        />
+      )}
+
       {pasting && org && (
-        <PasteEnvDialog
+        <ImportSecretsDialog
           orgSlug={org.slug}
           projectSlug={projectSlug}
           envs={writableEnvs}
@@ -960,8 +1191,8 @@ export function SecretsPage() {
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-head text-[17px] font-semibold">Review changes</h2>
-                <p className="mt-0.5 text-[12px] text-muted">
+                <h2 className="font-head text-[18px] font-semibold">Review changes</h2>
+                <p className="mt-0.5 text-[13px] text-muted">
                   {editCount} {editCount === 1 ? 'change' : 'changes'} will be written in one atomic
                   batch per environment.
                 </p>
@@ -978,9 +1209,9 @@ export function SecretsPage() {
               </Button>
             </div>
             <div className="mt-3 max-h-80 overflow-y-auto rounded-app-sm border border-border">
-              <table className="w-full text-left text-[11.5px]">
+              <table className="w-full text-left text-[12.5px]">
                 <thead className="sticky top-0 bg-surface">
-                  <tr className="border-b border-border text-[10px] uppercase tracking-[0.06em] text-dim">
+                  <tr className="border-b border-border text-[11px] uppercase tracking-[0.06em] text-dim">
                     <th className="px-2.5 py-1.5 font-semibold">Environment</th>
                     <th className="px-2.5 py-1.5 font-semibold">Key</th>
                     <th className="px-2.5 py-1.5 font-semibold">Change</th>
@@ -995,7 +1226,7 @@ export function SecretsPage() {
                       <td className="px-2.5 py-1.5">
                         <span
                           className={cn(
-                            'rounded px-1.5 py-0.5 text-[10px] font-medium',
+                            'rounded px-1.5 py-0.5 text-[11px] font-medium',
                             edit.existing
                               ? 'bg-amber-bg text-amber-fg'
                               : 'bg-success-bg text-success',
@@ -1013,7 +1244,7 @@ export function SecretsPage() {
               </table>
             </div>
             {saveError && (
-              <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+              <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
                 {saveError}
               </p>
             )}
@@ -1044,7 +1275,7 @@ export function SecretsPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-app-sm border border-border bg-elev px-3 py-2 text-[12px] text-text shadow-app">
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-app-sm border border-border bg-elev px-3 py-2 text-[13px] text-text shadow-app">
           <span>{toast.message}</span>
           {toast.undo && (
             <button
@@ -1101,8 +1332,8 @@ function AddSecretDialog({
       <div className="w-full max-w-lg rounded-app border border-border bg-surface p-5 shadow-app">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-head text-[17px] font-semibold">Add secret</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
+            <h2 className="font-head text-[18px] font-semibold">Add secret</h2>
+            <p className="mt-0.5 text-[13px] text-muted">
               The value is encrypted before it reaches the database.
             </p>
           </div>
@@ -1112,9 +1343,9 @@ function AddSecretDialog({
         </div>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Environment</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
             <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
               value={env}
               onChange={(event) => {
                 setEnv(event.target.value)
@@ -1128,11 +1359,11 @@ function AddSecretDialog({
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Key</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Key</span>
             <input
               autoFocus
               required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               placeholder="STRIPE_SECRET_KEY"
               value={key}
               onChange={(event) => {
@@ -1141,9 +1372,9 @@ function AddSecretDialog({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Kind</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Kind</span>
             <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
               value={kind}
               onChange={(event) => {
                 setKind(event.target.value)
@@ -1155,11 +1386,11 @@ function AddSecretDialog({
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">
               Folder (optional)
             </span>
             <input
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               placeholder="/backend/db"
               value={folder}
               onChange={(event) => {
@@ -1168,11 +1399,11 @@ function AddSecretDialog({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Value</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Value</span>
             <textarea
               required
               rows={3}
-              className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               placeholder="sk_live_…"
               value={value}
               onChange={(event) => {
@@ -1181,9 +1412,9 @@ function AddSecretDialog({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Change message</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Change message</span>
             <input
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
               placeholder="Why this exists"
               value={message}
               onChange={(event) => {
@@ -1192,7 +1423,7 @@ function AddSecretDialog({
             />
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}

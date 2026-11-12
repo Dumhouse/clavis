@@ -1,8 +1,12 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   BookOpen,
+  Boxes,
   Cable,
   Bot,
+  DatabaseZap,
+  FileCode2,
+  GitPullRequest,
   HeartPulse,
   Inbox,
   KeyRound,
@@ -10,6 +14,7 @@ import {
   Layers,
   Moon,
   Palette,
+  RefreshCw,
   ScrollText,
   ShieldCheck,
   Search,
@@ -17,6 +22,7 @@ import {
   Sun,
   Users,
   FolderKanban,
+  Archive,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -48,6 +54,41 @@ const orgNav: NavItem[] = [
   { to: '/docs', label: 'Docs', icon: BookOpen },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
+
+type ProjectNavItem = {
+  to:
+    | '/projects/$project'
+    | '/projects/$project/environments'
+    | '/projects/$project/schema'
+    | '/projects/$project/promote'
+    | '/projects/$project/dynamic'
+    | '/projects/$project/rotation'
+    | '/projects/$project/snapshots'
+    | '/projects/$project/access'
+  label: string
+  icon: LucideIcon
+}
+
+const projectNav: ProjectNavItem[] = [
+  { to: '/projects/$project', label: 'Secrets', icon: KeyRound },
+  { to: '/projects/$project/environments', label: 'Environments', icon: Boxes },
+  { to: '/projects/$project/schema', label: 'Schema', icon: FileCode2 },
+  { to: '/projects/$project/promote', label: 'Promote', icon: GitPullRequest },
+  { to: '/projects/$project/dynamic', label: 'Dynamic secrets', icon: DatabaseZap },
+  { to: '/projects/$project/rotation', label: 'Rotation', icon: RefreshCw },
+  { to: '/projects/$project/snapshots', label: 'Snapshots', icon: Archive },
+  { to: '/projects/$project/access', label: 'Access', icon: ShieldCheck },
+]
+
+function projectSlugFromPath(pathname: string): string | null {
+  const match = /^\/projects\/([^/]+)/.exec(pathname)
+  const slug = match?.[1]
+  return slug ? decodeURIComponent(slug) : null
+}
+
+function projectHref(to: ProjectNavItem['to'], slug: string): string {
+  return to.replace('$project', encodeURIComponent(slug))
+}
 
 export function AppShell() {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
@@ -111,6 +152,7 @@ export function AppShell() {
       window.removeEventListener('clavis:show-hints', hintsHandler)
     }
   }, [navigate])
+  const projectSlug = projectSlugFromPath(pathname)
   const initials = (user?.name ?? 'C')
     .split(' ')
     .map((part) => part[0])
@@ -118,7 +160,11 @@ export function AppShell() {
     .slice(0, 2)
     .toUpperCase()
   const title =
-    [...workspaceNav, ...orgNav].find((item) => item.to === pathname)?.label ?? 'Projects'
+    (projectSlug
+      ? projectNav.find((item) => projectHref(item.to, projectSlug) === pathname)?.label
+      : undefined) ??
+    [...workspaceNav, ...orgNav].find((item) => item.to === pathname)?.label ??
+    'Projects'
 
   return (
     <div className="flex h-full bg-bg text-text">
@@ -127,8 +173,8 @@ export function AppShell() {
           <div className="logo-mark flex size-7 items-center justify-center rounded-[9px] shadow-sm">
             <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
           </div>
-          <span className="font-head text-[15px] font-semibold tracking-tight">Clavis</span>
-          <span className="ml-auto rounded-full border border-border bg-surface px-1.5 py-0.5 text-[10px] font-medium text-dim">
+          <span className="font-head text-[16px] font-semibold tracking-tight">Clavis</span>
+          <span className="ml-auto rounded-full border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-dim">
             dev
           </span>
         </div>
@@ -142,14 +188,14 @@ export function AppShell() {
             aria-haspopup="listbox"
             aria-expanded={orgOpen}
           >
-            <span className="flex size-6 items-center justify-center rounded-md bg-accent-soft text-[11px] font-bold text-accent-text">
+            <span className="flex size-6 items-center justify-center rounded-md bg-accent-soft text-[12px] font-bold text-accent-text">
               {(org?.name ?? 'C').slice(0, 1).toUpperCase()}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12px] font-medium">
+              <span className="block truncate text-[13px] font-medium">
                 {org?.name ?? 'No organization'}
               </span>
-              <span className="block truncate text-[11px] text-dim">
+              <span className="block truncate text-[12px] text-dim">
                 {org?.role ?? 'Member'} · free
               </span>
             </span>
@@ -165,7 +211,7 @@ export function AppShell() {
                   key={candidate.id}
                   role="option"
                   aria-selected={candidate.slug === org?.slug}
-                  className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-[12px] hover:bg-hover"
+                  className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-[13px] hover:bg-hover"
                   onClick={() => {
                     setOrgOpen(false)
                     if (candidate.slug === org?.slug) return
@@ -173,11 +219,11 @@ export function AppShell() {
                     void navigate({ to: '/' })
                   }}
                 >
-                  <span className="flex size-5 items-center justify-center rounded bg-elev text-[10px] font-semibold text-muted">
+                  <span className="flex size-5 items-center justify-center rounded bg-elev text-[11px] font-semibold text-muted">
                     {candidate.name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{candidate.name}</span>
-                  <span className="text-[10px] text-dim">{candidate.role}</span>
+                  <span className="text-[11px] text-dim">{candidate.role}</span>
                 </button>
               ))}
             </div>
@@ -185,18 +231,19 @@ export function AppShell() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 pb-4">
+          {projectSlug && <ProjectNavGroup slug={projectSlug} pathname={pathname} />}
           <NavGroup label="Workspace" items={workspaceNav} pathname={pathname} />
           <NavGroup label="Organization" items={orgNav} pathname={pathname} />
         </nav>
 
         <div className="border-t border-border p-3">
           <div className="flex items-center gap-2 rounded-app-sm px-1.5 py-1.5">
-            <div className="flex size-7 items-center justify-center rounded-full bg-elev text-[11px] font-semibold text-muted">
+            <div className="flex size-7 items-center justify-center rounded-full bg-elev text-[12px] font-semibold text-muted">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-medium">{user?.name ?? 'Signed in'}</p>
-              <p className="truncate text-[11px] text-dim">{org?.role ?? 'Member'}</p>
+              <p className="truncate text-[13px] font-medium">{user?.name ?? 'Signed in'}</p>
+              <p className="truncate text-[12px] text-dim">{org?.role ?? 'Member'}</p>
             </div>
             <Button
               variant="ghost"
@@ -213,22 +260,32 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur md:px-6">
-          <div className="flex min-w-0 items-center gap-2 text-[12px]">
+          <div className="flex min-w-0 items-center gap-2 text-[13px]">
             <span className="text-dim">{org?.name ?? 'Clavis'}</span>
             <span className="text-dim">/</span>
+            {projectSlug ? (
+              <>
+                <Link to="/" className="text-dim hover:text-text">
+                  Projects
+                </Link>
+                <span className="text-dim">/</span>
+                <span className="truncate font-mono text-[12.5px] text-muted">{projectSlug}</span>
+                <span className="text-dim">/</span>
+              </>
+            ) : null}
             <span className="truncate font-medium">{title}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
             <button
-              className="hidden h-8 w-52 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5 text-left text-[12px] text-dim hover:bg-hover sm:flex"
+              className="hidden h-8 w-52 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5 text-left text-[13px] text-dim hover:bg-hover sm:flex"
               onClick={() => {
                 setPaletteOpen(true)
               }}
             >
               <Search className="size-3.5" />
               <span className="flex-1">Search…</span>
-              <kbd className="rounded border border-border bg-elev px-1 font-mono text-[10px] text-muted">
+              <kbd className="rounded border border-border bg-elev px-1 font-mono text-[11px] text-muted">
                 ⌘K
               </kbd>
             </button>
@@ -252,7 +309,7 @@ export function AppShell() {
               <Palette className="size-3.5" />
               <span className="capitalize">{appearance}</span>
             </Button>
-            <div className="ml-1 flex size-7 items-center justify-center rounded-full bg-elev text-[11px] font-semibold text-muted">
+            <div className="ml-1 flex size-7 items-center justify-center rounded-full bg-elev text-[12px] font-semibold text-muted">
               {initials}
             </div>
           </div>
@@ -290,6 +347,39 @@ export function AppShell() {
   )
 }
 
+function ProjectNavGroup({ slug, pathname }: { slug: string; pathname: string }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between gap-2 px-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-dim">Project</p>
+        <Link to="/" className="text-[11px] text-dim hover:text-text">
+          All projects
+        </Link>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {projectNav.map((item) => {
+          const target = projectHref(item.to, slug)
+          const active = pathname === target
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              params={{ project: slug }}
+              className={cn(
+                'flex h-8 items-center gap-2.5 rounded-app-sm px-2 text-[13.5px] text-muted transition-colors hover:bg-hover hover:text-text',
+                active && 'bg-hover text-text',
+              )}
+            >
+              <item.icon className={cn('size-4', active ? 'text-accent-text' : 'text-dim')} />
+              <span className="flex-1">{item.label}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function NavGroup({
   label,
   items,
@@ -301,7 +391,7 @@ function NavGroup({
 }) {
   return (
     <div>
-      <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-dim">
+      <p className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-dim">
         {label}
       </p>
       <div className="flex flex-col gap-0.5">
@@ -312,14 +402,14 @@ function NavGroup({
               key={item.to}
               to={item.to}
               className={cn(
-                'flex h-8 items-center gap-2.5 rounded-app-sm px-2 text-[12.5px] text-muted transition-colors hover:bg-hover hover:text-text',
+                'flex h-8 items-center gap-2.5 rounded-app-sm px-2 text-[13.5px] text-muted transition-colors hover:bg-hover hover:text-text',
                 active && 'bg-hover text-text',
               )}
             >
               <item.icon className={cn('size-4', active ? 'text-accent-text' : 'text-dim')} />
               <span className="flex-1">{item.label}</span>
               {item.to === '/requests' && (
-                <span className="rounded-full bg-amber-bg px-1.5 text-[10px] font-semibold text-amber-fg">
+                <span className="rounded-full bg-amber-bg px-1.5 text-[11px] font-semibold text-amber-fg">
                   3
                 </span>
               )}

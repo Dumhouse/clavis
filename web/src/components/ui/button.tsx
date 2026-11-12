@@ -14,7 +14,7 @@ export const buttonVariants = cva(
         danger: 'bg-danger-bg text-danger hover:bg-danger/20',
       },
       size: {
-        sm: 'h-8 px-2.5 text-[12px]',
+        sm: 'h-8 px-2.5 text-[13px]',
         md: 'h-9 px-3.5',
         lg: 'h-10 px-4',
         icon: 'size-8',

@@ -6,9 +6,13 @@ import { OrgProvider } from '@/lib/org'
 import { AuthLoading, LoginPage, SetupPage } from '@/pages/auth'
 import { JoinPage } from '@/pages/join'
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '@/pages/password-reset'
+import { SharePage } from '@/pages/share'
+import { ApprovalPage } from '@/pages/approval'
 
 export function App() {
   const { status } = useAuth()
+  if (window.location.pathname.startsWith('/share/')) return <SharePage />
+  if (window.location.pathname === '/approvals') return <ApprovalPage />
   if (status === 'loading') return <AuthLoading />
   if (status === 'setup') return <SetupPage />
   if (window.location.pathname === '/join') return <JoinPage />

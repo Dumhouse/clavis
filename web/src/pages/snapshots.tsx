@@ -114,24 +114,24 @@ export function SnapshotsPage() {
         <Link
           to="/projects/$project"
           params={{ project: projectSlug }}
-          className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> {projectSlug}
         </Link>
         <div className="mt-2 flex items-center gap-2">
           <Clock className="size-5 text-muted" />
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Snapshots</h1>
+          <h1 className="font-head text-[25px] font-semibold tracking-tight">Snapshots</h1>
         </div>
-        <p className="mt-1 text-[13px] text-muted">
+        <p className="mt-1 text-[14px] text-muted">
           Point-in-time captures. Restoring writes new versions, so no history is lost.
         </p>
       </div>
 
       <section className="flex flex-wrap items-end gap-3 rounded-app border border-border bg-surface px-4 py-3">
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Environment</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
           <select
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
             value={selected}
             onChange={(event) => {
               setEnvSlug(event.target.value)
@@ -145,9 +145,9 @@ export function SnapshotsPage() {
           </select>
         </label>
         <label className="block min-w-48 flex-1">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Reason (optional)</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Reason (optional)</span>
           <input
-            className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
             placeholder="Before rotating the database password"
             value={reason}
             onChange={(event) => {
@@ -169,13 +169,13 @@ export function SnapshotsPage() {
       </section>
 
       {error && (
-        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-[11.5px] text-danger">{error}</p>
+        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-[12.5px] text-danger">{error}</p>
       )}
 
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-[13px] font-semibold">Recent snapshots</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+          <h2 className="text-[14px] font-semibold">Recent snapshots</h2>
+          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
             {snapshots.data?.length ?? 0}
           </span>
         </div>
@@ -183,10 +183,10 @@ export function SnapshotsPage() {
           {(snapshots.data ?? []).map((snapshot) => (
             <div key={snapshot.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium">
+                <p className="text-[13px] font-medium">
                   {new Date(snapshot.created_at).toLocaleString()}
                 </p>
-                <p className="text-[11px] text-dim">{snapshot.reason || 'No reason recorded'}</p>
+                <p className="text-[12px] text-dim">{snapshot.reason || 'No reason recorded'}</p>
               </div>
               <Button
                 variant="secondary"
@@ -201,12 +201,12 @@ export function SnapshotsPage() {
             </div>
           ))}
           {snapshots.isLoading && (
-            <p className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+            <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-muted">
               <Loader2 className="size-4 animate-spin" /> Loading snapshots…
             </p>
           )}
           {!snapshots.isLoading && (snapshots.data?.length ?? 0) === 0 && (
-            <p className="px-4 py-5 text-[12px] text-muted">
+            <p className="px-4 py-5 text-[13px] text-muted">
               No snapshots yet. Capture one before a risky change.
             </p>
           )}

@@ -46,6 +46,7 @@ export function SettingsPage() {
   const [absoluteDays, setAbsoluteDays] = useState(0)
   const [allowlist, setAllowlist] = useState('')
   const [blockCLIWrites, setBlockCLIWrites] = useState(false)
+  const [duplicateDetection, setDuplicateDetection] = useState(false)
   const [securityMessage, setSecurityMessage] = useState<string | null>(null)
   const [securityBusy, setSecurityBusy] = useState(false)
   const [templates, setTemplates] = useState<EnvTemplate[]>([])
@@ -89,6 +90,7 @@ export function SettingsPage() {
     setAbsoluteDays(orgSettings.data.session_absolute_days ?? 0)
     setAllowlist((orgSettings.data.ip_allowlist ?? []).join('\n'))
     setBlockCLIWrites(orgSettings.data.block_cli_writes ?? false)
+    setDuplicateDetection(orgSettings.data.duplicate_detection ?? false)
     setTemplates(orgSettings.data.environment_templates ?? [])
     setSsoEnabled(orgSettings.data.sso.enabled)
     setSsoProvider(orgSettings.data.sso.provider || 'generic')
@@ -116,6 +118,7 @@ export function SettingsPage() {
         session_idle_hours: idleHours,
         session_absolute_days: absoluteDays,
         block_cli_writes: blockCLIWrites,
+        duplicate_detection: duplicateDetection,
         environment_templates: templates,
         ip_allowlist: allowlist
           .split(/\n|,/)
@@ -271,8 +274,8 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-head text-[24px] font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-[13px] text-muted">
+        <h1 className="font-head text-[25px] font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-[14px] text-muted">
           Account, appearance, and security for {org?.name ?? 'this instance'}.
         </p>
       </header>
@@ -286,18 +289,18 @@ export function SettingsPage() {
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Palette className="size-4 text-muted" />
-          <h2 className="text-[13px] font-semibold">Organization default</h2>
+          <h2 className="text-[14px] font-semibold">Organization default</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-medium">Appearance for new members</p>
-            <p className="text-[11.5px] text-dim">
+            <p className="text-[13.5px] font-medium">Appearance for new members</p>
+            <p className="text-[12.5px] text-dim">
               Applied when someone accepts an invite. They can change it later.
             </p>
-            {orgMessage && <p className="mt-1 text-[11px] text-muted">{orgMessage}</p>}
+            {orgMessage && <p className="mt-1 text-[12px] text-muted">{orgMessage}</p>}
           </div>
           <select
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
             value={orgAppearance}
             onChange={(event) => {
               void saveOrgAppearance(event.target.value)
@@ -314,10 +317,10 @@ export function SettingsPage() {
         <section className="rounded-app border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <ShieldCheck className="size-4 text-muted" />
-            <h2 className="text-[13px] font-semibold">Security policy</h2>
+            <h2 className="text-[14px] font-semibold">Security policy</h2>
           </div>
           <div className="space-y-4 p-4">
-            <label className="flex items-start gap-2 text-[12px]">
+            <label className="flex items-start gap-2 text-[13px]">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -328,7 +331,7 @@ export function SettingsPage() {
               />
               <span>
                 <span className="block font-medium">Require two-factor authentication</span>
-                <span className="block text-[11.5px] text-muted">
+                <span className="block text-[12.5px] text-muted">
                   Members without MFA can still sign in and enable it, but org data stays blocked
                   until they do.
                 </span>
@@ -336,59 +339,59 @@ export function SettingsPage() {
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Idle timeout (hours)
                 </span>
                 <input
                   type="number"
                   min={0}
                   max={168}
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   value={idleHours}
                   onChange={(event) => {
                     setIdleHours(Number(event.target.value))
                   }}
                 />
-                <span className="mt-1 block text-[10.5px] text-dim">
+                <span className="mt-1 block text-[11.5px] text-dim">
                   0 uses the instance default (12h).
                 </span>
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Absolute session lifetime (days)
                 </span>
                 <input
                   type="number"
                   min={0}
                   max={365}
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   value={absoluteDays}
                   onChange={(event) => {
                     setAbsoluteDays(Number(event.target.value))
                   }}
                 />
-                <span className="mt-1 block text-[10.5px] text-dim">
+                <span className="mt-1 block text-[11.5px] text-dim">
                   0 uses the instance default (7 days).
                 </span>
               </label>
             </div>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">IP allowlist</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">IP allowlist</span>
               <textarea
                 rows={3}
                 placeholder={'10.0.0.0/8\n203.0.113.42'}
-                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                 value={allowlist}
                 onChange={(event) => {
                   setAllowlist(event.target.value)
                 }}
               />
-              <span className="mt-1 block text-[10.5px] text-dim">
+              <span className="mt-1 block text-[11.5px] text-dim">
                 One CIDR or IP per line. Empty allows every address. Make sure your current network
                 is included before saving.
               </span>
             </label>
-            {securityMessage && <p className="text-[11.5px] text-muted">{securityMessage}</p>}
+            {securityMessage && <p className="text-[12.5px] text-muted">{securityMessage}</p>}
             <div className="flex justify-end">
               <Button
                 variant="primary"
@@ -409,10 +412,10 @@ export function SettingsPage() {
         <section className="rounded-app border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <KeyRound className="size-4 text-muted" />
-            <h2 className="text-[13px] font-semibold">Single sign-on</h2>
+            <h2 className="text-[14px] font-semibold">Single sign-on</h2>
           </div>
           <div className="space-y-3 p-4">
-            <label className="flex items-start gap-2 text-[12px]">
+            <label className="flex items-start gap-2 text-[13px]">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -423,16 +426,16 @@ export function SettingsPage() {
               />
               <span>
                 <span className="block font-medium">Enable SSO</span>
-                <span className="block text-[11.5px] text-muted">
+                <span className="block text-[12.5px] text-muted">
                   OIDC for Google, Microsoft, Okta, and generic providers; OAuth for GitHub.
                 </span>
               </span>
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">Provider</span>
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">Provider</span>
                 <select
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   value={ssoProvider}
                   onChange={(event) => {
                     setSsoProvider(event.target.value)
@@ -447,11 +450,11 @@ export function SettingsPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Auto-join role
                 </span>
                 <select
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   value={ssoRole}
                   onChange={(event) => {
                     setSsoRole(event.target.value)
@@ -465,11 +468,11 @@ export function SettingsPage() {
               {ssoProvider !== 'saml' && (
                 <>
                   <label className="block">
-                    <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                    <span className="mb-1 block text-[12.5px] font-medium text-muted">
                       Client ID
                     </span>
                     <input
-                      className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                      className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                       value={ssoClientID}
                       onChange={(event) => {
                         setSsoClientID(event.target.value)
@@ -477,12 +480,12 @@ export function SettingsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                    <span className="mb-1 block text-[12.5px] font-medium text-muted">
                       Client secret {ssoSecretSet ? '(stored)' : ''}
                     </span>
                     <input
                       type="password"
-                      className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                      className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                       placeholder={ssoSecretSet ? 'Leave blank to keep current secret' : ''}
                       value={ssoClientSecret}
                       onChange={(event) => {
@@ -494,11 +497,11 @@ export function SettingsPage() {
                     ssoProvider !== 'microsoft' &&
                     ssoProvider !== 'github' && (
                       <label className="block sm:col-span-2">
-                        <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                        <span className="mb-1 block text-[12.5px] font-medium text-muted">
                           Issuer URL
                         </span>
                         <input
-                          className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                          className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                           placeholder="https://idp.example.com"
                           value={ssoIssuer}
                           onChange={(event) => {
@@ -511,29 +514,29 @@ export function SettingsPage() {
               )}
               {ssoProvider === 'saml' && (
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                  <span className="mb-1 block text-[12.5px] font-medium text-muted">
                     IdP metadata (URL or XML)
                   </span>
                   <textarea
                     rows={4}
-                    className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[11px] text-text focus:border-accent-line focus:outline-none"
+                    className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
                     placeholder="https://idp.example.com/app/.../sso/saml/metadata"
                     value={ssoIdPMetadata}
                     onChange={(event) => {
                       setSsoIdPMetadata(event.target.value)
                     }}
                   />
-                  <span className="mt-1 block text-[10.5px] text-dim">
+                  <span className="mt-1 block text-[11.5px] text-dim">
                     SP metadata: {window.location.origin}/saml/{org?.slug ?? 'org'}/metadata
                   </span>
                 </label>
               )}
               <label className="block sm:col-span-2">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Allowed email domains
                 </span>
                 <input
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   placeholder="example.com, company.com"
                   value={ssoDomains}
                   onChange={(event) => {
@@ -542,7 +545,7 @@ export function SettingsPage() {
                 />
               </label>
             </div>
-            <label className="flex items-start gap-2 text-[12px]">
+            <label className="flex items-start gap-2 text-[13px]">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -555,12 +558,12 @@ export function SettingsPage() {
                 <span className="block font-medium">
                   Require SSO for members of this organization
                 </span>
-                <span className="block text-[11.5px] text-muted">
+                <span className="block text-[12.5px] text-muted">
                   Password sign-in is blocked for members of an enforcing organization.
                 </span>
               </span>
             </label>
-            {ssoMessage && <p className="text-[11.5px] text-muted">{ssoMessage}</p>}
+            {ssoMessage && <p className="text-[12.5px] text-muted">{ssoMessage}</p>}
             <div className="flex justify-end">
               <Button
                 variant="primary"
@@ -581,10 +584,10 @@ export function SettingsPage() {
         <section className="rounded-app border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <GitBranch className="size-4 text-muted" />
-            <h2 className="text-[13px] font-semibold">Preview environments</h2>
+            <h2 className="text-[14px] font-semibold">Preview environments</h2>
           </div>
           <div className="space-y-3 p-4">
-            <label className="flex items-start gap-2 text-[12px]">
+            <label className="flex items-start gap-2 text-[13px]">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -597,7 +600,7 @@ export function SettingsPage() {
                 <span className="block font-medium">
                   Create preview environments from pull requests
                 </span>
-                <span className="block text-[11.5px] text-muted">
+                <span className="block text-[12.5px] text-muted">
                   Point the repository webhook at{' '}
                   <code className="font-mono">
                     {window.location.origin}/api/v1/orgs/{org?.slug}
@@ -609,12 +612,12 @@ export function SettingsPage() {
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Webhook secret {previewSecretSet ? '(stored)' : ''}
                 </span>
                 <input
                   type="password"
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                   placeholder={previewSecretSet ? 'Leave blank to keep current secret' : ''}
                   value={previewSecret}
                   onChange={(event) => {
@@ -623,14 +626,14 @@ export function SettingsPage() {
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                <span className="mb-1 block text-[12.5px] font-medium text-muted">
                   Retention (days)
                 </span>
                 <input
                   type="number"
                   min={1}
                   max={90}
-                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                   value={previewDays}
                   onChange={(event) => {
                     setPreviewDays(Number(event.target.value))
@@ -638,7 +641,7 @@ export function SettingsPage() {
                 />
               </label>
             </div>
-            {previewMessage && <p className="text-[11.5px] text-muted">{previewMessage}</p>}
+            {previewMessage && <p className="text-[12.5px] text-muted">{previewMessage}</p>}
             <div className="flex justify-end">
               <Button
                 variant="primary"
@@ -663,12 +666,12 @@ export function SettingsPage() {
         <section className="rounded-app border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Layers className="size-4 text-muted" />
-            <h2 className="text-[13px] font-semibold">Environment templates</h2>
-            <span className="text-[11px] text-dim">Applied to new projects</span>
+            <h2 className="text-[14px] font-semibold">Environment templates</h2>
+            <span className="text-[12px] text-dim">Applied to new projects</span>
           </div>
           <div className="space-y-3 p-4">
             {templates.length === 0 && (
-              <p className="text-[11.5px] text-muted">
+              <p className="text-[12.5px] text-muted">
                 New projects get dev, staging, and prod. Add templates to customise that set.
               </p>
             )}
@@ -678,9 +681,9 @@ export function SettingsPage() {
                 className="flex flex-wrap items-end gap-2"
               >
                 <label className="block">
-                  <span className="mb-1 block text-[10.5px] font-medium text-muted">Slug</span>
+                  <span className="mb-1 block text-[11.5px] font-medium text-muted">Slug</span>
                   <input
-                    className="h-8 w-28 rounded-app-sm border border-border bg-bg px-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-8 w-28 rounded-app-sm border border-border bg-bg px-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                     value={template.slug}
                     onChange={(event) => {
                       setTemplates((current) =>
@@ -692,9 +695,9 @@ export function SettingsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[10.5px] font-medium text-muted">Name</span>
+                  <span className="mb-1 block text-[11.5px] font-medium text-muted">Name</span>
                   <input
-                    className="h-8 w-40 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-8 w-40 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
                     value={template.name}
                     onChange={(event) => {
                       setTemplates((current) =>
@@ -706,9 +709,9 @@ export function SettingsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-[10.5px] font-medium text-muted">Type</span>
+                  <span className="mb-1 block text-[11.5px] font-medium text-muted">Type</span>
                   <select
-                    className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+                    className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
                     value={template.type}
                     onChange={(event) => {
                       const value = event.target.value as EnvTemplate['type']
@@ -725,7 +728,7 @@ export function SettingsPage() {
                     <option value="production">production</option>
                   </select>
                 </label>
-                <label className="flex items-center gap-1.5 pb-1.5 text-[11.5px]">
+                <label className="flex items-center gap-1.5 pb-1.5 text-[12.5px]">
                   <input
                     type="checkbox"
                     checked={template.protected ?? false}
@@ -775,7 +778,7 @@ export function SettingsPage() {
                 {securityBusy && <Loader2 className="size-3.5 animate-spin" />} Save templates
               </Button>
             </div>
-            {securityMessage && <p className="text-[11.5px] text-muted">{securityMessage}</p>}
+            {securityMessage && <p className="text-[12.5px] text-muted">{securityMessage}</p>}
           </div>
         </section>
       )}
@@ -783,18 +786,18 @@ export function SettingsPage() {
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <ShieldCheck className="size-4 text-muted" />
-          <h2 className="text-[13px] font-semibold">Account</h2>
+          <h2 className="text-[14px] font-semibold">Account</h2>
         </div>
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[12.5px] font-medium">{user?.email}</p>
-            <p className="text-[11.5px] text-dim">
+            <p className="text-[13.5px] font-medium">{user?.email}</p>
+            <p className="text-[12.5px] text-dim">
               {user?.email_verified ? 'Email verified' : 'Email not verified yet'}
             </p>
-            {verifyMessage && <p className="mt-1 text-[11px] text-muted">{verifyMessage}</p>}
+            {verifyMessage && <p className="mt-1 text-[12px] text-muted">{verifyMessage}</p>}
           </div>
           {user?.email_verified ? (
-            <span className="rounded-full bg-success-bg px-2 py-0.5 text-[10.5px] font-semibold text-success">
+            <span className="rounded-full bg-success-bg px-2 py-0.5 text-[11.5px] font-semibold text-success">
               Verified
             </span>
           ) : (
@@ -814,12 +817,12 @@ export function SettingsPage() {
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Palette className="size-4 text-muted" />
-          <h2 className="text-[13px] font-semibold">Appearance</h2>
+          <h2 className="text-[14px] font-semibold">Appearance</h2>
         </div>
         <div className="space-y-4 p-4">
           <div>
-            <p className="text-[12px] font-medium">Theme</p>
-            <p className="text-[11.5px] text-muted">
+            <p className="text-[13px] font-medium">Theme</p>
+            <p className="text-[12.5px] text-muted">
               System, dark, or light. Saved in this browser.
             </p>
             <div className="mt-2 flex gap-2">
@@ -853,8 +856,8 @@ export function SettingsPage() {
             </div>
           </div>
           <div>
-            <p className="text-[12px] font-medium">Style</p>
-            <p className="text-[11.5px] text-muted">
+            <p className="text-[13px] font-medium">Style</p>
+            <p className="text-[12.5px] text-muted">
               Classic is dense and neutral; Warm uses stone surfaces and larger radii.
             </p>
             <div className="mt-2 flex gap-2">
@@ -878,7 +881,7 @@ export function SettingsPage() {
               </Button>
             </div>
           </div>
-          <label className="flex items-center gap-2 text-[12px] text-muted">
+          <label className="flex items-center gap-2 text-[13px] text-muted">
             <input
               type="checkbox"
               checked={hintsOn}
@@ -898,9 +901,9 @@ export function SettingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-4 text-muted" />
-            <h2 className="text-[13px] font-semibold">Active sessions</h2>
+            <h2 className="text-[14px] font-semibold">Active sessions</h2>
             {sessions.data && (
-              <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+              <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
                 {sessions.data.length}
               </span>
             )}
@@ -919,12 +922,12 @@ export function SettingsPage() {
         </div>
 
         {sessions.isLoading && (
-          <div className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+          <div className="flex items-center gap-2 px-4 py-5 text-[13px] text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading sessions…
           </div>
         )}
         {sessions.isError && (
-          <p className="px-4 py-4 text-[12px] text-danger">
+          <p className="px-4 py-4 text-[13px] text-danger">
             {sessions.error instanceof Error ? sessions.error.message : 'Could not load sessions.'}
           </p>
         )}
@@ -939,15 +942,15 @@ export function SettingsPage() {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-medium">
+                <p className="truncate text-[13px] font-medium">
                   {sessionLabel(session.user_agent)}
                   {session.current && (
-                    <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text">
+                    <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">
                       this device
                     </span>
                   )}
                 </p>
-                <p className="truncate text-[11px] text-dim">
+                <p className="truncate text-[12px] text-dim">
                   {session.ip || 'unknown IP'} · last seen {formatTime(session.last_seen_at)} ·
                   expires {formatTime(session.expires_at)}
                 </p>
@@ -970,18 +973,18 @@ export function SettingsPage() {
             </div>
           ))}
           {sessions.data && sessions.data.length === 0 && (
-            <p className="px-4 py-5 text-[12px] text-muted">No active sessions.</p>
+            <p className="px-4 py-5 text-[13px] text-muted">No active sessions.</p>
           )}
         </div>
         {revoke.error && (
-          <p className="px-4 pb-3 text-[11.5px] text-danger">
+          <p className="px-4 pb-3 text-[12.5px] text-danger">
             {revoke.error instanceof Error ? revoke.error.message : 'Could not revoke the session.'}
           </p>
         )}
       </section>
 
       <section
-        className={cn('rounded-app border border-border bg-panel px-4 py-3 text-[12px] text-muted')}
+        className={cn('rounded-app border border-border bg-panel px-4 py-3 text-[13px] text-muted')}
       >
         Signed in as <span className="font-medium text-text">{user?.name}</span> ({user?.email}).
         Role: {org?.role ?? 'Member'}.

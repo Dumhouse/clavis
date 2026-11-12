@@ -137,31 +137,31 @@ export function ProjectAccessPage() {
         <Link
           to="/projects/$project"
           params={{ project: projectSlug }}
-          className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> {projectSlug}
         </Link>
         <div className="mt-2 flex items-center gap-2">
           <ShieldCheck className="size-5 text-muted" />
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Project access</h1>
+          <h1 className="font-head text-[25px] font-semibold tracking-tight">Project access</h1>
         </div>
-        <p className="mt-1 text-[13px] text-muted">
+        <p className="mt-1 text-[14px] text-muted">
           Scoped roles for people and groups. Environment and path globs narrow each grant.
         </p>
       </div>
 
       <section className="rounded-app border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
-          <h2 className="text-[13px] font-semibold">Grant access</h2>
-          <p className="text-[11px] text-dim">
+          <h2 className="text-[14px] font-semibold">Grant access</h2>
+          <p className="text-[12px] text-dim">
             You can only grant permissions you already hold yourself.
           </p>
         </div>
         <form onSubmit={submit} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6">
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Subject</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Subject</span>
             <select
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={subjectKind}
               onChange={(event) => {
                 setSubjectKind(event.target.value as 'user' | 'group')
@@ -173,11 +173,11 @@ export function ProjectAccessPage() {
             </select>
           </label>
           <label className="block lg:col-span-2">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">
               {subjectKind === 'user' ? 'Member' : 'Group'}
             </span>
             <select
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={subjectID}
               onChange={(event) => {
                 setSubjectID(event.target.value)
@@ -192,9 +192,9 @@ export function ProjectAccessPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Role</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Role</span>
             <select
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={role}
               onChange={(event) => {
                 setRole(event.target.value)
@@ -208,9 +208,9 @@ export function ProjectAccessPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Environment</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
             <input
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={environment}
               onChange={(event) => {
                 setEnvironment(event.target.value)
@@ -219,9 +219,9 @@ export function ProjectAccessPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Path glob</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Path glob</span>
             <input
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={path}
               onChange={(event) => {
                 setPath(event.target.value)
@@ -230,9 +230,9 @@ export function ProjectAccessPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Expires</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Expires</span>
             <select
-              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-8 w-full rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={days}
               onChange={(event) => {
                 setDays(Number(event.target.value))
@@ -256,7 +256,7 @@ export function ProjectAccessPage() {
             </Button>
           </div>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger lg:col-span-6">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger lg:col-span-6">
               {error}
             </p>
           )}
@@ -265,19 +265,19 @@ export function ProjectAccessPage() {
 
       <section className="overflow-x-auto rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-[13px] font-semibold">Current grants</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+          <h2 className="text-[14px] font-semibold">Current grants</h2>
+          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
             {grants.data?.length ?? 0}
           </span>
         </div>
         {grants.isError && (
-          <p className="px-4 py-3 text-[11.5px] text-danger">
+          <p className="px-4 py-3 text-[12.5px] text-danger">
             {grants.error instanceof Error ? grants.error.message : 'Could not load grants.'}
           </p>
         )}
         <table className="w-full min-w-[720px] border-collapse text-left">
           <thead>
-            <tr className="border-b border-border text-[10.5px] uppercase tracking-[0.06em] text-dim">
+            <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
               <th className="px-4 py-2.5 font-semibold">Subject</th>
               <th className="px-4 py-2.5 font-semibold">Role</th>
               <th className="px-4 py-2.5 font-semibold">Scope</th>
@@ -293,25 +293,25 @@ export function ProjectAccessPage() {
                     <span
                       className={
                         item.subject_kind === 'group'
-                          ? 'rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent-text'
-                          : 'rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-semibold text-muted'
+                          ? 'rounded-full bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold text-accent-text'
+                          : 'rounded-full bg-elev px-1.5 py-0.5 text-[11px] font-semibold text-muted'
                       }
                     >
                       {item.subject_kind === 'group' ? 'group' : 'user'}
                     </span>
-                    <span className="text-[12px] font-medium">
+                    <span className="text-[13px] font-medium">
                       {item.subject_name || item.email || item.subject_id}
                     </span>
                   </div>
                   {item.email && item.subject_name && (
-                    <p className="mt-0.5 text-[11px] text-dim">{item.email}</p>
+                    <p className="mt-0.5 text-[12px] text-dim">{item.email}</p>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-[12px]">{item.role}</td>
-                <td className="px-4 py-2.5 font-mono text-[11px] text-muted">
+                <td className="px-4 py-2.5 text-[13px]">{item.role}</td>
+                <td className="px-4 py-2.5 font-mono text-[12px] text-muted">
                   {item.environment} · {item.path}
                 </td>
-                <td className="px-4 py-2.5 text-[11.5px] text-dim">
+                <td className="px-4 py-2.5 text-[12.5px] text-dim">
                   {item.expires_at ? formatDate(item.expires_at) : 'Never'}
                 </td>
                 <td className="px-4 py-2.5 text-right">
@@ -332,7 +332,7 @@ export function ProjectAccessPage() {
           </tbody>
         </table>
         {(grants.data?.length ?? 0) === 0 && !grants.isLoading && (
-          <p className="px-4 py-5 text-[12px] text-muted">
+          <p className="px-4 py-5 text-[13px] text-muted">
             No scoped grants yet. Org-wide roles already apply to everyone.
           </p>
         )}

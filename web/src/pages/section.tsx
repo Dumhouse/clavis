@@ -50,8 +50,8 @@ export function SectionPage({ path }: { path: string }) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-head text-[24px] font-semibold tracking-tight">{page.title}</h1>
-        <p className="mt-1 max-w-2xl text-[13px] text-muted">{page.body}</p>
+        <h1 className="font-head text-[25px] font-semibold tracking-tight">{page.title}</h1>
+        <p className="mt-1 max-w-2xl text-[14px] text-muted">{page.body}</p>
       </header>
 
       <section className="flex flex-col items-start gap-3 rounded-app border border-dashed border-border bg-panel p-8">
@@ -59,8 +59,8 @@ export function SectionPage({ path }: { path: string }) {
           <Construction className="size-5 text-dim" />
         </div>
         <div>
-          <h2 className="text-[13.5px] font-semibold">Not built yet</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
+          <h2 className="text-[14.5px] font-semibold">Not built yet</h2>
+          <p className="mt-0.5 text-[13px] text-muted">
             {page.milestone}. The foundation and API are being implemented first.
           </p>
         </div>

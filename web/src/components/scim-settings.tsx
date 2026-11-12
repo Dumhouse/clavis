@@ -85,7 +85,7 @@ export function ScimSettings() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <UserCog className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">SCIM provisioning</h2>
+        <h2 className="text-[14px] font-semibold">SCIM provisioning</h2>
         <Button
           variant="secondary"
           size="sm"
@@ -103,7 +103,7 @@ export function ScimSettings() {
           New token
         </Button>
       </div>
-      <p className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <p className="border-b border-border-soft px-4 py-2 text-[12px] text-dim">
         Point your identity provider at{' '}
         <code className="font-mono">{window.location.origin}/scim/v2</code> with a bearer token.
         Users and groups are provisioned into {org?.name ?? 'this organization'}.
@@ -111,10 +111,10 @@ export function ScimSettings() {
 
       {token && (
         <div className="border-b border-border bg-accent-soft p-4">
-          <p className="text-[12px] font-semibold text-accent-text">Copy this token now</p>
-          <p className="text-[11.5px] text-muted">It is shown once.</p>
+          <p className="text-[13px] font-semibold text-accent-text">Copy this token now</p>
+          <p className="text-[12.5px] text-muted">It is shown once.</p>
           <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[11px]">
+            <code className="min-w-0 flex-1 break-all rounded-app-sm border border-border bg-bg px-2.5 py-1.5 font-mono text-[12px]">
               {token}
             </code>
             <Button
@@ -140,13 +140,13 @@ export function ScimSettings() {
         </div>
       )}
 
-      {error && <p className="px-4 py-3 text-[11.5px] text-danger">{error}</p>}
+      {error && <p className="px-4 py-3 text-[12.5px] text-danger">{error}</p>}
       <div className="divide-y divide-border-soft">
         {(tokens.data ?? []).map((item) => (
           <div key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-[11.5px]">{item.prefix}…</p>
-              <p className="text-[10.5px] text-dim">
+              <p className="font-mono text-[12.5px]">{item.prefix}…</p>
+              <p className="text-[11.5px] text-dim">
                 Created {new Date(item.created_at).toLocaleDateString()} · last used{' '}
                 {item.last_used_at ? new Date(item.last_used_at).toLocaleDateString() : 'never'}
               </p>
@@ -165,7 +165,7 @@ export function ScimSettings() {
           </div>
         ))}
         {(tokens.data?.length ?? 0) === 0 && !tokens.isLoading && (
-          <p className="px-4 py-5 text-[12px] text-muted">No SCIM tokens yet.</p>
+          <p className="px-4 py-5 text-[13px] text-muted">No SCIM tokens yet.</p>
         )}
       </div>
     </section>

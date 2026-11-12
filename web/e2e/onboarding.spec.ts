@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { execFile, spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,6 +34,11 @@ test('setup → project → secret → reveal → audit', async ({ page }) => {
 
   await project.click()
   await expect(page.getByRole('heading', { name: 'Payments API', level: 1 })).toBeVisible()
+
+  const accessibility = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze()
+  expect(accessibility.violations).toEqual([])
 
   await page.getByRole('button', { name: 'Add secret' }).click()
   await page.getByLabel('Key').fill('STRIPE_SECRET_KEY')

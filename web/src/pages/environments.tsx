@@ -97,14 +97,14 @@ export function EnvironmentsPage() {
 
   if (project.isLoading) {
     return (
-      <div className="flex items-center gap-2 text-[12px] text-muted">
+      <div className="flex items-center gap-2 text-[13px] text-muted">
         <Loader2 className="size-4 animate-spin" /> Loading environments…
       </div>
     )
   }
   if (project.isError || !project.data) {
     return (
-      <div className="rounded-app bg-danger-bg px-4 py-3 text-[12px] text-danger">
+      <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
         {project.error instanceof Error ? project.error.message : 'Project not found.'}
       </div>
     )
@@ -116,14 +116,14 @@ export function EnvironmentsPage() {
         <Link
           to="/projects/$project"
           params={{ project: projectSlug }}
-          className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-text"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
         >
           <ArrowLeft className="size-3.5" /> {project.data.name}
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-head text-[24px] font-semibold tracking-tight">Environments</h1>
-            <p className="mt-1 text-[13px] text-muted">
+            <h1 className="font-head text-[25px] font-semibold tracking-tight">Environments</h1>
+            <p className="mt-1 text-[14px] text-muted">
               Order, type, and protection for {project.data.name}.
             </p>
           </div>
@@ -131,7 +131,7 @@ export function EnvironmentsPage() {
             <Link
               to="/projects/$project/snapshots"
               params={{ project: projectSlug }}
-              className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[12px] font-medium text-text hover:bg-elev"
+              className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
             >
               Snapshots
             </Link>
@@ -176,20 +176,20 @@ export function EnvironmentsPage() {
               </button>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-2 text-[12.5px] font-medium">
+              <p className="flex items-center gap-2 text-[13.5px] font-medium">
                 {env.name}
                 {env.protected && <Lock className="size-3 text-amber-fg" />}
                 {env.protected !== (env.type === 'production') && (
-                  <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-fg">
+                  <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-fg">
                     deviates from type default
                   </span>
                 )}
               </p>
-              <p className="font-mono text-[11px] text-dim">{env.slug}</p>
-              <label className="mt-1 flex items-center gap-1.5 text-[10.5px] text-dim">
+              <p className="font-mono text-[12px] text-dim">{env.slug}</p>
+              <label className="mt-1 flex items-center gap-1.5 text-[11.5px] text-dim">
                 Inherits from
                 <select
-                  className="h-6 rounded border border-border bg-bg px-1 text-[10.5px] text-text focus:border-accent-line focus:outline-none"
+                  className="h-6 rounded border border-border bg-bg px-1 text-[11.5px] text-text focus:border-accent-line focus:outline-none"
                   value={envs.find((candidate) => candidate.id === env.parent_id)?.slug ?? ''}
                   onChange={(event) => {
                     update.mutate({ env, body: { parent_slug: event.target.value } })
@@ -211,7 +211,7 @@ export function EnvironmentsPage() {
               {envTypeLabels[env.type] ?? env.type}
             </span>
             <select
-              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[11.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
               value={env.type}
               onChange={(event) => {
                 update.mutate({ env, body: { type: event.target.value } })
@@ -224,7 +224,7 @@ export function EnvironmentsPage() {
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-1.5 text-[11px] text-muted">
+            <label className="flex items-center gap-1.5 text-[12px] text-muted">
               <input
                 type="checkbox"
                 checked={env.protected}
@@ -259,12 +259,12 @@ export function EnvironmentsPage() {
           </div>
         ))}
         {envs.length === 0 && (
-          <p className="px-4 py-8 text-center text-[12px] text-muted">No environments.</p>
+          <p className="px-4 py-8 text-center text-[13px] text-muted">No environments.</p>
         )}
       </div>
 
       {(update.error || remove.error) && (
-        <p className="rounded-app bg-danger-bg px-4 py-3 text-[12px] text-danger">
+        <p className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
           {update.error instanceof Error ? update.error.message : ''}
           {remove.error instanceof Error ? remove.error.message : ''}
         </p>
@@ -345,8 +345,8 @@ function CloneEnvironmentDialog({
       <div className="w-full max-w-md rounded-app border border-border bg-surface p-5 shadow-app">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-head text-[17px] font-semibold">Clone {source.name}</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
+            <h2 className="font-head text-[18px] font-semibold">Clone {source.name}</h2>
+            <p className="mt-0.5 text-[13px] text-muted">
               Copies key names, folders, tags, comments, and runbook notes.
             </p>
           </div>
@@ -361,10 +361,10 @@ function CloneEnvironmentDialog({
           className="mt-4 space-y-3"
         >
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Name</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Name</span>
             <input
               required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
               value={name}
               onChange={(event) => {
                 setName(event.target.value)
@@ -372,17 +372,17 @@ function CloneEnvironmentDialog({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Slug</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Slug</span>
             <input
               required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
               value={slug}
               onChange={(event) => {
                 setSlug(event.target.value)
               }}
             />
           </label>
-          <label className="flex items-start gap-2 text-[12px]">
+          <label className="flex items-start gap-2 text-[13px]">
             <input
               type="checkbox"
               className="mt-0.5"
@@ -393,13 +393,13 @@ function CloneEnvironmentDialog({
             />
             <span>
               <span className="block font-medium">Include values</span>
-              <span className="block text-[11px] text-muted">
+              <span className="block text-[12px] text-muted">
                 Off copies key names only; new versions start empty.
               </span>
             </span>
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}
@@ -455,8 +455,8 @@ function CreateEnvironmentDialog({
       <div className="w-full max-w-md rounded-app border border-border bg-surface p-5 shadow-app">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-head text-[17px] font-semibold">New environment</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
+            <h2 className="font-head text-[18px] font-semibold">New environment</h2>
+            <p className="mt-0.5 text-[13px] text-muted">
               Production environments are protected by default.
             </p>
           </div>
@@ -471,11 +471,11 @@ function CreateEnvironmentDialog({
           className="mt-4 space-y-3"
         >
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Name</span>
+            <span className="mb-1 block text-[12.5px] font-medium text-muted">Name</span>
             <input
               required
               autoFocus
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
               placeholder="QA"
               value={name}
               onChange={(event) => {
@@ -492,10 +492,10 @@ function CreateEnvironmentDialog({
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Slug</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Slug</span>
               <input
                 required
-                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
                 value={slug}
                 onChange={(event) => {
                   setSlug(event.target.value)
@@ -503,9 +503,9 @@ function CreateEnvironmentDialog({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[11.5px] font-medium text-muted">Type</span>
+              <span className="mb-1 block text-[12.5px] font-medium text-muted">Type</span>
               <select
-                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
                 value={type}
                 onChange={(event) => {
                   setType(event.target.value)
@@ -520,7 +520,7 @@ function CreateEnvironmentDialog({
             </label>
           </div>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
               {error}
             </p>
           )}

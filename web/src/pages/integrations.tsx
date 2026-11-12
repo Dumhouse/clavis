@@ -153,17 +153,17 @@ export function IntegrationsPage() {
         <div>
           <div className="flex items-center gap-2">
             <Cable className="size-5 text-muted" />
-            <h1 className="font-head text-[24px] font-semibold tracking-tight">Integrations</h1>
+            <h1 className="font-head text-[25px] font-semibold tracking-tight">Integrations</h1>
           </div>
-          <p className="mt-1 text-[13px] text-muted">
+          <p className="mt-1 text-[14px] text-muted">
             Syncs push resolved secrets to GitHub, GitLab, Vercel, AWS, GCP, Netlify, Cloudflare, or
             a signed HTTP endpoint.
           </p>
         </div>
         <label className="block">
-          <span className="mb-1 block text-[11.5px] font-medium text-muted">Project</span>
+          <span className="mb-1 block text-[12.5px] font-medium text-muted">Project</span>
           <select
-            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            className="h-8 rounded-app-sm border border-border bg-bg px-2 text-[13px] text-text focus:border-accent-line focus:outline-none"
             value={project}
             onChange={(event) => {
               setProjectSlug(event.target.value)
@@ -180,15 +180,15 @@ export function IntegrationsPage() {
       </header>
 
       {notice && (
-        <p className="rounded-app-sm border border-border bg-surface px-3 py-2 text-[11.5px] text-muted">
+        <p className="rounded-app-sm border border-border bg-surface px-3 py-2 text-[12.5px] text-muted">
           {notice}
         </p>
       )}
 
       <section className="rounded-app border border-border bg-surface">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          <h2 className="text-[13px] font-semibold">Syncs</h2>
-          <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+          <h2 className="text-[14px] font-semibold">Syncs</h2>
+          <span className="rounded-full bg-elev px-1.5 text-[11.5px] text-muted">
             {syncs.data?.length ?? 0}
           </span>
         </div>
@@ -198,28 +198,28 @@ export function IntegrationsPage() {
             return (
               <div key={sync.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted">
+                  <span className="rounded-full bg-elev px-1.5 py-0.5 text-[11px] font-semibold uppercase text-muted">
                     {sync.provider}
                   </span>
-                  <span className="text-[12px] font-medium">{sync.environment}</span>
+                  <span className="text-[13px] font-medium">{sync.environment}</span>
                   <span
                     className={
                       sync.status === 'success'
-                        ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-[10px] font-semibold text-success'
+                        ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-[11px] font-semibold text-success'
                         : sync.status === 'failed'
-                          ? 'rounded-full bg-danger-bg px-1.5 py-0.5 text-[10px] font-semibold text-danger'
-                          : 'rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-semibold text-muted'
+                          ? 'rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger'
+                          : 'rounded-full bg-elev px-1.5 py-0.5 text-[11px] font-semibold text-muted'
                     }
                   >
                     {sync.status}
                   </span>
                   {!sync.confirmed && (
-                    <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[10px] font-semibold text-amber-fg">
+                    <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-[11px] font-semibold text-amber-fg">
                       first run unconfirmed
                     </span>
                   )}
                   {driftKeys.length > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-danger-bg px-1.5 py-0.5 text-[11px] font-semibold text-danger">
                       <ShieldAlert className="size-3" /> drift: {driftKeys.join(', ')}
                     </span>
                   )}
@@ -276,7 +276,7 @@ export function IntegrationsPage() {
                     </Button>
                   </span>
                 </div>
-                <label className="mt-1 flex items-center gap-1.5 text-[10.5px] text-dim">
+                <label className="mt-1 flex items-center gap-1.5 text-[11.5px] text-dim">
                   <input
                     type="checkbox"
                     checked={sync.delete_missing}
@@ -287,7 +287,7 @@ export function IntegrationsPage() {
                   />
                   Delete remote keys not in Clavis
                 </label>
-                <p className="mt-1 text-[10.5px] text-dim">
+                <p className="mt-1 text-[11.5px] text-dim">
                   Last synced{' '}
                   {sync.last_synced_at ? new Date(sync.last_synced_at).toLocaleString() : 'never'} ·
                   drift checked{' '}
@@ -299,12 +299,12 @@ export function IntegrationsPage() {
             )
           })}
           {syncs.isLoading && (
-            <p className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+            <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-muted">
               <Loader2 className="size-4 animate-spin" /> Loading syncs…
             </p>
           )}
           {!syncs.isLoading && (syncs.data?.length ?? 0) === 0 && (
-            <p className="px-4 py-6 text-[12px] text-muted">
+            <p className="px-4 py-6 text-[13px] text-muted">
               No syncs for this project. Create one with{' '}
               <code className="font-mono">clavis syncs create</code> or the API.
             </p>
@@ -315,8 +315,8 @@ export function IntegrationsPage() {
       {selected && (
         <section className="rounded-app border border-border bg-surface">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-            <h2 className="text-[13px] font-semibold">Run history</h2>
-            <code className="font-mono text-[10.5px] text-dim">{selected.id}</code>
+            <h2 className="text-[14px] font-semibold">Run history</h2>
+            <code className="font-mono text-[11.5px] text-dim">{selected.id}</code>
             <Button
               variant="ghost"
               size="sm"
@@ -331,7 +331,7 @@ export function IntegrationsPage() {
           <div className="divide-y divide-border-soft">
             {(runs.data ?? []).map((item: Run) => (
               <div key={item.id} className="px-4 py-2">
-                <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+                <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
                   <span
                     className={
                       item.status === 'success'
@@ -351,19 +351,19 @@ export function IntegrationsPage() {
                   </span>
                 </div>
                 {item.error && (
-                  <p className="mt-1 rounded-app-sm bg-danger-bg px-2 py-1 text-[11px] text-danger">
+                  <p className="mt-1 rounded-app-sm bg-danger-bg px-2 py-1 text-[12px] text-danger">
                     {item.error}
                   </p>
                 )}
               </div>
             ))}
             {runs.isLoading && (
-              <p className="flex items-center gap-2 px-4 py-4 text-[12px] text-muted">
+              <p className="flex items-center gap-2 px-4 py-4 text-[13px] text-muted">
                 <Loader2 className="size-4 animate-spin" /> Loading runs…
               </p>
             )}
             {!runs.isLoading && (runs.data?.length ?? 0) === 0 && (
-              <p className="px-4 py-4 text-[12px] text-muted">No runs yet.</p>
+              <p className="px-4 py-4 text-[13px] text-muted">No runs yet.</p>
             )}
           </div>
         </section>
