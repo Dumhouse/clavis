@@ -1,0 +1,25 @@
+pre-commit:
+  parallel: true
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: test -z "$(gofmt -l {staged_files})"
+    go-vet:
+      glob: "*.go"
+      run: go vet ./...
+    golangci-lint:
+      glob: "*.go"
+      run: |
+        if command -v golangci-lint >/dev/null 2>&1; then
+          golangci-lint run ./...
+        else
+          echo "golangci-lint not installed; skipping"
+        fi
+    web-lint:
+      glob: "web/**/*.{ts,tsx}"
+      run: |
+        if [ -d web/node_modules ]; then
+          pnpm --dir web lint
+        else
+          echo "web/node_modules missing; run make web-install"
+        fi

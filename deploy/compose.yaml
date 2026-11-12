@@ -1,0 +1,17 @@
+services:
+  clavis:
+    image: clavis/clavis:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      CLAVIS_SERVER_BASE_URL: http://localhost:8080
+      CLAVIS_LOG_FORMAT: json
+    volumes:
+      - clavis-data:/data
+    restart: unless-stopped
+
+volumes:
+  clavis-data:

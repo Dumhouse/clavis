@@ -1,0 +1,41 @@
+# Go
+/bin/
+/dist/
+*.test
+*.out
+coverage.*
+profile.*
+data/
+
+# Local databases and key material
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+root.key
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+web/.vite/
+web/coverage/
+web/.e2e-data-dir
+web/test-results/
+web/playwright-report/
+*.tsbuildinfo
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log

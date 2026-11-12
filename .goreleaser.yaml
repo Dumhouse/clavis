@@ -1,0 +1,93 @@
+version: 2
+
+project_name: clavis
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: clavis
+    main: ./cmd/clavis
+    binary: clavis
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/dumhouse/clavis/internal/version.Version={{ .Version }}
+      - -X github.com/dumhouse/clavis/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/dumhouse/clavis/internal/version.Date={{ .Date }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - deploy/clavis.example.yaml
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+signs:
+  - cmd: cosign
+    artifacts: all
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - --yes
+      - --bundle=${signature}
+      - ${artifact}
+
+dockers:
+  - image_templates:
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
+    use: buildx
+    dockerfile: deploy/Dockerfile.goreleaser
+    goarch: amd64
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+  - image_templates:
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
+    use: buildx
+    dockerfile: deploy/Dockerfile.goreleaser
+    goarch: arm64
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+
+docker_manifests:
+  - name_template: "ghcr.io/dumhouse/clavis:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/dumhouse/clavis:latest"
+    image_templates:
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
+      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"

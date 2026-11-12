@@ -1,0 +1,11 @@
+# GoReleaser copies the built binary next to this file in its build context.
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY clavis /usr/local/bin/clavis
+USER nonroot:nonroot
+EXPOSE 8080
+ENV CLAVIS_SERVER_ADDR=:8080 \
+    CLAVIS_DATA_DIR=/data \
+    CLAVIS_LOG_FORMAT=json
+VOLUME ["/data"]
+ENTRYPOINT ["/usr/local/bin/clavis"]
+CMD ["server"]

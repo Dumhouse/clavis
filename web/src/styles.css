@@ -1,0 +1,270 @@
+@import 'tailwindcss';
+
+/*
+ * Clavis design tokens.
+ *
+ * Two appearances (classic, warm) x two themes (dark, light). Switching
+ * data-style / data-theme changes tokens only; layout and components stay
+ * identical (docs/design.md). Environment colors keep the same hue in every
+ * combination so "production = amber" never changes meaning.
+ */
+
+:root {
+  --bg: #09090b;
+  --panel: #0c0c0f;
+  --surface: #111114;
+  --elev: #1a1a1f;
+  --hover: #1c1c21;
+  --hover-soft: rgb(255 255 255 / 0.018);
+  --border: #26262c;
+  --border-soft: #1d1d22;
+  --text: #fafafa;
+  --muted: #a1a1aa;
+  --dim: #8b8b95;
+  --accent: #10b981;
+  --accent-fg: #022c22;
+  --accent-soft: rgb(16 185 129 / 0.09);
+  --accent-line: rgb(16 185 129 / 0.35);
+  --accent-text: #6ee7b7;
+  --logo-grad: linear-gradient(140deg, #34d399, #0d9488);
+  --dev: #3b82f6;
+  --preview: #8b5cf6;
+  --stg: #14b8a6;
+  --prod: #f59e0b;
+  --violet-fg: #c4b5fd;
+  --violet-bg: rgb(139 92 246 / 0.14);
+  --blue-fg: #93c5fd;
+  --blue-bg: rgb(59 130 246 / 0.13);
+  --amber-fg: #fcd34d;
+  --amber-bg: rgb(245 158 11 / 0.13);
+  --red: #f87171;
+  --red-bg: rgb(248 113 113 / 0.12);
+  --green-fg: #6ee7b7;
+  --green-bg: rgb(16 185 129 / 0.13);
+  --shadow: 0 12px 40px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.3);
+  --scrim: rgb(0 0 0 / 0.55);
+
+  --r: 12px;
+  --r-sm: 8px;
+  --row-h: 50px;
+  --font: 'Geist Variable', 'Geist', Inter, -apple-system, system-ui, sans-serif;
+  --font-head: var(--font);
+  --fs: 13px;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --panel: #fafafa;
+  --surface: #ffffff;
+  --elev: #f4f4f5;
+  --hover: #f4f4f5;
+  --hover-soft: rgb(0 0 0 / 0.015);
+  --border: #e4e4e7;
+  --border-soft: #efeff1;
+  --text: #09090b;
+  --muted: #52525b;
+  --dim: #6f6f78;
+  --accent: #059669;
+  --accent-fg: #ffffff;
+  --accent-soft: rgb(5 150 105 / 0.07);
+  --accent-line: rgb(5 150 105 / 0.4);
+  --accent-text: #047857;
+  --logo-grad: linear-gradient(140deg, #34d399, #0d9488);
+  --violet-fg: #6d28d9;
+  --violet-bg: #f3effe;
+  --blue-fg: #1d4ed8;
+  --blue-bg: #eef4ff;
+  --amber-fg: #b45309;
+  --amber-bg: #fef6e7;
+  --red: #dc2626;
+  --red-bg: #fef0f0;
+  --green-fg: #047857;
+  --green-bg: #ecfdf5;
+  --shadow: 0 12px 40px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06);
+  --scrim: rgb(24 24 27 / 0.28);
+}
+
+:root[data-style='warm'] {
+  --r: 16px;
+  --r-sm: 10px;
+  --row-h: 56px;
+  --font: 'Manrope Variable', 'Manrope', 'Geist Variable', system-ui, sans-serif;
+  --font-head: var(--font);
+  --fs: 13.5px;
+}
+
+:root[data-style='warm'][data-theme='dark'] {
+  --bg: #141210;
+  --panel: #191613;
+  --surface: #1e1a17;
+  --elev: #29241f;
+  --hover: #2a2520;
+  --hover-soft: rgb(255 240 220 / 0.02);
+  --border: #352f29;
+  --border-soft: #2a2520;
+  --text: #f6f1ea;
+  --muted: #bdb2a5;
+  --dim: #8c8175;
+  --accent: #5cc49a;
+  --accent-fg: #0d2219;
+  --accent-soft: rgb(92 196 154 / 0.1);
+  --accent-line: rgb(92 196 154 / 0.38);
+  --accent-text: #8fdcbb;
+  --logo-grad: linear-gradient(140deg, #86d9b4, #3a9d78);
+  --shadow: 0 18px 50px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.25);
+}
+
+:root[data-style='warm'][data-theme='light'] {
+  --bg: #faf8f5;
+  --panel: #f4f0ea;
+  --surface: #fffdfa;
+  --elev: #efe9e1;
+  --hover: #f0eae2;
+  --hover-soft: rgb(80 50 20 / 0.02);
+  --border: #e6ded3;
+  --border-soft: #efe8de;
+  --text: #2a241f;
+  --muted: #6b6058;
+  --dim: #776c61;
+  --accent: #2f8f6d;
+  --accent-fg: #ffffff;
+  --accent-soft: rgb(47 143 109 / 0.08);
+  --accent-line: rgb(47 143 109 / 0.4);
+  --accent-text: #256f55;
+  --amber-fg: #a94c08;
+  --logo-grad: linear-gradient(140deg, #5cc49a, #2f8f6d);
+  --shadow: 0 18px 50px rgb(60 40 20 / 0.1), 0 2px 8px rgb(60 40 20 / 0.05);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-elev: var(--elev);
+  --color-hover: var(--hover);
+  --color-hover-soft: var(--hover-soft);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-dim: var(--dim);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-accent-text: var(--accent-text);
+  --color-dev: var(--dev);
+  --color-preview: var(--preview);
+  --color-stg: var(--stg);
+  --color-prod: var(--prod);
+  --color-violet-fg: var(--violet-fg);
+  --color-violet-bg: var(--violet-bg);
+  --color-blue-fg: var(--blue-fg);
+  --color-blue-bg: var(--blue-bg);
+  --color-amber-fg: var(--amber-fg);
+  --color-amber-bg: var(--amber-bg);
+  --color-danger: var(--red);
+  --color-danger-bg: var(--red-bg);
+  --color-success: var(--green-fg);
+  --color-success-bg: var(--green-bg);
+  --color-scrim: var(--scrim);
+
+  --font-sans: var(--font);
+  --font-head: var(--font-head);
+  --font-mono: var(--font-mono);
+
+  --radius-app: var(--r);
+  --radius-app-sm: var(--r-sm);
+  --shadow-app: var(--shadow);
+  --spacing-row: var(--row-h);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--fs);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.logo-mark {
+  background: var(--logo-grad);
+}
+
+.env-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  background: color-mix(in srgb, currentColor 11%, transparent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.env-development {
+  color: var(--blue-fg);
+}
+.env-preview {
+  color: var(--violet-fg);
+}
+.env-staging {
+  color: var(--green-fg);
+}
+.env-production {
+  color: var(--amber-fg);
+}

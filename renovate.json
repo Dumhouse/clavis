@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard", ":semanticCommits"],
+  "schedule": ["before 6am on monday"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "groupName": "Go dependencies"
+    },
+    {
+      "matchManagers": ["npm"],
+      "groupName": "Web dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}
