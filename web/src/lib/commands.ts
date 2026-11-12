@@ -346,6 +346,12 @@ export const commandGroups: CommandGroup[] = [
           'Initialise or rotate the root key offline. Re-wraps org keys and re-encrypts TOTP secrets.',
       },
       {
+        name: 'admin migrate-db',
+        usage: 'clavis admin migrate-db --from SQLITE --to DSN',
+        description: 'Copy a SQLite database into Postgres.',
+        flags: ['--from PATH', '--to DSN', '--force', '--yes'],
+      },
+      {
         name: 'server',
         usage: 'clavis server [--config FILE]',
         description: 'Run the API, job worker, and embedded web UI.',

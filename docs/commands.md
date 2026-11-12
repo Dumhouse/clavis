@@ -484,6 +484,16 @@ clavis admin rotate-root-key --config /etc/clavis/clavis.yaml
 The command re-wraps every org key, re-encrypts every TOTP secret with the new
 root-derived MFA key, and writes a backup of the previous root key.
 
+### `clavis admin migrate-db`
+
+Copy a SQLite database into Postgres. The target is migrated automatically and
+must be empty unless `--force` is passed.
+
+```sh
+clavis admin migrate-db --from ./data/clavis.db --to "$CLAVIS_DB_DSN"
+clavis admin migrate-db --from ./data/clavis.db --to "$DSN" --force --yes
+```
+
 ### `clavis server`
 
 Run the API, job worker, and embedded web UI.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -27,6 +28,79 @@ func newAdminCommand(opts *Options) *cobra.Command {
 	auditCmd.AddCommand(newAuditCheckpointCommand(opts))
 	cmd.AddCommand(auditCmd)
 	cmd.AddCommand(newRotateRootKeyCommand(opts))
+	cmd.AddCommand(newMigrateDBCommand(opts))
+	return cmd
+}
+
+func newMigrateDBCommand(opts *Options) *cobra.Command {
+	var configPath, fromPath, toDSN string
+	var force, yes bool
+	cmd := &cobra.Command{
+		Use:   "migrate-db",
+		Short: "Copy a SQLite database into Postgres",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			out := opts.output()
+			cfg, err := config.Load(configPath)
+			if err != nil {
+				return err
+			}
+			if fromPath == "" {
+				fromPath = cfg.Database.Path
+			}
+			if toDSN == "" {
+				toDSN = cfg.Database.DSN
+			}
+			if fromPath == "" || toDSN == "" {
+				return fmt.Errorf("both --from (SQLite path) and --to (Postgres DSN) are required")
+			}
+			if !yes {
+				answer, err := promptLine("This copies every row into the Postgres target. Type 'migrate' to continue: ")
+				if err != nil {
+					return err
+				}
+				if strings.TrimSpace(answer) != "migrate" {
+					return fmt.Errorf("migration cancelled")
+				}
+			}
+			source, err := store.Open(cmd.Context(), fromPath)
+			if err != nil {
+				return err
+			}
+			defer source.Close()
+			if err := source.Migrate(cmd.Context()); err != nil {
+				return err
+			}
+			target, err := store.OpenPostgres(cmd.Context(), toDSN)
+			if err != nil {
+				return err
+			}
+			defer target.Close()
+			if err := target.Migrate(cmd.Context()); err != nil {
+				return err
+			}
+			report, err := store.MigrateFromSQLite(cmd.Context(), source, target, force)
+			if err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(report)
+			}
+			out.Success("Copied %d rows across %d tables.", report.Rows, len(report.Tables))
+			rows := make([][]string, 0, len(report.Tables))
+			for table, count := range report.Tables {
+				rows = append(rows, []string{table, fmt.Sprintf("%d", count)})
+			}
+			sort.Slice(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
+			out.Table([]string{"TABLE", "ROWS"}, rows)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&configPath, "config", "", "configuration file for defaults")
+	cmd.Flags().StringVar(&fromPath, "from", "", "SQLite database path")
+	cmd.Flags().StringVar(&toDSN, "to", "", "Postgres DSN")
+	cmd.Flags().BoolVar(&force, "force", false, "replace existing destination rows")
+	cmd.Flags().BoolVar(&yes, "yes", false, "skip confirmation")
 	return cmd
 }
 
