@@ -30,16 +30,18 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint    string `json:"endpoint,omitempty"`
-	Secret      []byte `json:"secret,omitempty"`
-	BaseURL     string `json:"base_url,omitempty"`
-	Project     string `json:"project,omitempty"`
-	Token       []byte `json:"token,omitempty"`
-	Protected   bool   `json:"protected,omitempty"`
-	Masked      bool   `json:"masked,omitempty"`
-	GitHubRepo  string `json:"github_repo,omitempty"`
-	GitHubEnv   string `json:"github_environment,omitempty"`
-	GitHubScope string `json:"github_scope,omitempty"`
+	Endpoint      string `json:"endpoint,omitempty"`
+	Secret        []byte `json:"secret,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	Project       string `json:"project,omitempty"`
+	Token         []byte `json:"token,omitempty"`
+	Protected     bool   `json:"protected,omitempty"`
+	Masked        bool   `json:"masked,omitempty"`
+	GitHubRepo    string `json:"github_repo,omitempty"`
+	GitHubEnv     string `json:"github_environment,omitempty"`
+	GitHubScope   string `json:"github_scope,omitempty"`
+	VercelProject string `json:"vercel_project,omitempty"`
+	VercelTeamID  string `json:"vercel_team_id,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -56,6 +58,8 @@ type SyncInput struct {
 	GitHubRepo        string
 	GitHubEnvironment string
 	GitHubScope       string
+	VercelProject     string
+	VercelTeamID      string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -97,8 +101,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" {
-		return nil, fmt.Errorf("%w: provider must be http, gitlab, or github", ErrValidation)
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" {
+		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, or vercel", ErrValidation)
 	}
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
@@ -115,6 +119,24 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "vercel" {
+		config.VercelProject = strings.TrimSpace(in.VercelProject)
+		if config.VercelProject == "" {
+			return nil, fmt.Errorf("%w: Vercel project ID or name is required", ErrValidation)
+		}
+		config.VercelTeamID = strings.TrimSpace(in.VercelTeamID)
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		if config.BaseURL == "" {
+			config.BaseURL = "https://api.vercel.com"
+		}
+		if in.Token == "" {
+			return nil, fmt.Errorf("%w: Vercel access token is required", ErrValidation)
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
 	} else if provider == "github" {
 		config.GitHubRepo = strings.TrimSpace(in.GitHubRepo)
 		config.GitHubEnv = strings.TrimSpace(in.GitHubEnvironment)
@@ -284,6 +306,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "github" {
 		destination = config.BaseURL + " " + config.GitHubScope + ":" + config.GitHubRepo
 	}
+	if sync.Provider == "vercel" {
+		destination = config.BaseURL + " project:" + config.VercelProject
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -317,6 +342,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postGitLab(ctx, org, sync, config, values)
 	} else if sync.Provider == "github" {
 		err2 = s.postGitHub(ctx, org, sync, config, values, kinds)
+	} else if sync.Provider == "vercel" {
+		err2 = s.postVercel(ctx, org, sync, config, env, values, kinds)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -724,4 +751,121 @@ func validGitHubName(name string) bool {
 		return false
 	}
 	return true
+}
+
+func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	project := url.PathEscape(config.VercelProject)
+	query := ""
+	if config.VercelTeamID != "" {
+		query = "?teamId=" + url.QueryEscape(config.VercelTeamID)
+	}
+	target := []string{"development"}
+	switch env.Type {
+	case "production":
+		target = []string{"production"}
+	case "preview", "staging":
+		target = []string{"preview"}
+	}
+	existing := map[string]string{}
+	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, base+"/v10/projects/"+project+"/env"+query, token, nil)
+	if err != nil {
+		return fmt.Errorf("vercel: could not list variables: %v; check the API URL and network policy", err)
+	}
+	if status == http.StatusOK {
+		var listing struct {
+			Envs []struct {
+				ID  string `json:"id"`
+				Key string `json:"key"`
+			} `json:"envs"`
+		}
+		if json.Unmarshal(body, &listing) == nil {
+			for _, item := range listing.Envs {
+				existing[item.Key] = item.ID
+			}
+		}
+	} else if status != http.StatusNotFound {
+		return vercelStatusError("list variables", status, body)
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		variableType := "encrypted"
+		if kinds[key] == "variable" {
+			variableType = "plain"
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"key": key, "value": values[key], "type": variableType, "target": target,
+		})
+		method := http.MethodPost
+		endpoint := base + "/v10/projects/" + project + "/env" + query
+		if id := existing[key]; id != "" {
+			method = http.MethodPatch
+			endpoint = base + "/v10/projects/" + project + "/env/" + url.PathEscape(id) + query
+		}
+		status, body, err := githubLikeRequest(ctx, client, method, endpoint, token, payload)
+		if err != nil {
+			return fmt.Errorf("vercel: request failed: %v; check the API URL and network policy", err)
+		}
+		if status < 200 || status >= 300 {
+			return vercelStatusError("set "+key, status, body)
+		}
+	}
+	return nil
+}
+
+// githubLikeRequest performs a bearer-authenticated JSON request used by
+// providers with GitHub-style APIs.
+func githubLikeRequest(ctx context.Context, client *http.Client, method, endpoint, token string, payload []byte) (int, []byte, error) {
+	var reader *bytes.Reader
+	if payload != nil {
+		reader = bytes.NewReader(payload)
+	} else {
+		reader = bytes.NewReader(nil)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "clavis-sync/1")
+	if payload != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	return response.StatusCode, body, nil
+}
+
+func vercelStatusError(operation string, status int, body []byte) error {
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("vercel: token rejected; check the access token")
+	case http.StatusForbidden:
+		return fmt.Errorf("vercel: permission denied for %s; check project and team access", operation)
+	case http.StatusNotFound:
+		return fmt.Errorf("vercel: %s not found; check the project ID/name and team ID", operation)
+	default:
+		return fmt.Errorf("vercel: %s returned %d: %s", operation, status, detail)
+	}
 }

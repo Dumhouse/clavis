@@ -28,7 +28,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 ## Syncs (push secrets to platforms)
 - [ ] **M3-16** Sync framework: provider interface, job-based execution, retries, status, error messages with fix hints, drift detection, respects freezes (L)
 - [x] **M3-17** GitHub (Actions secrets/variables, environments, org-level) (M)
-- [ ] **M3-18** Vercel (M)
+- [x] **M3-18** Vercel (M)
 - [ ] **M3-19** AWS Secrets Manager + SSM Parameter Store (M)
 - [ ] **M3-20** GCP Secret Manager (S)
 - [ ] **M3-21** Cloudflare Workers/Pages, Netlify (M)

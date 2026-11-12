@@ -48,6 +48,8 @@ type createSyncInput struct {
 		GitHubRepo        string `json:"github_repo,omitempty" maxLength:"500"`
 		GitHubEnvironment string `json:"github_environment,omitempty" maxLength:"200"`
 		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
+		VercelProject     string `json:"vercel_project,omitempty" maxLength:"500"`
+		VercelTeamID      string `json:"vercel_team_id,omitempty" maxLength:"200"`
 	}
 }
 
@@ -135,7 +137,8 @@ func (s *Server) registerSyncRoutes() error {
 			BaseURL: in.Body.BaseURL, GitLabProject: in.Body.GitLabProject,
 			Token: in.Body.Token, Protected: in.Body.Protected, Masked: in.Body.Masked,
 			GitHubRepo: in.Body.GitHubRepo, GitHubEnvironment: in.Body.GitHubEnvironment,
-			GitHubScope: in.Body.GitHubScope,
+			GitHubScope:   in.Body.GitHubScope,
+			VercelProject: in.Body.VercelProject, VercelTeamID: in.Body.VercelTeamID,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

@@ -183,6 +183,7 @@ export const commandGroups: CommandGroup[] = [
           'clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis',
           'clavis syncs create dev --provider gitlab --gitlab-project group/project --gitlab-token "$GITLAB_TOKEN"',
           'clavis syncs create dev --provider github --github-repo acme/repo --github-token "$GITHUB_TOKEN"',
+          'clavis syncs create dev --provider vercel --vercel-project prj_123 --vercel-token "$VERCEL_TOKEN"',
         ],
       },
       {

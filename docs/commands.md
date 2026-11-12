@@ -295,7 +295,8 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 
 Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
 `--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`,
-`--github-repo`, `--github-scope`, `--github-environment`, `--github-token`.
+`--github-repo`, `--github-scope`, `--github-environment`, `--github-token`,
+`--vercel-project`, `--vercel-team`, `--vercel-token`.
 
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
@@ -307,6 +308,13 @@ clavis syncs create dev --provider github --github-repo acme/repo \
 clavis syncs create prod --provider github --github-scope environment \
   --github-repo acme/repo --github-environment production \
   --github-token "$GITHUB_TOKEN"
+```
+
+Vercel syncs create or update project environment variables:
+
+```sh
+clavis syncs create dev --provider vercel --vercel-project prj_123 \
+  --vercel-token "$VERCEL_TOKEN"
 ```
 
 GitLab syncs upsert project CI/CD variables:

@@ -1795,6 +1795,74 @@ func TestGitHubSync(t *testing.T) {
 	}
 }
 
+func TestVercelSync(t *testing.T) {
+	type envVar struct {
+		Key    string   `json:"key"`
+		Value  string   `json:"value"`
+		Type   string   `json:"type"`
+		Target []string `json:"target"`
+		Token  string   `json:"-"`
+	}
+	created := make(chan envVar, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/env"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"envs":[]}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/env"):
+			var body envVar
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			body.Token = r.Header.Get("Authorization")
+			created <- body
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "vercel", "base_url": srv.URL,
+		"vercel_project": "proj", "token": "vercel-test",
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create vercel sync = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	owner.request(http.MethodPost, dev, map[string]any{"key": "V_SECRET", "value": "secret-value"})
+	owner.request(http.MethodPost, dev, map[string]any{"key": "V_VAR", "value": "plain-value", "kind": "variable"})
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	seen := map[string]envVar{}
+	for i := 0; i < 2; i++ {
+		select {
+		case variable := <-created:
+			seen[variable.Key] = variable
+		case <-time.After(8 * time.Second):
+			t.Fatal("vercel variables not delivered")
+		}
+	}
+	secret := seen["V_SECRET"]
+	if secret.Value != "secret-value" || secret.Type != "encrypted" || len(secret.Target) != 1 || secret.Target[0] != "development" || secret.Token != "Bearer vercel-test" {
+		t.Fatalf("secret = %+v", secret)
+	}
+	variable := seen["V_VAR"]
+	if variable.Value != "plain-value" || variable.Type != "plain" {
+		t.Fatalf("variable = %+v", variable)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

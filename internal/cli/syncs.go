@@ -102,7 +102,7 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
-	var githubRepo, githubEnvironment, githubScope string
+	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
 	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -125,7 +125,8 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"base_url": baseURL, "gitlab_project": gitlabProject, "token": token,
 				"protected": protected, "masked": masked,
 				"github_repo": githubRepo, "github_environment": githubEnvironment,
-				"github_scope": githubScope,
+				"github_scope":   githubScope,
+				"vercel_project": vercelProject, "vercel_team_id": vercelTeamID,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -150,6 +151,9 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&githubEnvironment, "github-environment", "", "GitHub environment name")
 	cmd.Flags().StringVar(&githubScope, "github-scope", "repo", "GitHub scope: repo, environment, or org")
 	cmd.Flags().StringVar(&token, "github-token", "", "GitHub token with Actions secrets/variables write access")
+	cmd.Flags().StringVar(&token, "vercel-token", "", "Vercel access token")
+	cmd.Flags().StringVar(&vercelProject, "vercel-project", "", "Vercel project ID or name")
+	cmd.Flags().StringVar(&vercelTeamID, "vercel-team", "", "Vercel team ID")
 	return cmd
 }
 
