@@ -5,6 +5,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -112,6 +113,10 @@ type ServerConfig struct {
 	MaxBodyBytes       int64    `yaml:"max_body_bytes"`
 	MetricsPublic      bool     `yaml:"metrics_public"`
 	RateLimitPerMinute int      `yaml:"rate_limit_per_minute"`
+	// TrustedProxies lists CIDRs or IPs of reverse proxies whose
+	// X-Forwarded-For / X-Real-IP headers are believed. Empty (the default)
+	// means those headers are ignored and the socket peer is the client.
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 // DatabaseConfig controls the data store.
@@ -169,7 +174,7 @@ func Load(explicitPath string) (*Config, error) {
 		path = os.Getenv("CLAVIS_CONFIG")
 	}
 	if path != "" {
-		b, err := os.ReadFile(path)
+		b, err := os.ReadFile(path) //nolint:gosec // G703: the config path comes from the operator (flag or CLAVIS_CONFIG)
 		if err != nil {
 			return nil, fmt.Errorf("config: read %s: %w", path, err)
 		}
@@ -290,6 +295,14 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_EMAIL_FROM", &c.Email.From)
 	setString("CLAVIS_EMAIL_TLS", &c.Email.TLS)
 	setString("CLAVIS_BREACH_CHECK_URL", &c.Security.BreachCheckURL)
+	if v, ok := os.LookupEnv("CLAVIS_TRUSTED_PROXIES"); ok {
+		c.Server.TrustedProxies = nil
+		for _, p := range strings.Split(v, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				c.Server.TrustedProxies = append(c.Server.TrustedProxies, p)
+			}
+		}
+	}
 
 	for _, err := range []error{
 		setBool("CLAVIS_DEV", &c.Server.Dev),
@@ -321,6 +334,11 @@ func (c *Config) Validate() error {
 	}
 	if c.Server.MaxBodyBytes > 1<<30 {
 		return fmt.Errorf("config: server.max_body_bytes must be at most 1 GiB")
+	}
+	for _, p := range c.Server.TrustedProxies {
+		if _, err := ParseProxyPrefix(p); err != nil {
+			return fmt.Errorf("config: server.trusted_proxies: %w", err)
+		}
 	}
 	if c.Server.RateLimitPerMinute < 0 {
 		return fmt.Errorf("config: server.rate_limit_per_minute cannot be negative")
@@ -424,4 +442,17 @@ func (c *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+// ParseProxyPrefix parses a trusted proxy entry, either a CIDR ("10.0.0.0/8")
+// or a single address ("192.0.2.10").
+func ParseProxyPrefix(s string) (netip.Prefix, error) {
+	if prefix, err := netip.ParsePrefix(s); err == nil {
+		return prefix.Masked(), nil
+	}
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%q is not an IP address or CIDR", s)
+	}
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }

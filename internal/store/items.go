@@ -160,7 +160,7 @@ func (s *Store) ListItems(ctx context.Context, envID string) ([]Item, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Item
 	for rows.Next() {
 		item, err := scanItem(rows)
@@ -229,7 +229,7 @@ func (s *Store) ListItemVersions(ctx context.Context, itemID string) ([]ItemVers
 	if err != nil {
 		return nil, fmt.Errorf("store: list item versions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []ItemVersion
 	for rows.Next() {
 		var v ItemVersion

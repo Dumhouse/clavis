@@ -55,7 +55,7 @@ func (s *Store) ListPasskeys(ctx context.Context, userID string) ([]Passkey, err
 	if err != nil {
 		return nil, fmt.Errorf("store: list passkeys: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Passkey
 	for rows.Next() {
 		passkey, err := scanPasskey(rows)

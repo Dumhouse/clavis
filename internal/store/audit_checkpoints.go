@@ -34,7 +34,7 @@ func (s *Store) ListAuditCheckpoints(ctx context.Context, orgID string) ([]audit
 	if err != nil {
 		return nil, fmt.Errorf("store: list audit checkpoints: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []audit.Checkpoint
 	for rows.Next() {
 		var checkpoint audit.Checkpoint

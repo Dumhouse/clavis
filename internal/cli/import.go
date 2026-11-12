@@ -48,7 +48,9 @@ func newImportCommand(opts *Options) *cobra.Command {
 					if entry.folder != "" {
 						prefix = entry.folder + " "
 					}
-					fmt.Fprintln(out.Out, prefix+entry.key)
+					if _, err := fmt.Fprintln(out.Out, prefix+entry.key); err != nil {
+						return err
+					}
 				}
 				out.Info("%d keys would be imported into %s/%s/%s.", len(entries), resolved.Org, resolved.Project, resolved.Env)
 				return nil
@@ -77,12 +79,6 @@ func newImportCommand(opts *Options) *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "list keys without writing")
 	cmd.Flags().BoolVar(&yes, "yes", false, "skip production confirmation")
 	return cmd
-}
-
-func readAll(r *os.File) ([]byte, error) {
-	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
-	return buf.Bytes(), err
 }
 
 // ParseImportFile selects a parser by extension, defaulting to dotenv.

@@ -137,7 +137,7 @@ func (s *Store) ListOrgsForUser(ctx context.Context, userID string) ([]OrgMember
 	if err != nil {
 		return nil, fmt.Errorf("store: list orgs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []OrgMembership
 	for rows.Next() {
@@ -370,7 +370,7 @@ func (s *Store) ListUserBindings(ctx context.Context, userID string) ([]UserBind
 	if err != nil {
 		return nil, fmt.Errorf("store: list user bindings: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []UserBinding
 	for rows.Next() {
@@ -400,7 +400,7 @@ func (s *Store) ListOrgAccessBindings(ctx context.Context, orgID string) ([]User
 	if err != nil {
 		return nil, fmt.Errorf("store: list org access bindings: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []UserBinding
 	for rows.Next() {
 		var b UserBinding

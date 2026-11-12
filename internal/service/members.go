@@ -89,7 +89,7 @@ func (s *Service) CreateInvite(ctx context.Context, actor authz.Actor, orgSlug, 
 	if email != "" {
 		email, err = authn.NormalizeEmail(email)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrValidation, err)
+			return nil, fmt.Errorf("%w: %w", ErrValidation, err)
 		}
 	}
 	if ttl <= 0 || ttl > 30*24*time.Hour {

@@ -65,7 +65,7 @@ func (s *Service) SetOverride(ctx context.Context, actor authz.Actor, orgSlug, p
 	}
 	if existing != nil {
 		next := existing.Version + 1
-		valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+		valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 			crypto.BindAAD(org.ID, project.ID, env.ID, existing.ID, "value", next))
 		if err != nil {
 			return nil, err
@@ -78,12 +78,12 @@ func (s *Service) SetOverride(ctx context.Context, actor authz.Actor, orgSlug, p
 		}
 	} else {
 		itemID := uuid.NewString()
-		keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(key),
+		keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(key),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "key", 1))
 		if err != nil {
 			return nil, err
 		}
-		valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+		valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "value", 1))
 		if err != nil {
 			return nil, err

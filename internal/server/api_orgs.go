@@ -124,7 +124,7 @@ type ssoInput struct {
 	Enforce        *bool     `json:"enforce,omitempty"`
 	AllowedDomains *[]string `json:"allowed_domains,omitempty" maxItems:"50"`
 	Role           *string   `json:"role,omitempty" maxLength:"60"`
-	IdPMetadata    *string   `json:"idp_metadata,omitempty" maxLength:"1048576"`
+	IDPMetadata    *string   `json:"idp_metadata,omitempty" maxLength:"1048576"`
 }
 
 type ssoBody struct {
@@ -136,7 +136,7 @@ type ssoBody struct {
 	Enforce         bool     `json:"enforce"`
 	AllowedDomains  []string `json:"allowed_domains"`
 	Role            string   `json:"role"`
-	IdPMetadata     string   `json:"idp_metadata,omitempty"`
+	IDPMetadata     string   `json:"idp_metadata,omitempty"`
 }
 
 type environmentTemplate struct {
@@ -187,7 +187,7 @@ func settingsBodyFromService(settings service.OrgSettings) settingsBody {
 			Enabled: settings.SSOEnabled, Provider: settings.SSOProvider, ClientID: settings.SSOClientID,
 			ClientSecretSet: len(settings.SSOClientSecret) > 0, Issuer: settings.SSOIssuer,
 			Enforce: settings.SSOEnforce, AllowedDomains: settings.SSOAllowedDomains, Role: settings.SSORole,
-			IdPMetadata: settings.SSOIdPMetadata,
+			IDPMetadata: settings.SSOIdPMetadata,
 		},
 	}
 }
@@ -219,7 +219,7 @@ func (s *Server) registerOrgRoutes() error {
 	}, func(ctx context.Context, _ *struct{}) (*listOrgsOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		memberships, err := s.svc.ListOrgs(ctx, principal.User.ID)
 		if err != nil {
@@ -241,7 +241,7 @@ func (s *Server) registerOrgRoutes() error {
 	}, func(ctx context.Context, in *createOrgInput) (*orgOutput, error) {
 		principal, ok := principalFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.Unauthorized("Sign in to continue."), ctx)
+			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
 		org, err := s.svc.CreateOrg(ctx, principal.User, in.Body.Name, in.Body.Slug)
 		if err != nil {
@@ -390,7 +390,7 @@ func (s *Server) registerOrgRoutes() error {
 			patch.SSOEnforce = in.Body.SSO.Enforce
 			patch.SSOAllowedDomains = in.Body.SSO.AllowedDomains
 			patch.SSORole = in.Body.SSO.Role
-			patch.SSOIdPMetadata = in.Body.SSO.IdPMetadata
+			patch.SSOIdPMetadata = in.Body.SSO.IDPMetadata
 		}
 		var templates *[]service.EnvironmentTemplate
 		if in.Body.EnvironmentTemplates != nil {

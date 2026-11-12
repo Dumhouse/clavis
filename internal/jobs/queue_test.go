@@ -129,7 +129,7 @@ func TestRunStopsOnContext(t *testing.T) {
 
 func TestBackoff(t *testing.T) {
 	base := time.Second
-	max := 10 * time.Second
+	maxDelay := 10 * time.Second
 	cases := []struct {
 		attempt int
 		want    time.Duration
@@ -143,7 +143,7 @@ func TestBackoff(t *testing.T) {
 		{63, 10 * time.Second},
 	}
 	for _, tc := range cases {
-		if got := jobs.Backoff(tc.attempt, base, max); got != tc.want {
+		if got := jobs.Backoff(tc.attempt, base, maxDelay); got != tc.want {
 			t.Errorf("Backoff(%d) = %v, want %v", tc.attempt, got, tc.want)
 		}
 	}

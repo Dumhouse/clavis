@@ -5,7 +5,7 @@ package breach
 import (
 	"bufio"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // G505: the HIBP range API is keyed by SHA-1 prefixes
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -35,7 +35,7 @@ func New(baseURL string, client *http.Client) *Checker {
 
 // Breached reports whether the password appears in the breach corpus.
 func (c *Checker) Breached(ctx context.Context, password string) (bool, error) {
-	sum := sha1.Sum([]byte(password))
+	sum := sha1.Sum([]byte(password)) //nolint:gosec // G401: the HIBP range API is keyed by SHA-1 prefixes
 	hash := strings.ToUpper(hex.EncodeToString(sum[:]))
 	prefix, suffix := hash[:5], hash[5:]
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+prefix, nil)
@@ -48,7 +48,7 @@ func (c *Checker) Breached(ctx context.Context, password string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("breach: range API returned %d", resp.StatusCode)
 	}

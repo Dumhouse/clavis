@@ -45,7 +45,7 @@ func (s *Server) handleSSOStart(w http.ResponseWriter, r *http.Request) {
 		s.redirectSSOError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, target, http.StatusFound)
+	http.Redirect(w, r, target, http.StatusFound) //nolint:gosec // G710: target is the configured IdP authorization URL
 }
 
 func (s *Server) handleSSOCallback(w http.ResponseWriter, r *http.Request) {
@@ -65,10 +65,8 @@ func (s *Server) handleSSOCallback(w http.ResponseWriter, r *http.Request) {
 	for _, cookie := range s.sessionCookies(session) {
 		http.SetCookie(w, &cookie)
 	}
-	if returnPath == "" {
-		returnPath = "/"
-	}
-	http.Redirect(w, r, returnPath, http.StatusFound)
+	returnPath = service.SafeReturnPath(returnPath)
+	http.Redirect(w, r, returnPath, http.StatusFound) //nolint:gosec // G710: returnPath is sanitized by SafeReturnPath above
 }
 
 func (s *Server) redirectSSOError(w http.ResponseWriter, r *http.Request, err error) {

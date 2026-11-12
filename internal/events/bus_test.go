@@ -42,7 +42,7 @@ func TestBusFanoutAndCancel(t *testing.T) {
 	}
 }
 
-func TestBusSlowConsumerDoesNotBlock(t *testing.T) {
+func TestBusSlowConsumerDoesNotBlock(_ *testing.T) {
 	bus := NewBus()
 	_, cancel := bus.Subscribe("org")
 	defer cancel()

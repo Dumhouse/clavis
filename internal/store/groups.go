@@ -52,7 +52,7 @@ func (s *Store) ListGroups(ctx context.Context, orgID string) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list groups: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Group
 	for rows.Next() {
 		var group Group
@@ -137,7 +137,7 @@ func (s *Store) ListGroupMembers(ctx context.Context, groupID string) ([]GroupMe
 	if err != nil {
 		return nil, fmt.Errorf("store: list group members: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []GroupMember
 	for rows.Next() {
 		var member GroupMember
@@ -155,7 +155,7 @@ func (s *Store) ListUserGroupIDs(ctx context.Context, userID string) ([]string, 
 	if err != nil {
 		return nil, fmt.Errorf("store: list user groups: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []string
 	for rows.Next() {
 		var id string

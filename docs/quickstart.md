@@ -155,6 +155,7 @@ Environment variables override `clavis.yaml`:
 | `CLAVIS_BREACH_CHECK` | `false` | Check new passwords against the HIBP range API (k-anonymity) |
 | `CLAVIS_BREACH_CHECK_URL` | HIBP range API | Override the breach-check endpoint |
 | `CLAVIS_RATE_LIMIT_PER_MINUTE` | `600` | Per-identity API rate limit; `0` disables |
+| `CLAVIS_TRUSTED_PROXIES` | — | Comma-separated IPs/CIDRs of reverse proxies whose `X-Forwarded-For`/`X-Real-IP` are trusted. Unset: those headers are ignored and the socket peer is the client IP (rate limits, audit log). Set it when running behind a proxy. |
 
 See [deploy/clavis.example.yaml](../deploy/clavis.example.yaml).
 

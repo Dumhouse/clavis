@@ -104,7 +104,7 @@ func (s *Service) encryptSSOSecret(org *store.Org, secret string) ([]byte, error
 	}
 	defer orgKey.Zero()
 	aad := crypto.BindAAD(org.ID, "", "", "sso", "client_secret", 1)
-	ciphertext, err := orgKey.Encrypt(uint32(org.KeyVersion), crypto.Secret(secret), aad)
+	ciphertext, err := orgKey.Encrypt(keyVersion(org.KeyVersion), crypto.Secret(secret), aad)
 	if err != nil {
 		return nil, err
 	}
@@ -171,9 +171,7 @@ func (s *Service) BeginSSO(ctx context.Context, orgSlug, redirectURI, returnPath
 	if err != nil {
 		return "", err
 	}
-	if returnPath == "" || !strings.HasPrefix(returnPath, "/") || strings.HasPrefix(returnPath, "//") {
-		returnPath = "/"
-	}
+	returnPath = SafeReturnPath(returnPath)
 	state, err := s.ssoStates.put(ssoState{
 		OrgID: config.Org.ID, OrgSlug: config.Org.Slug, Verifier: verifier, Nonce: nonce, ReturnPath: returnPath,
 	})
@@ -188,7 +186,7 @@ func (s *Service) BeginSSO(ctx context.Context, orgSlug, redirectURI, returnPath
 	}
 	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, s.ssoHTTPClient()), config.Issuer)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrSSOUnavailable, err)
+		return "", fmt.Errorf("%w: %w", ErrSSOUnavailable, err)
 	}
 	oauthConfig := &oauth2.Config{
 		ClientID: config.Settings.SSOClientID, ClientSecret: config.Secret,
@@ -312,7 +310,7 @@ func (s *Service) oidcIdentity(ctx context.Context, settings OrgSettings, secret
 	}
 	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, s.ssoHTTPClient()), issuer)
 	if err != nil {
-		return "", "", false, fmt.Errorf("%w: %v", ErrSSOUnavailable, err)
+		return "", "", false, fmt.Errorf("%w: %w", ErrSSOUnavailable, err)
 	}
 	oauthConfig := &oauth2.Config{
 		ClientID: settings.SSOClientID, ClientSecret: secret,
@@ -321,7 +319,7 @@ func (s *Service) oidcIdentity(ctx context.Context, settings OrgSettings, secret
 	}
 	token, err := oauthConfig.Exchange(ctx, code, oauth2.VerifierOption(verifier))
 	if err != nil {
-		return "", "", false, fmt.Errorf("%w: token exchange failed: %v", ErrSSOUnavailable, err)
+		return "", "", false, fmt.Errorf("%w: token exchange failed: %w", ErrSSOUnavailable, err)
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
@@ -362,7 +360,7 @@ func githubOAuthConfig(clientID, secret, redirectURI string) *oauth2.Config {
 	return &oauth2.Config{
 		ClientID: clientID, ClientSecret: secret, RedirectURL: redirectURI,
 		Scopes: []string{"read:user", "user:email"},
-		Endpoint: oauth2.Endpoint{
+		Endpoint: oauth2.Endpoint{ //nolint:gosec // G101: public GitHub OAuth endpoint URLs
 			AuthURL:  "https://github.com/login/oauth/authorize",
 			TokenURL: "https://github.com/login/oauth/access_token",
 		},
@@ -427,7 +425,7 @@ func githubGet(ctx context.Context, client *http.Client, endpoint string, out an
 	if err != nil {
 		return fmt.Errorf("%w: GitHub request failed", ErrSSOUnavailable)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: GitHub returned %d", ErrSSOUnavailable, resp.StatusCode)
 	}
@@ -474,4 +472,14 @@ func (s *Service) ssoHTTPClient() *http.Client {
 		return s.SSOClient
 	}
 	return http.DefaultClient
+}
+
+// SafeReturnPath returns p if it is a same-origin absolute path, otherwise
+// "/". Browsers treat a backslash like a slash, so "/\evil.example" would be
+// followed as a protocol-relative URL and is rejected along with "//".
+func SafeReturnPath(p string) string {
+	if p == "" || !strings.HasPrefix(p, "/") || strings.HasPrefix(p, "//") || strings.HasPrefix(p, `/\`) {
+		return "/"
+	}
+	return p
 }

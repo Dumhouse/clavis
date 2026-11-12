@@ -54,7 +54,7 @@ func writeProjectConfig(dir string, cfg *projectConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, b, 0o644); err != nil {
+	if err := os.WriteFile(path, b, 0o644); err != nil { //nolint:gosec // G306: .clavis.yaml holds no secrets and is meant to be committed
 		return "", fmt.Errorf("cli: write %s: %w", path, err)
 	}
 	return path, nil

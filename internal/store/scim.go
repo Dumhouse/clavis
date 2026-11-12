@@ -78,7 +78,7 @@ func (s *Store) ListScimTokens(ctx context.Context, orgID string) ([]ScimToken, 
 	if err != nil {
 		return nil, fmt.Errorf("store: list scim tokens: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []ScimToken
 	for rows.Next() {
 		var token ScimToken

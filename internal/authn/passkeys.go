@@ -132,7 +132,7 @@ func (s *Service) BeginPasskeyRegistration(ctx context.Context, user *store.User
 	}
 	creation, session, err := s.webauthn.BeginRegistration(target)
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, "", fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	token, err := s.passkeys.create(session)
 	if err != nil {
@@ -157,11 +157,11 @@ func (s *Service) FinishPasskeyRegistration(ctx context.Context, user *store.Use
 	}
 	parsed, err := protocol.ParseCredentialCreationResponseBody(bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	credential, err := s.webauthn.CreateCredential(target, *session, parsed)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	encoded, err := json.Marshal(credential)
 	if err != nil {
@@ -190,7 +190,7 @@ func (s *Service) BeginPasskeyLogin() (*protocol.CredentialAssertion, string, er
 	}
 	assertion, session, err := s.webauthn.BeginDiscoverableLogin()
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, "", fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	token, err := s.passkeys.create(session)
 	if err != nil {
@@ -211,7 +211,7 @@ func (s *Service) FinishPasskeyLogin(ctx context.Context, challenge string, body
 	parsed, err := protocol.ParseCredentialRequestResponseBody(bytes.NewReader(body))
 	if err != nil {
 		s.passkeys.delete(challenge)
-		return nil, fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	handler := func(rawID, userHandle []byte) (webauthn.User, error) {
 		var record *store.Passkey
@@ -235,7 +235,7 @@ func (s *Service) FinishPasskeyLogin(ctx context.Context, challenge string, body
 	user, credential, err := s.webauthn.ValidatePasskeyLogin(handler, *session, parsed)
 	if err != nil {
 		s.passkeys.delete(challenge)
-		return nil, fmt.Errorf("%w: %v", ErrPasskeyInvalid, err)
+		return nil, fmt.Errorf("%w: %w", ErrPasskeyInvalid, err)
 	}
 	s.passkeys.delete(challenge)
 	target, ok := user.(*passkeyUser)
@@ -252,8 +252,6 @@ func (s *Service) FinishPasskeyLogin(ctx context.Context, challenge string, body
 			}
 		}
 	}
-	if target.user.MFAEnabled {
-		// Passkeys satisfy the second factor.
-	}
+	// Passkeys satisfy the second factor, so MFA-enabled users need no extra step.
 	return s.createSession(ctx, target.user, ip, userAgent)
 }

@@ -18,7 +18,9 @@ func yamlNode(s string) *yaml.Node {
 }
 
 func TestDefaults(t *testing.T) {
-	os.Unsetenv("CLAVIS_CONFIG")
+	if err := os.Unsetenv("CLAVIS_CONFIG"); err != nil {
+		t.Fatal(err)
+	}
 	cfg, err := Load("")
 	if err != nil {
 		t.Fatal(err)

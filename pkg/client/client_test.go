@@ -39,7 +39,7 @@ func TestGetSuccess(t *testing.T) {
 }
 
 func TestProblemError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", problem.ContentType)
 		w.WriteHeader(http.StatusForbidden)
 		_ = json.NewEncoder(w).Encode(problem.Forbidden("nope"))

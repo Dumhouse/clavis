@@ -62,7 +62,7 @@ func VerifyPassword(encoded, password string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	got := argon2.IDKey([]byte(password), salt, params.time, params.memory, params.threads, uint32(len(want)))
+	got := argon2.IDKey([]byte(password), salt, params.time, params.memory, params.threads, uint32(len(want))) //nolint:gosec // G115: parseHash bounds the hash length to 16..128 bytes
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 

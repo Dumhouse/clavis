@@ -152,7 +152,7 @@ func TestColorEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	t.Setenv("NO_COLOR", "1")
 	if colorEnabled(f) {
 		t.Fatal("NO_COLOR ignored")

@@ -200,7 +200,7 @@ func (s *Store) ListJobs(ctx context.Context, status string, limit int) ([]Job, 
 	if err != nil {
 		return nil, fmt.Errorf("store: list jobs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var jobs []Job
 	for rows.Next() {
 		job, err := scanJob(rows)

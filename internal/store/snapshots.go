@@ -46,7 +46,7 @@ func (s *Store) ListSnapshots(ctx context.Context, envID string, limit int) ([]S
 	if err != nil {
 		return nil, fmt.Errorf("store: list snapshots: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Snapshot
 	for rows.Next() {
 		var snapshot Snapshot

@@ -35,33 +35,36 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint          string `json:"endpoint,omitempty"`
-	Secret            []byte `json:"secret,omitempty"`
-	BaseURL           string `json:"base_url,omitempty"`
-	Project           string `json:"project,omitempty"`
-	Token             []byte `json:"token,omitempty"`
-	Protected         bool   `json:"protected,omitempty"`
-	Masked            bool   `json:"masked,omitempty"`
-	GitHubRepo        string `json:"github_repo,omitempty"`
-	GitHubEnv         string `json:"github_environment,omitempty"`
-	GitHubScope       string `json:"github_scope,omitempty"`
-	VercelProject     string `json:"vercel_project,omitempty"`
-	VercelTeamID      string `json:"vercel_team_id,omitempty"`
-	AWSRegion         string `json:"aws_region,omitempty"`
-	AWSAccessKey      string `json:"aws_access_key,omitempty"`
-	AWSSecret         []byte `json:"aws_secret,omitempty"`
-	AWSService        string `json:"aws_service,omitempty"`
-	AWSPrefix         string `json:"aws_prefix,omitempty"`
-	AWSSessionToken   string `json:"aws_session_token,omitempty"`
-	GCPProject        string `json:"gcp_project,omitempty"`
-	GCPServiceAccount []byte `json:"gcp_service_account,omitempty"`
-	GCPPrefix         string `json:"gcp_prefix,omitempty"`
-	NetlifyAccount    string `json:"netlify_account,omitempty"`
-	NetlifySite       string `json:"netlify_site,omitempty"`
-	CFAccount         string `json:"cf_account,omitempty"`
-	CFProject         string `json:"cf_project,omitempty"`
-	CFScript          string `json:"cf_script,omitempty"`
-	CFMode            string `json:"cf_mode,omitempty"`
+	Endpoint      string `json:"endpoint,omitempty"`
+	Secret        []byte `json:"secret,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	Project       string `json:"project,omitempty"`
+	Token         []byte `json:"token,omitempty"`
+	Protected     bool   `json:"protected,omitempty"`
+	Masked        bool   `json:"masked,omitempty"`
+	GitHubRepo    string `json:"github_repo,omitempty"`
+	GitHubEnv     string `json:"github_environment,omitempty"`
+	GitHubScope   string `json:"github_scope,omitempty"`
+	VercelProject string `json:"vercel_project,omitempty"`
+	VercelTeamID  string `json:"vercel_team_id,omitempty"`
+	AWSRegion     string `json:"aws_region,omitempty"`
+	AWSAccessKey  string `json:"aws_access_key,omitempty"`
+	AWSSecret     []byte `json:"aws_secret,omitempty"`
+	AWSService    string `json:"aws_service,omitempty"`
+	AWSPrefix     string `json:"aws_prefix,omitempty"`
+	// AWSSessionToken is the legacy plaintext field, read only for sync
+	// configs saved before the token was encrypted.
+	AWSSessionToken    string `json:"aws_session_token,omitempty"`
+	AWSSessionTokenEnc []byte `json:"aws_session_token_enc,omitempty"`
+	GCPProject         string `json:"gcp_project,omitempty"`
+	GCPServiceAccount  []byte `json:"gcp_service_account,omitempty"`
+	GCPPrefix          string `json:"gcp_prefix,omitempty"`
+	NetlifyAccount     string `json:"netlify_account,omitempty"`
+	NetlifySite        string `json:"netlify_site,omitempty"`
+	CFAccount          string `json:"cf_account,omitempty"`
+	CFProject          string `json:"cf_project,omitempty"`
+	CFScript           string `json:"cf_script,omitempty"`
+	CFMode             string `json:"cf_mode,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -142,7 +145,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
 	endpoint := strings.TrimSpace(in.Endpoint)
-	if provider == "http" {
+	switch provider {
+	case "http":
 		if !strings.HasPrefix(endpoint, "https://") && !strings.HasPrefix(endpoint, "http://") {
 			return nil, fmt.Errorf("%w: sync endpoint must be http(s)", ErrValidation)
 		}
@@ -154,7 +158,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
-	} else if provider == "netlify" {
+	case "netlify":
 		config.NetlifyAccount = strings.TrimSpace(in.NetlifyAccount)
 		config.NetlifySite = strings.TrimSpace(in.NetlifySite)
 		if config.NetlifyAccount == "" || in.Token == "" {
@@ -169,7 +173,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.Token = ciphertext
-	} else if provider == "cloudflare" {
+	case "cloudflare":
 		config.CFAccount = strings.TrimSpace(in.CloudflareAccount)
 		config.CFProject = strings.TrimSpace(in.CloudflareProject)
 		config.CFScript = strings.TrimSpace(in.CloudflareScript)
@@ -198,7 +202,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.Token = ciphertext
-	} else if provider == "gcp" {
+	case "gcp":
 		config.GCPProject = strings.TrimSpace(in.GCPProject)
 		config.GCPPrefix = strings.Trim(strings.TrimSpace(in.GCPPrefix), "-")
 		if config.GCPProject == "" || strings.TrimSpace(in.GCPServiceAccount) == "" {
@@ -210,7 +214,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		}
 		config.GCPServiceAccount = ciphertext
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
-	} else if provider == "aws" {
+	case "aws":
 		config.AWSRegion = strings.TrimSpace(in.AWSRegion)
 		config.AWSService = strings.ToLower(strings.TrimSpace(in.AWSService))
 		config.AWSPrefix = strings.Trim(strings.TrimSpace(in.AWSPrefix), "/")
@@ -229,9 +233,13 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.AWSSecret = ciphertext
-		config.AWSSessionToken = strings.TrimSpace(in.AWSSessionToken)
+		if token := strings.TrimSpace(in.AWSSessionToken); token != "" {
+			if config.AWSSessionTokenEnc, err = s.encryptOrgSecret(org, id, "aws_session_token", token); err != nil {
+				return nil, err
+			}
+		}
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
-	} else if provider == "vercel" {
+	case "vercel":
 		config.VercelProject = strings.TrimSpace(in.VercelProject)
 		if config.VercelProject == "" {
 			return nil, fmt.Errorf("%w: Vercel project ID or name is required", ErrValidation)
@@ -249,7 +257,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.Token = ciphertext
-	} else if provider == "github" {
+	case "github":
 		config.GitHubRepo = strings.TrimSpace(in.GitHubRepo)
 		config.GitHubEnv = strings.TrimSpace(in.GitHubEnvironment)
 		config.GitHubScope = strings.ToLower(strings.TrimSpace(in.GitHubScope))
@@ -284,7 +292,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.Token = ciphertext
-	} else {
+	default:
 		config.Project = strings.TrimSpace(in.GitLabProject)
 		if config.Project == "" {
 			return nil, fmt.Errorf("%w: GitLab project path or ID is required", ErrValidation)
@@ -305,7 +313,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		}
 		config.Token = ciphertext
 	}
-	encoded, err := json.Marshal(config)
+	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token, AWSSecret and AWSSessionTokenEnc hold org-key ciphertext
 	if err != nil {
 		return nil, err
 	}
@@ -462,21 +470,22 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		return nil, err
 	}
 	var err2 error
-	if sync.Provider == "gitlab" {
+	switch sync.Provider {
+	case "gitlab":
 		err2 = s.postGitLab(ctx, org, sync, config, values)
-	} else if sync.Provider == "github" {
+	case "github":
 		err2 = s.postGitHub(ctx, org, sync, config, values, kinds)
-	} else if sync.Provider == "vercel" {
+	case "vercel":
 		err2 = s.postVercel(ctx, org, sync, config, env, values, kinds)
-	} else if sync.Provider == "aws" {
+	case "aws":
 		err2 = s.postAWS(ctx, org, sync, config, project, env, values, kinds)
-	} else if sync.Provider == "gcp" {
+	case "gcp":
 		err2 = s.postGCP(ctx, org, sync, config, project, env, values)
-	} else if sync.Provider == "netlify" {
+	case "netlify":
 		err2 = s.postNetlify(ctx, org, sync, config, env, values, kinds)
-	} else if sync.Provider == "cloudflare" {
+	case "cloudflare":
 		err2 = s.postCloudflare(ctx, org, sync, config, env, values, kinds)
-	} else {
+	default:
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
 			return nil, err
@@ -548,7 +557,7 @@ func (s *Service) postSync(ctx context.Context, run *store.SyncRun, sync *store.
 			}
 			lastErr = fmt.Errorf("destination returned %d; check the endpoint URL and receiver logs", status)
 		} else {
-			lastErr = fmt.Errorf("%v; check the endpoint URL, DNS, and network policy", err)
+			lastErr = fmt.Errorf("%w; check the endpoint URL, DNS, and network policy", err)
 		}
 		if attempt < 3 {
 			select {
@@ -647,7 +656,7 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 	listReq.Header.Set("PRIVATE-TOKEN", token)
 	listResp, err := client.Do(listReq)
 	if err != nil {
-		return fmt.Errorf("gitlab: could not list variables: %v; check the GitLab URL and network policy", err)
+		return fmt.Errorf("gitlab: could not list variables: %w; check the GitLab URL and network policy", err)
 	}
 	listBody, _ := io.ReadAll(io.LimitReader(listResp.Body, 1<<20))
 	_ = listResp.Body.Close()
@@ -699,7 +708,7 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		response, err := client.Do(request)
 		if err != nil {
-			return fmt.Errorf("gitlab: request failed: %v; check the GitLab URL and network policy", err)
+			return fmt.Errorf("gitlab: request failed: %w; check the GitLab URL and network policy", err)
 		}
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 8192))
 		_ = response.Body.Close()
@@ -750,7 +759,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/secrets/public-key", token, nil)
 		if err != nil {
-			return fmt.Errorf("github: public key request failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("github: public key request failed: %w; check the API URL and network policy", err)
 		}
 		if status < 200 || status >= 300 {
 			return githubStatusError("public key", status, body)
@@ -779,7 +788,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 			})
 			status, body, err := githubRequest(ctx, client, http.MethodPut, actions+"/secrets/"+url.PathEscape(name), token, payload)
 			if err != nil {
-				return fmt.Errorf("github: secret update failed: %v; check the API URL and network policy", err)
+				return fmt.Errorf("github: secret update failed: %w; check the API URL and network policy", err)
 			}
 			if status < 200 || status >= 300 {
 				return githubStatusError("secret "+name, status, body)
@@ -799,7 +808,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 	existing := map[string]bool{}
 	status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/variables?per_page=100", token, nil)
 	if err != nil {
-		return fmt.Errorf("github: variable list failed: %v; check the API URL and network policy", err)
+		return fmt.Errorf("github: variable list failed: %w; check the API URL and network policy", err)
 	}
 	if status == http.StatusOK {
 		var listing struct {
@@ -829,7 +838,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		status, body, err := githubRequest(ctx, client, method, endpoint, token, payload)
 		if err != nil {
-			return fmt.Errorf("github: variable update failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("github: variable update failed: %w; check the API URL and network policy", err)
 		}
 		if status < 200 || status >= 300 {
 			return githubStatusError("variable "+name, status, body)
@@ -860,7 +869,7 @@ func githubRequest(ctx context.Context, client *http.Client, method, endpoint, t
 	if err != nil {
 		return 0, nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	return response.StatusCode, body, nil
 }
@@ -923,7 +932,7 @@ func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sy
 	existing := map[string]string{}
 	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, base+"/v10/projects/"+project+"/env"+query, token, nil)
 	if err != nil {
-		return fmt.Errorf("vercel: could not list variables: %v; check the API URL and network policy", err)
+		return fmt.Errorf("vercel: could not list variables: %w; check the API URL and network policy", err)
 	}
 	if status == http.StatusOK {
 		var listing struct {
@@ -961,7 +970,7 @@ func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		status, body, err := githubLikeRequest(ctx, client, method, endpoint, token, payload)
 		if err != nil {
-			return fmt.Errorf("vercel: request failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("vercel: request failed: %w; check the API URL and network policy", err)
 		}
 		if status < 200 || status >= 300 {
 			return vercelStatusError("set "+key, status, body)
@@ -993,7 +1002,7 @@ func githubLikeRequest(ctx context.Context, client *http.Client, method, endpoin
 	if err != nil {
 		return 0, nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	return response.StatusCode, body, nil
 }
@@ -1019,6 +1028,12 @@ func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync,
 	secretKey, err := s.decryptOrgSecret(org, sync.ID, "aws_secret", config.AWSSecret)
 	if err != nil {
 		return err
+	}
+	// config is a copy: swap in the decrypted token for signing.
+	if len(config.AWSSessionTokenEnc) > 0 {
+		if config.AWSSessionToken, err = s.decryptOrgSecret(org, sync.ID, "aws_session_token", config.AWSSessionTokenEnc); err != nil {
+			return err
+		}
 	}
 	client := s.WebhookClient
 	if client == nil {
@@ -1081,9 +1096,9 @@ func (s *Service) awsJSONCall(ctx context.Context, client *http.Client, endpoint
 	signAWSJSON(request, payload, service, config, secretKey)
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("aws: request failed: %v; check the region, endpoint, and network policy", err)
+		return fmt.Errorf("aws: request failed: %w; check the region, endpoint, and network policy", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode >= 200 && response.StatusCode < 300 {
 		return nil
@@ -1185,14 +1200,14 @@ func (s *Service) postGCP(ctx context.Context, org *store.Org, sync *store.Sync,
 		secretURL := base + "/v1/" + parent + "/secrets/" + url.PathEscape(name)
 		status, body, err := gcpRequest(ctx, s.WebhookClient, http.MethodGet, secretURL, accessToken, nil)
 		if err != nil {
-			return fmt.Errorf("gcp: request failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("gcp: request failed: %w; check the API URL and network policy", err)
 		}
 		if status == http.StatusNotFound {
 			payload, _ := json.Marshal(map[string]any{"replication": map[string]any{"automatic": map[string]any{}}})
 			status, body, err = gcpRequest(ctx, s.WebhookClient, http.MethodPost,
 				base+"/v1/"+parent+"/secrets?secretId="+url.QueryEscape(name), accessToken, payload)
 			if err != nil {
-				return fmt.Errorf("gcp: create secret failed: %v", err)
+				return fmt.Errorf("gcp: create secret failed: %w", err)
 			}
 			if status < 200 || status >= 300 {
 				return gcpStatusError("create "+name, status, body)
@@ -1205,7 +1220,7 @@ func (s *Service) postGCP(ctx context.Context, org *store.Org, sync *store.Sync,
 		})
 		status, body, err = gcpRequest(ctx, s.WebhookClient, http.MethodPost, secretURL+":addVersion", accessToken, payload)
 		if err != nil {
-			return fmt.Errorf("gcp: add version failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("gcp: add version failed: %w; check the API URL and network policy", err)
 		}
 		if status < 200 || status >= 300 {
 			return gcpStatusError("add version "+name, status, body)
@@ -1258,9 +1273,9 @@ func gcpAccessToken(ctx context.Context, client *http.Client, account gcpService
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("gcp: token exchange failed: %v; check the token URI and network policy", err)
+		return "", fmt.Errorf("gcp: token exchange failed: %w; check the token URI and network policy", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", fmt.Errorf("gcp: token exchange returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))
@@ -1295,7 +1310,7 @@ func gcpRequest(ctx context.Context, client *http.Client, method, endpoint, toke
 	if err != nil {
 		return 0, nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	return response.StatusCode, body, nil
 }
@@ -1348,7 +1363,7 @@ func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.S
 	envURL := base + "/api/v1/accounts/" + url.PathEscape(config.NetlifyAccount) + "/env"
 	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, envURL+query, token, nil)
 	if err != nil {
-		return fmt.Errorf("netlify: could not list variables: %v; check the API URL and network policy", err)
+		return fmt.Errorf("netlify: could not list variables: %w; check the API URL and network policy", err)
 	}
 	existing := map[string]bool{}
 	if status == http.StatusOK {
@@ -1390,7 +1405,7 @@ func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.S
 		}
 		status, body, err := githubLikeRequest(ctx, client, method, endpoint, token, payload)
 		if err != nil {
-			return fmt.Errorf("netlify: request failed: %v; check the API URL and network policy", err)
+			return fmt.Errorf("netlify: request failed: %w; check the API URL and network policy", err)
 		}
 		if status < 200 || status >= 300 {
 			return netlifyStatusError("set "+key, status, body)
@@ -1449,7 +1464,7 @@ func (s *Service) postCloudflare(ctx context.Context, org *store.Org, sync *stor
 			request.Header.Set("Content-Type", writer.FormDataContentType())
 			response, err := client.Do(request)
 			if err != nil {
-				return fmt.Errorf("cloudflare: request failed: %v; check the API URL and network policy", err)
+				return fmt.Errorf("cloudflare: request failed: %w; check the API URL and network policy", err)
 			}
 			body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 			_ = response.Body.Close()
@@ -1469,7 +1484,7 @@ func (s *Service) postCloudflare(ctx context.Context, org *store.Org, sync *stor
 	projectURL := accountURL + "/pages/projects/" + url.PathEscape(config.CFProject)
 	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, projectURL, token, nil)
 	if err != nil {
-		return fmt.Errorf("cloudflare: could not read Pages project: %v", err)
+		return fmt.Errorf("cloudflare: could not read Pages project: %w", err)
 	}
 	if status < 200 || status >= 300 {
 		return cloudflareStatusError("read Pages project", status, body)
@@ -1515,7 +1530,7 @@ func (s *Service) postCloudflare(ctx context.Context, org *store.Org, sync *stor
 	})
 	status, body, err = githubLikeRequest(ctx, client, http.MethodPatch, projectURL, token, patch)
 	if err != nil {
-		return fmt.Errorf("cloudflare: Pages update failed: %v", err)
+		return fmt.Errorf("cloudflare: Pages update failed: %w", err)
 	}
 	if status < 200 || status >= 300 {
 		return cloudflareStatusError("update Pages project", status, body)

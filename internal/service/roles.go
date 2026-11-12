@@ -169,7 +169,7 @@ func (s *Service) DeleteRole(ctx context.Context, actor authz.Actor, orgSlug, ro
 }
 
 // validateRole checks the name, permissions, and no-escalation rule.
-func (s *Service) validateRole(actor authz.Actor, orgID string, in RoleInput, scope authz.Scope) (string, string, error) {
+func (s *Service) validateRole(actor authz.Actor, _ string, in RoleInput, scope authz.Scope) (string, string, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" || len(name) > 60 {
 		return "", "", fmt.Errorf("%w: role name is required and must be under 60 characters", ErrValidation)

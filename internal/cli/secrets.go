@@ -160,8 +160,8 @@ func newSecretsGetCommand(opts *Options) *cobra.Command {
 			if opts.JSON {
 				return out.PrintJSON(secret)
 			}
-			fmt.Fprintln(out.Out, secret.Value)
-			return nil
+			_, err = fmt.Fprintln(out.Out, secret.Value)
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&reveal, "reveal", true, "print the decrypted value")

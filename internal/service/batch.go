@@ -94,7 +94,7 @@ func (s *Service) BatchSecrets(ctx context.Context, actor authz.Actor, orgSlug, 
 		item, exists := byBlind[blind]
 		if !exists {
 			itemID := uuid.NewString()
-			keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(change.Key),
+			keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(change.Key),
 				crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "key", 1))
 			if err != nil {
 				return nil, err
@@ -186,7 +186,7 @@ func (s *Service) BatchSecrets(ctx context.Context, actor authz.Actor, orgSlug, 
 }
 
 func (s *Service) sealBatchFields(valueKey crypto.Key, org *store.Org, project *store.Project, env *store.Environment, itemID string, version int, value, comment string) ([]byte, []byte, error) {
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(value),
+	valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(value),
 		crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "value", version))
 	if err != nil {
 		return nil, nil, err
@@ -194,7 +194,7 @@ func (s *Service) sealBatchFields(valueKey crypto.Key, org *store.Org, project *
 	if comment == "" {
 		return valueCT, nil, nil
 	}
-	commentCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(comment),
+	commentCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(comment),
 		crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "comment", version))
 	if err != nil {
 		return nil, nil, err

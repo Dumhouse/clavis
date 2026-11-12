@@ -236,7 +236,7 @@ func newUnlinkCommand(opts *Options) *cobra.Command {
 		Use:   "unlink",
 		Short: "Remove the .clavis.yaml in this directory",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			path := projectConfigName
 			if _, err := os.Stat(path); err != nil {
 				return fmt.Errorf("no %s in this directory", projectConfigName)
@@ -358,7 +358,6 @@ func runInit(cmd *cobra.Command, opts *Options, projectName string) error {
 		for i, env := range detail.Environments {
 			envs[i] = env.Slug
 		}
-		envSlug = envs[0]
 		if index := indexBySlug(resolved.Env, envs); index >= 0 {
 			envSlug = envs[index]
 		} else {

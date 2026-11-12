@@ -48,7 +48,7 @@ func (s *Store) ListRecoveryCodes(ctx context.Context, userID string) ([]Recover
 	if err != nil {
 		return nil, fmt.Errorf("store: list recovery codes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RecoveryCode
 	for rows.Next() {
 		var code RecoveryCode

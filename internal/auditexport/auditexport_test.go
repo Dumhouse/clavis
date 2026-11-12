@@ -135,7 +135,7 @@ func TestSyslogExporter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	dispatcher := New([]config.AuditExporterConfig{{
 		Type: "syslog", Format: "cef", Address: conn.LocalAddr().String(), Network: "udp",
 	}}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))

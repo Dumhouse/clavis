@@ -126,7 +126,7 @@ func (s *Store) ListSessionsForUser(ctx context.Context, userID string) ([]Sessi
 	if err != nil {
 		return nil, fmt.Errorf("store: list sessions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Session
 	for rows.Next() {
 		var (
