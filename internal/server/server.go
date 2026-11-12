@@ -63,6 +63,8 @@ type Server struct {
 	webFS      fs.FS
 	awsSTSURL  string
 	instanceID string
+
+	setupNotice []any // first-run setup log fields, logged once the listener is bound
 }
 
 // Option customizes the server.
@@ -265,7 +267,7 @@ func (s *Server) initSetupToken(ctx context.Context) error {
 	if created {
 		attrs = append(attrs, "setup_token", token)
 	}
-	s.logger.Warn("first-run setup is required", attrs...)
+	s.setupNotice = attrs
 	return nil
 }
 
@@ -703,6 +705,14 @@ func (s *Server) listenEvents(ctx context.Context) {
 
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
+	// Bind first so a busy port fails before the setup token is printed.
+	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
+	if err != nil {
+		return fmt.Errorf("server: listen: %w", err)
+	}
+	if s.setupNotice != nil {
+		s.logger.Warn("first-run setup is required", s.setupNotice...)
+	}
 	go s.expiryLoop(ctx)
 	go s.leaseLoop(ctx)
 	go s.rotationLoop(ctx)
@@ -710,7 +720,7 @@ func (s *Server) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
 		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
-		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.http.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
 		}

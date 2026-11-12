@@ -195,9 +195,7 @@ export function AppShell() {
               <span className="block truncate text-[13px] font-medium">
                 {org?.name ?? 'No organization'}
               </span>
-              <span className="block truncate text-[12px] text-dim">
-                {org?.role ?? 'Member'} · free
-              </span>
+              <span className="block truncate text-[12px] text-dim">{org?.role ?? 'Member'}</span>
             </span>
             <span className="text-dim">⌄</span>
           </button>
@@ -408,11 +406,6 @@ function NavGroup({
             >
               <item.icon className={cn('size-4', active ? 'text-accent-text' : 'text-dim')} />
               <span className="flex-1">{item.label}</span>
-              {item.to === '/requests' && (
-                <span className="rounded-full bg-amber-bg px-1.5 text-[11px] font-semibold text-amber-fg">
-                  3
-                </span>
-              )}
             </Link>
           )
         })}

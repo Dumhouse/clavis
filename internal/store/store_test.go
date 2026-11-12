@@ -60,6 +60,34 @@ func TestOpenMissingDirectory(t *testing.T) {
 	}
 }
 
+func TestOpenCreatesOwnerOnlyFiles(t *testing.T) {
+	if os.Getenv("CLAVIS_TEST_POSTGRES") != "" {
+		t.Skip("SQLite file permissions")
+	}
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "clavis.db")
+	st, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		info, err := os.Stat(p)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode := info.Mode().Perm(); mode&0o077 != 0 {
+			t.Fatalf("%s mode = %o, want owner-only", filepath.Base(p), mode)
+		}
+	}
+}
+
 func TestOpenHonorsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

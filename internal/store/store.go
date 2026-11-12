@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -39,6 +40,13 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: resolve database path: %w", err)
 	}
+	// Create a new database owner-only. SQLite gives the -wal and -shm files
+	// the same mode as the main file. Existing files keep their mode.
+	f, err := os.OpenFile(abs, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("store: create database file: %w", err)
+	}
+	_ = f.Close()
 	u := url.URL{Scheme: "file", Path: abs}
 	q := u.Query()
 	q.Add("_pragma", "foreign_keys(1)")

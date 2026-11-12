@@ -1479,9 +1479,18 @@ func TestOutgoingWebhooks(t *testing.T) {
 		}
 	}
 delivered:
-	list := owner.request(http.MethodGet, "/api/v1/orgs/acme/webhooks/deliveries", nil)
-	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"status":"success"`) {
-		t.Fatalf("deliveries = %d body=%s", list.Code, list.Body)
+	// The receiver sees the request before the worker records the result, so
+	// wait for the delivery status to be stored.
+	stored := time.Now().Add(5 * time.Second)
+	for {
+		list := owner.request(http.MethodGet, "/api/v1/orgs/acme/webhooks/deliveries", nil)
+		if list.Code == http.StatusOK && strings.Contains(list.Body.String(), `"status":"success"`) {
+			return
+		}
+		if time.Now().After(stored) {
+			t.Fatalf("deliveries = %d body=%s", list.Code, list.Body)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

@@ -16,6 +16,10 @@ Apache-2.0 and there is no enterprise edition.
 Requirements: Go (version in `go.mod`), Node.js (version in `web/.nvmrc`),
 pnpm, and optionally `golangci-lint`, `lefthook`, and `sqlc`.
 
+The web app pins pnpm 12 in `web/package.json`. The standalone pnpm installer
+(`~/Library/pnpm`) can't switch to pnpm 12 on macOS arm64 yet; install it with
+`npm install -g pnpm@12` or `corepack enable` instead.
+
 ```sh
 make tools     # optional: install local developer tools
 make web       # build the React app

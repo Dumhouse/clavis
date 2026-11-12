@@ -24,7 +24,8 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // dist is embedded into the server binary; set CLAVIS_SOURCEMAP=1 to debug a build locally.
+    sourcemap: process.env.CLAVIS_SOURCEMAP === '1',
     target: 'es2022',
     // The single-binary SPA ships one JS bundle; gzip stays around 145 kB.
     chunkSizeWarningLimit: 700,
