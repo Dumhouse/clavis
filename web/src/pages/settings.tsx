@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import {
+  GitBranch,
   KeyRound,
   Layers,
   Loader2,
@@ -60,6 +61,12 @@ export function SettingsPage() {
   const [ssoRole, setSsoRole] = useState('Developer')
   const [ssoBusy, setSsoBusy] = useState(false)
   const [ssoMessage, setSsoMessage] = useState<string | null>(null)
+  const [previewEnabled, setPreviewEnabled] = useState(false)
+  const [previewSecret, setPreviewSecret] = useState('')
+  const [previewSecretSet, setPreviewSecretSet] = useState(false)
+  const [previewDays, setPreviewDays] = useState(7)
+  const [previewBusy, setPreviewBusy] = useState(false)
+  const [previewMessage, setPreviewMessage] = useState<string | null>(null)
 
   const orgSettings = useQuery({
     queryKey: ['org-settings', org?.slug],
@@ -92,6 +99,9 @@ export function SettingsPage() {
     setSsoEnforce(orgSettings.data.sso.enforce)
     setSsoDomains((orgSettings.data.sso.allowed_domains ?? []).join(', '))
     setSsoRole(orgSettings.data.sso.role || 'Developer')
+    setPreviewEnabled(orgSettings.data.preview_enabled)
+    setPreviewSecretSet(orgSettings.data.github_webhook_secret_set)
+    setPreviewDays(orgSettings.data.preview_retention_days || 7)
     setOrgAppearance(orgSettings.data.default_appearance ?? 'classic')
   }, [orgSettings.data])
 
@@ -161,6 +171,31 @@ export function SettingsPage() {
     setSsoClientSecret('')
     setSsoSecretSet(true)
     setSsoMessage('SSO settings saved.')
+    await queryClient.invalidateQueries({ queryKey: ['org-settings', org.slug] })
+  }
+
+  async function savePreview() {
+    if (!org) return
+    setPreviewBusy(true)
+    setPreviewMessage(null)
+    const body: {
+      preview_enabled: boolean
+      preview_retention_days: number
+      github_webhook_secret?: string
+    } = { preview_enabled: previewEnabled, preview_retention_days: previewDays }
+    if (previewSecret !== '') body.github_webhook_secret = previewSecret
+    const result = await api.PATCH('/api/v1/orgs/{org}/settings', {
+      params: { path: { org: org.slug } },
+      body,
+    })
+    setPreviewBusy(false)
+    if (result.error) {
+      setPreviewMessage(apiErrorMessage(result.error, 'Could not save preview settings.'))
+      return
+    }
+    setPreviewSecret('')
+    setPreviewSecretSet(true)
+    setPreviewMessage('Preview environment settings saved.')
     await queryClient.invalidateQueries({ queryKey: ['org-settings', org.slug] })
   }
 
@@ -536,6 +571,84 @@ export function SettingsPage() {
                 }}
               >
                 {ssoBusy && <Loader2 className="size-3.5 animate-spin" />} Save SSO
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {(org?.role === 'Owner' || org?.role === 'Admin') && (
+        <section className="rounded-app border border-border bg-surface">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <GitBranch className="size-4 text-muted" />
+            <h2 className="text-[13px] font-semibold">Preview environments</h2>
+          </div>
+          <div className="space-y-3 p-4">
+            <label className="flex items-start gap-2 text-[12px]">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={previewEnabled}
+                onChange={(event) => {
+                  setPreviewEnabled(event.target.checked)
+                }}
+              />
+              <span>
+                <span className="block font-medium">
+                  Create preview environments from pull requests
+                </span>
+                <span className="block text-[11.5px] text-muted">
+                  Point the repository webhook at{' '}
+                  <code className="font-mono">
+                    {window.location.origin}/api/v1/orgs/{org?.slug}
+                    /projects/&lt;project&gt;/integrations/github/webhook
+                  </code>
+                  . PRs inherit the development environment and expire automatically.
+                </span>
+              </span>
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                  Webhook secret {previewSecretSet ? '(stored)' : ''}
+                </span>
+                <input
+                  type="password"
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[12px] text-text focus:border-accent-line focus:outline-none"
+                  placeholder={previewSecretSet ? 'Leave blank to keep current secret' : ''}
+                  value={previewSecret}
+                  onChange={(event) => {
+                    setPreviewSecret(event.target.value)
+                  }}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11.5px] font-medium text-muted">
+                  Retention (days)
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={90}
+                  className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12.5px] text-text focus:border-accent-line focus:outline-none"
+                  value={previewDays}
+                  onChange={(event) => {
+                    setPreviewDays(Number(event.target.value))
+                  }}
+                />
+              </label>
+            </div>
+            {previewMessage && <p className="text-[11.5px] text-muted">{previewMessage}</p>}
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={previewBusy}
+                onClick={() => {
+                  void savePreview()
+                }}
+              >
+                {previewBusy && <Loader2 className="size-3.5 animate-spin" />} Save previews
               </Button>
             </div>
           </div>

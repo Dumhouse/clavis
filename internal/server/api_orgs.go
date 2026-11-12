@@ -112,6 +112,9 @@ type orgSettingsInput struct {
 		BlockCLIWrites       *bool                  `json:"block_cli_writes,omitempty"`
 		EnvironmentTemplates *[]environmentTemplate `json:"environment_templates,omitempty" maxItems:"20"`
 		SSO                  *ssoInput              `json:"sso,omitempty"`
+		GitHubWebhookSecret  *string                `json:"github_webhook_secret,omitempty" maxLength:"500"`
+		PreviewEnabled       *bool                  `json:"preview_enabled,omitempty"`
+		PreviewRetentionDays *int                   `json:"preview_retention_days,omitempty" minimum:"1" maximum:"90"`
 	}
 }
 
@@ -148,14 +151,17 @@ type environmentTemplate struct {
 }
 
 type settingsBody struct {
-	DefaultAppearance    string                `json:"default_appearance"`
-	RequireMFA           bool                  `json:"require_mfa"`
-	SessionIdleHours     int                   `json:"session_idle_hours"`
-	SessionAbsoluteDays  int                   `json:"session_absolute_days"`
-	IPAllowlist          []string              `json:"ip_allowlist"`
-	BlockCLIWrites       bool                  `json:"block_cli_writes"`
-	EnvironmentTemplates []environmentTemplate `json:"environment_templates"`
-	SSO                  ssoBody               `json:"sso"`
+	DefaultAppearance      string                `json:"default_appearance"`
+	RequireMFA             bool                  `json:"require_mfa"`
+	SessionIdleHours       int                   `json:"session_idle_hours"`
+	SessionAbsoluteDays    int                   `json:"session_absolute_days"`
+	IPAllowlist            []string              `json:"ip_allowlist"`
+	BlockCLIWrites         bool                  `json:"block_cli_writes"`
+	EnvironmentTemplates   []environmentTemplate `json:"environment_templates"`
+	SSO                    ssoBody               `json:"sso"`
+	GitHubWebhookSecretSet bool                  `json:"github_webhook_secret_set"`
+	PreviewEnabled         bool                  `json:"preview_enabled"`
+	PreviewRetentionDays   int                   `json:"preview_retention_days"`
 }
 
 type orgSettingsOutput struct {
@@ -182,7 +188,10 @@ func settingsBodyFromService(settings service.OrgSettings) settingsBody {
 		DefaultAppearance: appearance, RequireMFA: settings.RequireMFA,
 		SessionIdleHours: settings.SessionIdleHours, SessionAbsoluteDays: settings.SessionAbsoluteDays,
 		IPAllowlist: allowlist, BlockCLIWrites: settings.BlockCLIWrites,
-		EnvironmentTemplates: templates,
+		EnvironmentTemplates:   templates,
+		GitHubWebhookSecretSet: len(settings.GitHubWebhookSecret) > 0,
+		PreviewEnabled:         settings.PreviewEnabled,
+		PreviewRetentionDays:   settings.PreviewRetentionDays,
 		SSO: ssoBody{
 			Enabled: settings.SSOEnabled, Provider: settings.SSOProvider, ClientID: settings.SSOClientID,
 			ClientSecretSet: len(settings.SSOClientSecret) > 0, Issuer: settings.SSOIssuer,
@@ -380,6 +389,8 @@ func (s *Server) registerOrgRoutes() error {
 			DefaultAppearance: in.Body.DefaultAppearance, RequireMFA: in.Body.RequireMFA,
 			SessionIdleHours: in.Body.SessionIdleHours, SessionAbsoluteDays: in.Body.SessionAbsoluteDays,
 			IPAllowlist: in.Body.IPAllowlist, BlockCLIWrites: in.Body.BlockCLIWrites,
+			GitHubWebhookSecret: in.Body.GitHubWebhookSecret, PreviewEnabled: in.Body.PreviewEnabled,
+			PreviewRetentionDays: in.Body.PreviewRetentionDays,
 		}
 		if in.Body.SSO != nil {
 			patch.SSOEnabled = in.Body.SSO.Enabled

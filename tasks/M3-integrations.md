@@ -22,7 +22,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 ## Shared sets, previews, files
 - [x] **M3-12** 🔒 Shared secret sets: org-level sets with own keys and access, imported by environments, resolution layer, `${set:…}` references (L)
 - [x] **M3-13** Shared sets UI with blast-radius preview before save; `clavis sets` commands (M)
-- [ ] **M3-14** Preview environments per PR via GitHub integration: create on open, delete on close/merge, inactivity expiry (M)
+- [x] **M3-14** Preview environments per PR via GitHub integration: create on open, delete on close/merge, inactivity expiry (M)
 - [x] **M3-15** 🔒 File secrets (`kind=file`, ≤ 1 MiB): upload/preview in UI, `clavis run --mount` to private temp dir removed on exit (M)
 
 ## Syncs (push secrets to platforms)

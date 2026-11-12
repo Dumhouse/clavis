@@ -2300,6 +2300,54 @@ func TestGitLabDrift(t *testing.T) {
 	}
 }
 
+func TestGitHubPreviewEnvironments(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	if rec := owner.request(http.MethodPatch, "/api/v1/orgs/acme/settings", map[string]any{
+		"preview_enabled": true, "github_webhook_secret": "hook-secret", "preview_retention_days": 7,
+	}); rec.Code != http.StatusOK {
+		t.Fatalf("settings = %d body=%s", rec.Code, rec.Body)
+	}
+	webhook := func(action string, number int, signature string) *httptest.ResponseRecorder {
+		payload, _ := json.Marshal(map[string]any{
+			"action": action, "number": number,
+			"pull_request": map[string]any{
+				"head": map[string]string{"ref": "feature/test"},
+				"base": map[string]string{"ref": "main"},
+			},
+		})
+		if signature == "" {
+			mac := hmac.New(sha256.New, []byte("hook-secret"))
+			mac.Write(payload)
+			signature = "sha256=" + hex.EncodeToString(mac.Sum(nil))
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/integrations/github/webhook", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-GitHub-Event", "pull_request")
+		req.Header.Set("X-Hub-Signature-256", signature)
+		rec := httptest.NewRecorder()
+		f.srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := webhook("opened", 42, "sha256=bad"); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("bad signature = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := webhook("opened", 42, ""); rec.Code != http.StatusAccepted {
+		t.Fatalf("open = %d body=%s", rec.Code, rec.Body)
+	}
+	project := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app", nil)
+	if project.Code != http.StatusOK || !strings.Contains(project.Body.String(), `"slug":"pr-42"`) {
+		t.Fatalf("project envs = %d body=%s", project.Code, project.Body)
+	}
+	if rec := webhook("closed", 42, ""); rec.Code != http.StatusAccepted {
+		t.Fatalf("close = %d body=%s", rec.Code, rec.Body)
+	}
+	project = owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app", nil)
+	if strings.Contains(project.Body.String(), `"slug":"pr-42"`) {
+		t.Fatalf("preview not deleted: %s", project.Body)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

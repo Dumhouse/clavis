@@ -2207,7 +2207,11 @@ export interface components {
             /** @enum {string} */
             default_appearance?: "classic" | "warm";
             environment_templates?: components["schemas"]["EnvironmentTemplate"][];
+            github_webhook_secret?: string;
             ip_allowlist?: string[];
+            preview_enabled?: boolean;
+            /** Format: int64 */
+            preview_retention_days?: number;
             require_mfa?: boolean;
             /** Format: int64 */
             session_absolute_days?: number;
@@ -2435,7 +2439,11 @@ export interface components {
             block_cli_writes: boolean;
             default_appearance: string;
             environment_templates: components["schemas"]["EnvironmentTemplate"][] | null;
+            github_webhook_secret_set: boolean;
             ip_allowlist: string[] | null;
+            preview_enabled: boolean;
+            /** Format: int64 */
+            preview_retention_days: number;
             require_mfa: boolean;
             /** Format: int64 */
             session_absolute_days: number;
