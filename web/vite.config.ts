@@ -34,7 +34,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
     rolldownOptions: {
       output: {
-        advancedChunks: {
+        codeSplitting: {
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
