@@ -39,15 +39,18 @@ type auditRes struct {
 }
 
 type auditDetail struct {
-	KeyBlindIndex string `json:"key_blind_index,omitempty"`
-	Path          string `json:"path,omitempty"`
-	Environment   string `json:"environment,omitempty"`
-	Version       int    `json:"version,omitempty"`
-	Reason        string `json:"reason,omitempty"`
-	Channel       string `json:"channel,omitempty"`
-	Command       string `json:"command,omitempty"`
-	Count         int    `json:"count,omitempty"`
-	RequestID     string `json:"request_id,omitempty"`
+	KeyBlindIndex string   `json:"key_blind_index,omitempty"`
+	Path          string   `json:"path,omitempty"`
+	Environment   string   `json:"environment,omitempty"`
+	Version       int      `json:"version,omitempty"`
+	Reason        string   `json:"reason,omitempty"`
+	Channel       string   `json:"channel,omitempty"`
+	Command       string   `json:"command,omitempty"`
+	Commands      []string `json:"commands,omitempty"`
+	SchemaKey     string   `json:"schema_key,omitempty"`
+	RequestedKey  string   `json:"requested_key,omitempty"`
+	Count         int      `json:"count,omitempty"`
+	RequestID     string   `json:"request_id,omitempty"`
 }
 
 type auditInput struct {
@@ -195,6 +198,9 @@ func auditDetailFrom(d audit.Details) auditDetail {
 		Reason:        d.Reason,
 		Channel:       d.Channel,
 		Command:       d.Command,
+		Commands:      d.Commands,
+		SchemaKey:     d.SchemaKey,
+		RequestedKey:  d.RequestedKey,
 		Count:         d.Count,
 		RequestID:     d.RequestID,
 	}

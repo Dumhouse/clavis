@@ -57,6 +57,9 @@ type Details struct {
 	Reason        string   `json:"reason,omitempty"`
 	Channel       string   `json:"channel,omitempty"`
 	Command       string   `json:"command,omitempty"`
+	Commands      []string `json:"commands,omitempty"`
+	SchemaKey     string   `json:"schema_key,omitempty"`
+	RequestedKey  string   `json:"requested_key,omitempty"`
 	ChangedKeys   []string `json:"changed_keys,omitempty"` // blind indexes only
 	Count         int      `json:"count,omitempty"`
 	RequestID     string   `json:"request_id,omitempty"`
@@ -100,6 +103,8 @@ func (e *Event) Validate() error {
 		"command":       e.Details.Command,
 		"path":          e.Details.Path,
 		"channel":       e.Details.Channel,
+		"schema key":    e.Details.SchemaKey,
+		"requested key": e.Details.RequestedKey,
 		"resource name": e.Resource.Name,
 	} {
 		if len(value) > MaxFieldLength {
@@ -108,6 +113,9 @@ func (e *Event) Validate() error {
 	}
 	if len(e.Details.ChangedKeys) > 1000 {
 		return fmt.Errorf("%w: too many changed keys", ErrInvalidEvent)
+	}
+	if len(e.Details.Commands) > 200 {
+		return fmt.Errorf("%w: too many commands", ErrInvalidEvent)
 	}
 	return nil
 }

@@ -42,6 +42,10 @@ func (s *Service) BatchProjectSecrets(ctx context.Context, actor authz.Actor, or
 	if err != nil {
 		return nil, err
 	}
+	schemaEntries, err := s.schemaEntries(ctx, project.ID)
+	if err != nil {
+		return nil, err
+	}
 	envs, err := s.Store.ListEnvironments(ctx, project.ID)
 	if err != nil {
 		return nil, err
@@ -67,7 +71,7 @@ func (s *Service) BatchProjectSecrets(ctx context.Context, actor authz.Actor, or
 		if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 			return nil, err
 		}
-		if err := s.enforceCLIProduction(org, env, meta); err != nil {
+		if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 			return nil, err
 		}
 		expected := normalizeETag(ifMatch[slug])
@@ -113,6 +117,9 @@ func (s *Service) BatchProjectSecrets(ctx context.Context, actor authz.Actor, or
 		}
 		seen[id] = true
 		if err := validateSecretInput(&change.Input, true); err != nil {
+			return nil, err
+		}
+		if err := validateAgainstSchemaEntries(schemaEntries, &change.Input); err != nil {
 			return nil, err
 		}
 		blind := crypto.BlindIndex(indexKey, change.Input.Key)

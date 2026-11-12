@@ -44,6 +44,12 @@ var (
 	ErrBreachedPassword = errors.New("service: password appears in a public breach corpus")
 	// ErrReauth is returned when a sensitive action lacks recent confirmation.
 	ErrReauth = errors.New("service: re-authentication required")
+	// ErrAgentCommandDenied is returned when an agent asks for a command that is
+	// not on its server-side allowlist.
+	ErrAgentCommandDenied = errors.New("service: agent command denied")
+	// ErrPromotionApprovalRequired is returned when a protected target needs an
+	// approval request instead of a direct promotion.
+	ErrPromotionApprovalRequired = errors.New("service: promotion approval required")
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$`)
@@ -855,6 +861,7 @@ type OrgSettings struct {
 	GitHubWebhookSecret  []byte                `json:"github_webhook_secret,omitempty"`
 	PreviewEnabled       bool                  `json:"preview_enabled,omitempty"`
 	PreviewRetentionDays int                   `json:"preview_retention_days,omitempty"`
+	DuplicateDetection   bool                  `json:"duplicate_detection,omitempty"`
 }
 
 // EnvironmentTemplate seeds new projects.
@@ -887,6 +894,7 @@ type OrgSettingsPatch struct {
 	GitHubWebhookSecret  *string
 	PreviewEnabled       *bool
 	PreviewRetentionDays *int
+	DuplicateDetection   *bool
 }
 
 // ParseOrgSettings decodes an org settings document, tolerating unknown fields.
@@ -1036,6 +1044,9 @@ func (s *Service) UpdateOrgSettings(ctx context.Context, actor authz.Actor, orgS
 	}
 	if patch.PreviewEnabled != nil {
 		settings.PreviewEnabled = *patch.PreviewEnabled
+	}
+	if patch.DuplicateDetection != nil {
+		settings.DuplicateDetection = *patch.DuplicateDetection
 	}
 	if patch.PreviewRetentionDays != nil {
 		days := *patch.PreviewRetentionDays

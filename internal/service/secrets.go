@@ -33,6 +33,7 @@ var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]*$`)
 // Secret is a decrypted view of an item. Value is empty unless the caller asked
 // for and was allowed to reveal it.
 type Secret struct {
+	ItemID            string
 	Key               string
 	Kind              string
 	Comment           string
@@ -48,6 +49,7 @@ type Secret struct {
 	Tags              []string
 	Version           int
 	UpdatedAt         time.Time
+	ExpiresAt         *time.Time
 	Revealed          bool
 }
 
@@ -62,6 +64,7 @@ type SecretInput struct {
 	ProviderURL   string
 	OwnerGroupID  string
 	Tags          []string
+	ExpiresAt     *time.Time
 	ChangeMessage string
 }
 
@@ -181,6 +184,17 @@ func secretScope(org *store.Org, project *store.Project, env *store.Environment)
 
 // enforceCLIProduction blocks CLI-originated writes to production when the org
 // policy requires it.
+func (s *Service) enforceWritePolicy(ctx context.Context, org *store.Org, env *store.Environment, meta AuditMeta) error {
+	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+		return err
+	}
+	freeze, err := s.Store.ActiveFreeze(ctx, env.ID, s.Now().UTC())
+	if err == nil && freeze != nil {
+		return fmt.Errorf("%w: %s until %s", ErrEnvironmentFrozen, freeze.Reason, freeze.EndsAt.Format(time.RFC3339))
+	}
+	return nil
+}
+
 func (s *Service) enforceCLIProduction(org *store.Org, env *store.Environment, meta AuditMeta) error {
 	if env.Type != "production" {
 		return nil
@@ -198,7 +212,7 @@ func (s *Service) enforceCLIProduction(org *store.Org, env *store.Environment, m
 // denied production, and protected environments need an Admin-level role for
 // writes.
 func (s *Service) authorizeSecretAccess(actor authz.Actor, org *store.Org, project *store.Project, env *store.Environment, perm authz.Permission) error {
-	if actor.Kind == authz.SubjectAgent && env.Type == "production" {
+	if actor.Kind == authz.SubjectAgent && (env.Type == "production" || env.Type == "staging") {
 		return ErrForbidden
 	}
 	scope := secretScope(org, project, env)
@@ -296,8 +310,8 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 				folder = folderPaths[*item.FolderID]
 			}
 			view := Secret{
-				Key: key, Kind: item.Kind, Folder: folder, Tags: parseTags(item.Tags),
-				Version: item.Version, UpdatedAt: item.UpdatedAt,
+				ItemID: item.ID, Key: key, Kind: item.Kind, Folder: folder, Tags: parseTags(item.Tags),
+				Version: item.Version, UpdatedAt: item.UpdatedAt, ExpiresAt: item.ExpiresAt,
 				SourceEnvironment: sourceEnv.Slug, Inherited: sourceEnv.ID != env.ID,
 			}
 			if item.OwnerGroupID != nil {
@@ -465,8 +479,8 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 		}
 	}
 	view := &Secret{
-		Key: key, Kind: item.Kind, Folder: folder, Tags: parseTags(item.Tags),
-		Version: item.Version, UpdatedAt: item.UpdatedAt,
+		ItemID: item.ID, Key: key, Kind: item.Kind, Folder: folder, Tags: parseTags(item.Tags),
+		Version: item.Version, UpdatedAt: item.UpdatedAt, ExpiresAt: item.ExpiresAt,
 		SourceEnvironment: sourceEnv.Slug, Inherited: sourceEnv.ID != env.ID,
 	}
 	if item.OwnerGroupID != nil {
@@ -550,7 +564,10 @@ func (s *Service) CreateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 		return nil, err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
+		return nil, err
+	}
+	if err := s.validateAgainstSchema(ctx, project, &in); err != nil {
 		return nil, err
 	}
 	valueKey, indexKey, err := s.ProjectKeys(ctx, org, project)
@@ -610,6 +627,7 @@ func (s *Service) CreateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 		ProviderURL:       in.ProviderURL,
 		OwnerGroupID:      ownerGroupID,
 		Tags:              tagsJSON(in.Tags),
+		ExpiresAt:         in.ExpiresAt,
 		Version:           1,
 	}
 	message := in.ChangeMessage
@@ -646,7 +664,10 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 		return nil, err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
+		return nil, err
+	}
+	if err := s.validateAgainstSchema(ctx, project, &in); err != nil {
 		return nil, err
 	}
 	valueKey, indexKey, err := s.ProjectKeys(ctx, org, project)
@@ -720,6 +741,7 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	item.NotesCiphertext = notesCT
 	item.ProviderURL = in.ProviderURL
 	item.OwnerGroupID = ownerGroupID
+	item.ExpiresAt = in.ExpiresAt
 	item.ValueCiphertext = valueCT
 	item.CommentCiphertext = commentCT
 	item.Tags = tagsJSON(in.Tags)
@@ -749,7 +771,7 @@ func (s *Service) DeleteSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsDelete); err != nil {
 		return err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 		return err
 	}
 	_, indexKey, err := s.ProjectKeys(ctx, org, project)
@@ -823,7 +845,7 @@ func (s *Service) RollbackSecret(ctx context.Context, actor authz.Actor, orgSlug
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 		return nil, err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 		return nil, err
 	}
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsReadValues); err != nil {
