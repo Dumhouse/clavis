@@ -1,0 +1,9 @@
+apiVersion: v2
+name: clavis
+description: Clavis secrets manager server
+type: application
+version: 0.3.0
+appVersion: "dev"
+home: https://github.com/Dumhouse/clavis
+sources:
+  - https://github.com/Dumhouse/clavis

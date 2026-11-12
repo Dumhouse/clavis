@@ -1,0 +1,126 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/dumhouse/clavis
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 65532
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+
+server:
+  baseURL: "http://localhost:8080"
+  dev: false
+  metricsPublic: true
+  rateLimitPerMinute: 600
+  readTimeout: 15s
+  writeTimeout: 30s
+  idleTimeout: 120s
+  shutdownTimeout: 20s
+  maxBodyBytes: 1048576
+
+database:
+  driver: sqlite
+  path: /data/clavis.db
+
+keys:
+  # file: generated under /data and persisted by the PVC
+  # env:  provide the base64 key through existingSecret
+  provider: file
+  rootKeyFile: /data/root.key
+  rootKeyEnv: CLAVIS_ROOT_KEY
+  existingSecret: ""
+  secretKey: root-key
+
+log:
+  level: info
+  format: json
+
+email:
+  enabled: false
+  host: ""
+  port: 587
+  username: ""
+  from: ""
+  tls: starttls
+  existingSecret: ""
+  passwordKey: email-password
+
+security:
+  breachCheck: false
+  breachCheckURL: https://api.pwnedpasswords.com/range/
+
+auditExporters: []
+
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: clavis.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+extraEnv: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
