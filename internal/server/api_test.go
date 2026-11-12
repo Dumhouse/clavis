@@ -2395,6 +2395,69 @@ func TestSyncDeleteMissing(t *testing.T) {
 	}
 }
 
+func TestGitHubAppSync(t *testing.T) {
+	appKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, _ := x509.MarshalPKCS8PrivateKey(appKey)
+	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}))
+	publicKey, _, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usedTokens := make(chan string, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/app/installations/123/access_tokens"):
+			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer eyJ") {
+				t.Errorf("missing App JWT")
+			}
+			_, _ = w.Write([]byte(`{"token":"ghs_install"}`))
+		case strings.HasSuffix(r.URL.Path, "/actions/secrets/public-key"):
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"key_id": "key", "key": base64.StdEncoding.EncodeToString(publicKey[:]),
+			})
+		case r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/actions/secrets/"):
+			usedTokens <- r.Header.Get("Authorization")
+			w.WriteHeader(http.StatusCreated)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "github", "base_url": srv.URL,
+		"github_repo": "acme/repo", "github_scope": "repo",
+		"github_app_id": "42", "github_installation_id": "123", "github_private_key": keyPEM,
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create app sync = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	owner.request(http.MethodPost, dev, map[string]any{"key": "APP_SECRET", "value": "app-value"})
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	select {
+	case token := <-usedTokens:
+		if token != "Bearer ghs_install" {
+			t.Fatalf("installation token = %q", token)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("github app secret not delivered")
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

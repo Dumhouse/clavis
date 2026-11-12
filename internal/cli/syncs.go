@@ -106,6 +106,7 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
 	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
+	var githubAppID, githubInstallation, githubPrivateKey string
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var gcpProject, gcpServiceAccount, gcpPrefix string
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
@@ -123,6 +124,13 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 			c, err := resolved.newClient()
 			if err != nil {
 				return err
+			}
+			if strings.HasPrefix(githubPrivateKey, "@") {
+				data, err := os.ReadFile(strings.TrimPrefix(githubPrivateKey, "@"))
+				if err != nil {
+					return err
+				}
+				githubPrivateKey = string(data)
 			}
 			if strings.HasPrefix(gcpServiceAccount, "@") {
 				data, err := os.ReadFile(strings.TrimPrefix(gcpServiceAccount, "@"))
@@ -173,6 +181,9 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&githubEnvironment, "github-environment", "", "GitHub environment name")
 	cmd.Flags().StringVar(&githubScope, "github-scope", "repo", "GitHub scope: repo, environment, or org")
 	cmd.Flags().StringVar(&token, "github-token", "", "GitHub token with Actions secrets/variables write access")
+	cmd.Flags().StringVar(&githubAppID, "github-app-id", "", "GitHub App ID")
+	cmd.Flags().StringVar(&githubInstallation, "github-installation-id", "", "GitHub App installation ID")
+	cmd.Flags().StringVar(&githubPrivateKey, "github-private-key", "", "GitHub App private key PEM or @file")
 	cmd.Flags().StringVar(&token, "vercel-token", "", "Vercel access token")
 	cmd.Flags().StringVar(&vercelProject, "vercel-project", "", "Vercel project ID or name")
 	cmd.Flags().StringVar(&vercelTeamID, "vercel-team", "", "Vercel team ID")

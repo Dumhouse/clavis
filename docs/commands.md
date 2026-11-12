@@ -357,6 +357,14 @@ Flags: `--endpoint`, `--secret`, `--provider http|gitlab|github|vercel|aws|gcp|n
 `--cloudflare-account`, `--cloudflare-mode`, `--cloudflare-project`,
 `--cloudflare-script`, `--cloudflare-token`, `--delete-missing`.
 
+GitHub syncs can authenticate with a PAT or a GitHub App installation:
+
+```sh
+clavis syncs create dev --provider github --github-repo acme/repo \
+  --github-app-id 42 --github-installation-id 123 \
+  --github-private-key @app.private-key.pem
+```
+
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
 

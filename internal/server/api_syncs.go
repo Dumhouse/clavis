@@ -40,36 +40,39 @@ type createSyncInput struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	Body    struct {
-		Environment       string `json:"environment" minLength:"1" maxLength:"60"`
-		Provider          string `json:"provider,omitempty"`
-		Endpoint          string `json:"endpoint,omitempty" maxLength:"2048"`
-		Secret            string `json:"secret,omitempty" maxLength:"500"`
-		BaseURL           string `json:"base_url,omitempty" maxLength:"500"`
-		GitLabProject     string `json:"gitlab_project,omitempty" maxLength:"500"`
-		Token             string `json:"token,omitempty" maxLength:"1000"`
-		Protected         bool   `json:"protected,omitempty"`
-		Masked            bool   `json:"masked,omitempty"`
-		GitHubRepo        string `json:"github_repo,omitempty" maxLength:"500"`
-		GitHubEnvironment string `json:"github_environment,omitempty" maxLength:"200"`
-		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
-		VercelProject     string `json:"vercel_project,omitempty" maxLength:"500"`
-		VercelTeamID      string `json:"vercel_team_id,omitempty" maxLength:"200"`
-		DeleteMissing     bool   `json:"delete_missing,omitempty"`
-		AWSRegion         string `json:"aws_region,omitempty" maxLength:"60"`
-		AWSAccessKey      string `json:"aws_access_key,omitempty" maxLength:"200"`
-		AWSSecretKey      string `json:"aws_secret_key,omitempty" maxLength:"500"`
-		AWSSessionToken   string `json:"aws_session_token,omitempty" maxLength:"2000"`
-		AWSService        string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
-		AWSPrefix         string `json:"aws_prefix,omitempty" maxLength:"500"`
-		GCPProject        string `json:"gcp_project,omitempty" maxLength:"200"`
-		GCPServiceAccount string `json:"gcp_service_account,omitempty" maxLength:"20000"`
-		GCPPrefix         string `json:"gcp_prefix,omitempty" maxLength:"200"`
-		NetlifyAccount    string `json:"netlify_account,omitempty" maxLength:"200"`
-		NetlifySite       string `json:"netlify_site,omitempty" maxLength:"200"`
-		CloudflareAccount string `json:"cloudflare_account,omitempty" maxLength:"200"`
-		CloudflareProject string `json:"cloudflare_project,omitempty" maxLength:"200"`
-		CloudflareScript  string `json:"cloudflare_script,omitempty" maxLength:"200"`
-		CloudflareMode    string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
+		Environment        string `json:"environment" minLength:"1" maxLength:"60"`
+		Provider           string `json:"provider,omitempty"`
+		Endpoint           string `json:"endpoint,omitempty" maxLength:"2048"`
+		Secret             string `json:"secret,omitempty" maxLength:"500"`
+		BaseURL            string `json:"base_url,omitempty" maxLength:"500"`
+		GitLabProject      string `json:"gitlab_project,omitempty" maxLength:"500"`
+		Token              string `json:"token,omitempty" maxLength:"1000"`
+		Protected          bool   `json:"protected,omitempty"`
+		Masked             bool   `json:"masked,omitempty"`
+		GitHubRepo         string `json:"github_repo,omitempty" maxLength:"500"`
+		GitHubEnvironment  string `json:"github_environment,omitempty" maxLength:"200"`
+		GitHubScope        string `json:"github_scope,omitempty" enum:"repo,environment,org"`
+		VercelProject      string `json:"vercel_project,omitempty" maxLength:"500"`
+		VercelTeamID       string `json:"vercel_team_id,omitempty" maxLength:"200"`
+		DeleteMissing      bool   `json:"delete_missing,omitempty"`
+		GitHubAppID        string `json:"github_app_id,omitempty" maxLength:"100"`
+		GitHubInstallation string `json:"github_installation_id,omitempty" maxLength:"100"`
+		GitHubPrivateKey   string `json:"github_private_key,omitempty" maxLength:"20000"`
+		AWSRegion          string `json:"aws_region,omitempty" maxLength:"60"`
+		AWSAccessKey       string `json:"aws_access_key,omitempty" maxLength:"200"`
+		AWSSecretKey       string `json:"aws_secret_key,omitempty" maxLength:"500"`
+		AWSSessionToken    string `json:"aws_session_token,omitempty" maxLength:"2000"`
+		AWSService         string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
+		AWSPrefix          string `json:"aws_prefix,omitempty" maxLength:"500"`
+		GCPProject         string `json:"gcp_project,omitempty" maxLength:"200"`
+		GCPServiceAccount  string `json:"gcp_service_account,omitempty" maxLength:"20000"`
+		GCPPrefix          string `json:"gcp_prefix,omitempty" maxLength:"200"`
+		NetlifyAccount     string `json:"netlify_account,omitempty" maxLength:"200"`
+		NetlifySite        string `json:"netlify_site,omitempty" maxLength:"200"`
+		CloudflareAccount  string `json:"cloudflare_account,omitempty" maxLength:"200"`
+		CloudflareProject  string `json:"cloudflare_project,omitempty" maxLength:"200"`
+		CloudflareScript   string `json:"cloudflare_script,omitempty" maxLength:"200"`
+		CloudflareMode     string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
 	}
 }
 
@@ -169,7 +172,9 @@ func (s *Server) registerSyncRoutes() error {
 			GitHubScope:   in.Body.GitHubScope,
 			VercelProject: in.Body.VercelProject, VercelTeamID: in.Body.VercelTeamID,
 			DeleteMissing: in.Body.DeleteMissing,
-			AWSRegion:     in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
+			GitHubAppID:   in.Body.GitHubAppID, GitHubInstallation: in.Body.GitHubInstallation,
+			GitHubPrivateKey: in.Body.GitHubPrivateKey,
+			AWSRegion:        in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
 			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
 			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
 			GCPProject: in.Body.GCPProject, GCPServiceAccount: in.Body.GCPServiceAccount,

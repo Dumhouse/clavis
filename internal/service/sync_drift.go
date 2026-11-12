@@ -281,7 +281,7 @@ func (s *Service) driftCloudflare(ctx context.Context, org *store.Org, sync *sto
 }
 
 func (s *Service) driftGitHub(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) ([]string, error) {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.githubSyncToken(ctx, org, sync, config)
 	if err != nil {
 		return nil, err
 	}

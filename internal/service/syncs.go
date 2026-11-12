@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	stdcrypto "crypto"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -38,68 +39,74 @@ var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmati
 var ErrEnvironmentFrozen = errors.New("service: environment is frozen")
 
 type syncConfig struct {
-	Endpoint          string `json:"endpoint,omitempty"`
-	Secret            []byte `json:"secret,omitempty"`
-	BaseURL           string `json:"base_url,omitempty"`
-	Project           string `json:"project,omitempty"`
-	Token             []byte `json:"token,omitempty"`
-	Protected         bool   `json:"protected,omitempty"`
-	Masked            bool   `json:"masked,omitempty"`
-	GitHubRepo        string `json:"github_repo,omitempty"`
-	GitHubEnv         string `json:"github_environment,omitempty"`
-	GitHubScope       string `json:"github_scope,omitempty"`
-	DeleteMissing     bool   `json:"delete_missing,omitempty"`
-	VercelProject     string `json:"vercel_project,omitempty"`
-	VercelTeamID      string `json:"vercel_team_id,omitempty"`
-	AWSRegion         string `json:"aws_region,omitempty"`
-	AWSAccessKey      string `json:"aws_access_key,omitempty"`
-	AWSSecret         []byte `json:"aws_secret,omitempty"`
-	AWSService        string `json:"aws_service,omitempty"`
-	AWSPrefix         string `json:"aws_prefix,omitempty"`
-	AWSSessionToken   string `json:"aws_session_token,omitempty"`
-	GCPProject        string `json:"gcp_project,omitempty"`
-	GCPServiceAccount []byte `json:"gcp_service_account,omitempty"`
-	GCPPrefix         string `json:"gcp_prefix,omitempty"`
-	NetlifyAccount    string `json:"netlify_account,omitempty"`
-	NetlifySite       string `json:"netlify_site,omitempty"`
-	CFAccount         string `json:"cf_account,omitempty"`
-	CFProject         string `json:"cf_project,omitempty"`
-	CFScript          string `json:"cf_script,omitempty"`
-	CFMode            string `json:"cf_mode,omitempty"`
+	Endpoint           string `json:"endpoint,omitempty"`
+	Secret             []byte `json:"secret,omitempty"`
+	BaseURL            string `json:"base_url,omitempty"`
+	Project            string `json:"project,omitempty"`
+	Token              []byte `json:"token,omitempty"`
+	Protected          bool   `json:"protected,omitempty"`
+	Masked             bool   `json:"masked,omitempty"`
+	GitHubRepo         string `json:"github_repo,omitempty"`
+	GitHubEnv          string `json:"github_environment,omitempty"`
+	GitHubScope        string `json:"github_scope,omitempty"`
+	GitHubAppID        string `json:"github_app_id,omitempty"`
+	GitHubInstallation string `json:"github_installation_id,omitempty"`
+	GitHubPrivateKey   []byte `json:"github_private_key,omitempty"`
+	DeleteMissing      bool   `json:"delete_missing,omitempty"`
+	VercelProject      string `json:"vercel_project,omitempty"`
+	VercelTeamID       string `json:"vercel_team_id,omitempty"`
+	AWSRegion          string `json:"aws_region,omitempty"`
+	AWSAccessKey       string `json:"aws_access_key,omitempty"`
+	AWSSecret          []byte `json:"aws_secret,omitempty"`
+	AWSService         string `json:"aws_service,omitempty"`
+	AWSPrefix          string `json:"aws_prefix,omitempty"`
+	AWSSessionToken    string `json:"aws_session_token,omitempty"`
+	GCPProject         string `json:"gcp_project,omitempty"`
+	GCPServiceAccount  []byte `json:"gcp_service_account,omitempty"`
+	GCPPrefix          string `json:"gcp_prefix,omitempty"`
+	NetlifyAccount     string `json:"netlify_account,omitempty"`
+	NetlifySite        string `json:"netlify_site,omitempty"`
+	CFAccount          string `json:"cf_account,omitempty"`
+	CFProject          string `json:"cf_project,omitempty"`
+	CFScript           string `json:"cf_script,omitempty"`
+	CFMode             string `json:"cf_mode,omitempty"`
 }
 
 // SyncInput creates a sync definition.
 type SyncInput struct {
-	EnvironmentSlug   string
-	Provider          string
-	Endpoint          string
-	Secret            string
-	BaseURL           string
-	GitLabProject     string
-	Token             string
-	Protected         bool
-	Masked            bool
-	GitHubRepo        string
-	GitHubEnvironment string
-	GitHubScope       string
-	VercelProject     string
-	VercelTeamID      string
-	AWSRegion         string
-	AWSAccessKey      string
-	AWSSecretKey      string
-	AWSSessionToken   string
-	AWSService        string
-	AWSPrefix         string
-	GCPProject        string
-	GCPServiceAccount string
-	GCPPrefix         string
-	NetlifyAccount    string
-	NetlifySite       string
-	CloudflareAccount string
-	CloudflareProject string
-	CloudflareScript  string
-	CloudflareMode    string
-	DeleteMissing     bool
+	EnvironmentSlug    string
+	Provider           string
+	Endpoint           string
+	Secret             string
+	BaseURL            string
+	GitLabProject      string
+	Token              string
+	Protected          bool
+	Masked             bool
+	GitHubRepo         string
+	GitHubEnvironment  string
+	GitHubScope        string
+	GitHubAppID        string
+	GitHubInstallation string
+	GitHubPrivateKey   string
+	VercelProject      string
+	VercelTeamID       string
+	AWSRegion          string
+	AWSAccessKey       string
+	AWSSecretKey       string
+	AWSSessionToken    string
+	AWSService         string
+	AWSPrefix          string
+	GCPProject         string
+	GCPServiceAccount  string
+	GCPPrefix          string
+	NetlifyAccount     string
+	NetlifySite        string
+	CloudflareAccount  string
+	CloudflareProject  string
+	CloudflareScript   string
+	CloudflareMode     string
+	DeleteMissing      bool
 }
 
 // SyncView is a sync plus its environment slug.
@@ -281,14 +288,25 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.github.com"
 		}
-		if in.Token == "" {
-			return nil, fmt.Errorf("%w: GitHub token is required", ErrValidation)
+		config.GitHubAppID = strings.TrimSpace(in.GitHubAppID)
+		config.GitHubInstallation = strings.TrimSpace(in.GitHubInstallation)
+		if in.Token == "" && (config.GitHubAppID == "" || config.GitHubInstallation == "" || strings.TrimSpace(in.GitHubPrivateKey) == "") {
+			return nil, fmt.Errorf("%w: GitHub requires a token or App ID, installation ID, and private key", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
-			return nil, err
+		if in.Token != "" {
+			ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+			if err != nil {
+				return nil, err
+			}
+			config.Token = ciphertext
 		}
-		config.Token = ciphertext
+		if in.GitHubPrivateKey != "" {
+			ciphertext, err := s.encryptOrgSecret(org, id, "sync_app_key", in.GitHubPrivateKey)
+			if err != nil {
+				return nil, err
+			}
+			config.GitHubPrivateKey = ciphertext
+		}
 	} else {
 		config.Project = strings.TrimSpace(in.GitLabProject)
 		if config.Project == "" {
@@ -744,7 +762,7 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 }
 
 func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.githubSyncToken(ctx, org, sync, config)
 	if err != nil {
 		return err
 	}
@@ -1814,4 +1832,68 @@ func (s *Service) UpdateSyncBehavior(ctx context.Context, actor authz.Actor, org
 		s.Logger.Error("audit sync.behavior failed", "sync_id", sync.ID, "error", err)
 	}
 	return &SyncView{Sync: sync, Environment: envSlug}, nil
+}
+
+func (s *Service) githubSyncToken(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig) (string, error) {
+	if len(config.Token) > 0 {
+		return s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	}
+	keyPEM, err := s.decryptOrgSecret(org, sync.ID, "sync_app_key", config.GitHubPrivateKey)
+	if err != nil {
+		return "", err
+	}
+	block, _ := pem.Decode([]byte(keyPEM))
+	if block == nil {
+		return "", fmt.Errorf("github: invalid App private key")
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		if rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
+			parsed = rsaKey
+		} else {
+			return "", fmt.Errorf("github: invalid App private key")
+		}
+	}
+	key, ok := parsed.(*rsa.PrivateKey)
+	if !ok {
+		return "", fmt.Errorf("github: App private key must be RSA")
+	}
+	now := time.Now().Unix()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	claims, _ := json.Marshal(map[string]any{"iss": config.GitHubAppID, "iat": now - 60, "exp": now + 540})
+	payload := base64.RawURLEncoding.EncodeToString(claims)
+	digest := sha256.Sum256([]byte(header + "." + payload))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, stdcrypto.SHA256, digest[:])
+	if err != nil {
+		return "", err
+	}
+	assertion := header + "." + payload + "." + base64.RawURLEncoding.EncodeToString(signature)
+	base := strings.TrimRight(config.BaseURL, "/")
+	endpoint := base + "/app/installations/" + url.PathEscape(config.GitHubInstallation) + "/access_tokens"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Authorization", "Bearer "+assertion)
+	request.Header.Set("Accept", "application/vnd.github+json")
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("github: App token request failed: %v", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("github: App token request returned %d; check the App ID, installation ID, and private key", response.StatusCode)
+	}
+	var result struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil || result.Token == "" {
+		return "", fmt.Errorf("github: App token response was invalid")
+	}
+	return result.Token, nil
 }
