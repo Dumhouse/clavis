@@ -1,0 +1,9 @@
+name: clavis CodeQL config
+
+# internal/breach checks passwords against the Have I Been Pwned range API,
+# which is keyed by SHA-1. Only a 5-character hash prefix leaves the process
+# (k-anonymity) and the hash is never stored or used to verify passwords, so
+# go/weak-sensitive-data-hashing is a false positive there. Every other file
+# is still scanned by that rule.
+paths-ignore:
+  - internal/breach/breach.go
