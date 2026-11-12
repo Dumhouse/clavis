@@ -16,7 +16,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [x] **M3-09** 🔒 GCP workload identity (S)
 
 ## Root key providers 🔒
-- [ ] **M3-10** 🔒 AWS KMS and GCP KMS root key providers (M)
+- [x] **M3-10** 🔒 AWS KMS and GCP KMS root key providers (M)
 - [x] **M3-11** 🔒 Root key rotation command (`clavis admin rotate-root-key`) (S)
 
 ## Shared sets, previews, files

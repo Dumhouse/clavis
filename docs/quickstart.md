@@ -146,6 +146,12 @@ Environment variables override `clavis.yaml`:
 | `CLAVIS_KEY_PROVIDER` | `file` | `file` or `env` root key |
 | `CLAVIS_ROOT_KEY_FILE` | `<data>/root.key` | File provider path |
 | `CLAVIS_ROOT_KEY` | — | Base64 32-byte key for the `env` provider |
+| `CLAVIS_AWS_REGION` | — | Region for `aws-kms` |
+| `CLAVIS_AWS_KMS_KEY_ID` | — | AWS KMS key ARN/ID |
+| `CLAVIS_AWS_ACCESS_KEY` | — | AWS access key for KMS |
+| `CLAVIS_AWS_SECRET_KEY` | — | AWS secret key for KMS |
+| `CLAVIS_GCP_KMS_KEY` | — | GCP KMS crypto key resource name |
+| `CLAVIS_GCP_SERVICE_ACCOUNT_FILE` | — | Service account JSON for GCP KMS |
 | `CLAVIS_DEV` | `false` | Dev cookies at `http://localhost` and Vite proxy |
 | `CLAVIS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CLAVIS_EMAIL_ENABLED` | `false` | Send password resets and invite emails |

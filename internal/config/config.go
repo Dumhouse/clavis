@@ -122,9 +122,20 @@ type DatabaseConfig struct {
 
 // KeysConfig controls the root key provider.
 type KeysConfig struct {
-	Provider    string `yaml:"provider"` // file | env
+	Provider    string `yaml:"provider"` // file | env | aws-kms | gcp-kms
 	RootKeyFile string `yaml:"root_key_file"`
 	RootKeyEnv  string `yaml:"root_key_env"`
+
+	AWSRegion    string `yaml:"aws_region"`
+	AWSKeyID     string `yaml:"aws_kms_key_id"`
+	AWSAccessKey string `yaml:"aws_access_key"`
+	AWSSecretKey string `yaml:"aws_secret_key"`
+	AWSSession   string `yaml:"aws_session_token"`
+	AWSEndpoint  string `yaml:"aws_kms_endpoint"`
+
+	GCPKey      string `yaml:"gcp_kms_key"`
+	GCPKeyFile  string `yaml:"gcp_service_account_file"`
+	GCPEndpoint string `yaml:"gcp_kms_endpoint"`
 }
 
 // LogConfig controls structured logging.
@@ -282,6 +293,15 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_KEY_PROVIDER", &c.Keys.Provider)
 	setString("CLAVIS_ROOT_KEY_FILE", &c.Keys.RootKeyFile)
 	setString("CLAVIS_ROOT_KEY_ENV", &c.Keys.RootKeyEnv)
+	setString("CLAVIS_AWS_REGION", &c.Keys.AWSRegion)
+	setString("CLAVIS_AWS_KMS_KEY_ID", &c.Keys.AWSKeyID)
+	setString("CLAVIS_AWS_ACCESS_KEY", &c.Keys.AWSAccessKey)
+	setString("CLAVIS_AWS_SECRET_KEY", &c.Keys.AWSSecretKey)
+	setString("CLAVIS_AWS_SESSION_TOKEN", &c.Keys.AWSSession)
+	setString("CLAVIS_AWS_KMS_ENDPOINT", &c.Keys.AWSEndpoint)
+	setString("CLAVIS_GCP_KMS_KEY", &c.Keys.GCPKey)
+	setString("CLAVIS_GCP_SERVICE_ACCOUNT_FILE", &c.Keys.GCPKeyFile)
+	setString("CLAVIS_GCP_KMS_ENDPOINT", &c.Keys.GCPEndpoint)
 	setString("CLAVIS_LOG_LEVEL", &c.Log.Level)
 	setString("CLAVIS_LOG_FORMAT", &c.Log.Format)
 	setString("CLAVIS_EMAIL_HOST", &c.Email.Host)
@@ -394,8 +414,16 @@ func (c *Config) Validate() error {
 		if c.Keys.RootKeyEnv == "" {
 			return fmt.Errorf("config: keys.root_key_env is required for the env provider")
 		}
+	case "aws-kms":
+		if c.Keys.RootKeyFile == "" || c.Keys.AWSRegion == "" || c.Keys.AWSKeyID == "" || c.Keys.AWSAccessKey == "" || c.Keys.AWSSecretKey == "" {
+			return fmt.Errorf("config: aws-kms requires root_key_file, aws_region, aws_kms_key_id, aws_access_key, and aws_secret_key")
+		}
+	case "gcp-kms":
+		if c.Keys.RootKeyFile == "" || c.Keys.GCPKey == "" || c.Keys.GCPKeyFile == "" {
+			return fmt.Errorf("config: gcp-kms requires root_key_file, gcp_kms_key, and gcp_service_account_file")
+		}
 	default:
-		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env)", c.Keys.Provider)
+		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env, aws-kms, gcp-kms)", c.Keys.Provider)
 	}
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":
