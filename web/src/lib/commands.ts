@@ -284,6 +284,9 @@ export const commandGroups: CommandGroup[] = [
           '--k8s-namespace NS',
           '--k8s-service-account NAME',
           '--gcp-service-account EMAIL',
+          '--aws-account ID',
+          '--aws-arn GLOB',
+          '--aws-user-id GLOB',
           '--claim key=value',
         ],
         examples: [

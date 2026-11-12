@@ -43,22 +43,23 @@ import (
 
 // Server is the Clavis HTTP server.
 type Server struct {
-	cfg      *config.Config
-	store    *store.Store
-	logger   *slog.Logger
-	rootKey  crypto.Key
-	keyring  *crypto.Keyring
-	auth     *authn.Service
-	svc      *service.Service
-	bus      *events.Bus
-	mailer   email.Sender
-	limiter  *ratelimit.Limiter
-	registry *authz.Registry
-	metrics  *metrics.Metrics
-	router   chi.Router
-	api      huma.API
-	http     *http.Server
-	webFS    fs.FS
+	cfg       *config.Config
+	store     *store.Store
+	logger    *slog.Logger
+	rootKey   crypto.Key
+	keyring   *crypto.Keyring
+	auth      *authn.Service
+	svc       *service.Service
+	bus       *events.Bus
+	mailer    email.Sender
+	limiter   *ratelimit.Limiter
+	registry  *authz.Registry
+	metrics   *metrics.Metrics
+	router    chi.Router
+	api       huma.API
+	http      *http.Server
+	webFS     fs.FS
+	awsSTSURL string
 }
 
 // Option customizes the server.
@@ -71,6 +72,11 @@ func WithMailer(mailer email.Sender) Option {
 
 // WithWebFS replaces the embedded SPA filesystem (used by tests and
 // alternative distributions).
+// WithAWSSTSEndpoint overrides the STS endpoint (tests and private endpoints).
+func WithAWSSTSEndpoint(endpoint string) Option {
+	return func(s *Server) { s.awsSTSURL = endpoint }
+}
+
 func WithWebFS(fsys fs.FS) Option {
 	return func(s *Server) {
 		if fsys != nil {
@@ -108,6 +114,7 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 		return nil, err
 	}
 	s.svc.SigningKey = signingKey
+	s.svc.AWSSTSEndpoint = s.awsSTSURL
 	ssoAllow := []string(nil)
 	if cfg.Server.Dev {
 		ssoAllow = []string{"127.0.0.1/32", "::1/128"}

@@ -248,7 +248,17 @@ clavis identities create ci \
 Flags: `--type machine|agent`, `--role`, `--project`, `--identity-env`,
 `--oidc github|gitlab|generic`, `--issuer`, `--audience`, `--repo`, `--branch`,
 `--gh-environment`, `--k8s-namespace`, `--k8s-service-account`,
-`--gcp-service-account`, `--claim key=value` (repeatable).
+`--gcp-service-account`, `--aws-account`, `--aws-arn`, `--aws-user-id`,
+`--claim key=value` (repeatable).
+
+For AWS IAM roles, configure account/ARN trust and replay a SigV4-signed STS
+`GetCallerIdentity` request to `POST /api/v1/auth/aws`:
+
+```sh
+clavis identities create aws-ci --aws-account 123456789012 \
+  --aws-arn 'arn:aws:iam::123456789012:role/github-*' \
+  --project web-app --identity-env dev
+```
 
 For Kubernetes service account tokens, pass the cluster issuer, audience, and
 namespace/service account:

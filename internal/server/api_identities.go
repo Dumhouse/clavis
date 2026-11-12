@@ -30,6 +30,8 @@ type identityBody struct {
 	OIDCIssuer   string              `json:"oidc_issuer,omitempty"`
 	OIDCAudience string              `json:"oidc_audience,omitempty"`
 	OIDCClaims   map[string]string   `json:"oidc_claims,omitempty"`
+	AWSAccount   string              `json:"aws_account,omitempty"`
+	AWSARN       string              `json:"aws_arn,omitempty"`
 	CreatedAt    time.Time           `json:"created_at"`
 	Tokens       []identityTokenBody `json:"tokens"`
 }
@@ -54,6 +56,11 @@ type createIdentityInput struct {
 			Audience string            `json:"audience" minLength:"1" maxLength:"200"`
 			Claims   map[string]string `json:"claims,omitempty"`
 		} `json:"oidc,omitempty"`
+		AWS *struct {
+			Account       string `json:"account,omitempty" maxLength:"12"`
+			ARNPattern    string `json:"arn_pattern,omitempty" maxLength:"500"`
+			UserIDPattern string `json:"user_id_pattern,omitempty" maxLength:"500"`
+		} `json:"aws,omitempty"`
 	}
 }
 
@@ -106,6 +113,7 @@ func (s *Server) registerIdentityRoutes() error {
 			Environment:   in.Body.Environment,
 			ExpiresInDays: in.Body.ExpiresInDays,
 			OIDC:          oidcTrustInput(in.Body.OIDC),
+			AWS:           awsTrustInput(in.Body.AWS),
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
@@ -170,6 +178,27 @@ func (s *Server) registerIdentityRoutes() error {
 		out.Body.ExpiresAt = result.Record.ExpiresAt
 		return out, nil
 	})
+	if err := s.registry.DeclarePublic(http.MethodPost, "/api/v1/auth/aws", "workloads replay a SigV4-signed GetCallerIdentity request for a short-lived token"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "exchange-aws", Method: http.MethodPost, Path: "/api/v1/auth/aws",
+		Summary: "Exchange an AWS signed identity", Tags: []string{"auth", "identities"},
+	}, func(ctx context.Context, in *awsExchangeInput) (*oidcExchangeOutput, error) {
+		result, err := s.svc.ExchangeAWS(ctx, in.Body.Org, in.Body.Identity, service.AWSRequest{
+			Authorization: in.Body.Authorization, AMZDate: in.Body.AMZDate,
+			SecurityToken: in.Body.SecurityToken, ContentType: in.Body.ContentType,
+			ContentSHA256: in.Body.ContentSHA256, Host: in.Body.Host,
+		}, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &oidcExchangeOutput{}
+		out.Body.Token = result.Token
+		out.Body.Identity = result.Identity.Name
+		out.Body.ExpiresAt = result.Record.ExpiresAt
+		return out, nil
+	})
 	return nil
 }
 
@@ -183,6 +212,10 @@ func identityFromView(view service.IdentityView) identityBody {
 		body.OIDCIssuer = view.OIDC.Issuer
 		body.OIDCAudience = view.OIDC.Audience
 		body.OIDCClaims = view.OIDC.Claims
+	}
+	if view.AWS != nil {
+		body.AWSAccount = view.AWS.Account
+		body.AWSARN = view.AWS.ARNPattern
 	}
 	for _, token := range view.Tokens {
 		body.Tokens = append(body.Tokens, identityTokenBody{
@@ -215,6 +248,17 @@ func oidcTrustInput(in *struct {
 	return &service.OIDCTrust{Issuer: in.Issuer, Audience: in.Audience, Claims: in.Claims}
 }
 
+func awsTrustInput(in *struct {
+	Account       string `json:"account,omitempty" maxLength:"12"`
+	ARNPattern    string `json:"arn_pattern,omitempty" maxLength:"500"`
+	UserIDPattern string `json:"user_id_pattern,omitempty" maxLength:"500"`
+}) *service.AWSTrust {
+	if in == nil {
+		return nil
+	}
+	return &service.AWSTrust{Account: in.Account, ARNPattern: in.ARNPattern, UserIDPattern: in.UserIDPattern}
+}
+
 type oidcExchangeInput struct {
 	Body struct {
 		Org      string `json:"org" minLength:"1" maxLength:"60"`
@@ -228,5 +272,18 @@ type oidcExchangeOutput struct {
 		Token     string     `json:"token"`
 		Identity  string     `json:"identity"`
 		ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	}
+}
+
+type awsExchangeInput struct {
+	Body struct {
+		Org           string `json:"org" minLength:"1" maxLength:"60"`
+		Identity      string `json:"identity" minLength:"1" maxLength:"100"`
+		Authorization string `json:"authorization" minLength:"1" maxLength:"4096"`
+		AMZDate       string `json:"amz_date" minLength:"1" maxLength:"100"`
+		SecurityToken string `json:"security_token,omitempty" maxLength:"4096"`
+		ContentType   string `json:"content_type,omitempty" maxLength:"200"`
+		ContentSHA256 string `json:"content_sha256,omitempty" maxLength:"200"`
+		Host          string `json:"host,omitempty" maxLength:"200"`
 	}
 }

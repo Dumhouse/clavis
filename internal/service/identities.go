@@ -27,6 +27,14 @@ type IdentityInput struct {
 	Environment   string
 	ExpiresInDays int
 	OIDC          *OIDCTrust
+	AWS           *AWSTrust
+}
+
+// AWSTrust verifies AWS SigV4 identities through STS GetCallerIdentity.
+type AWSTrust struct {
+	Account       string `json:"account,omitempty"`
+	ARNPattern    string `json:"arn_pattern,omitempty"`
+	UserIDPattern string `json:"user_id_pattern,omitempty"`
 }
 
 // OIDCTrust describes how a workload identity proves itself.
@@ -56,6 +64,7 @@ type IdentityView struct {
 	Tokens   []store.AccessToken
 	Scope    TokenScope
 	OIDC     *OIDCTrust
+	AWS      *AWSTrust
 }
 
 type tokenScopes struct {
@@ -121,6 +130,7 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 	}
 
 	trustJSON := "{}"
+	awsTrustJSON := "{}"
 	if in.OIDC != nil {
 		if err := validateOIDCTrust(in.OIDC); err != nil {
 			return nil, err
@@ -131,6 +141,16 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		}
 		trustJSON = string(encoded)
 	}
+	if in.AWS != nil {
+		if err := validateAWSTrust(in.AWS); err != nil {
+			return nil, err
+		}
+		encoded, err := json.Marshal(in.AWS)
+		if err != nil {
+			return nil, err
+		}
+		awsTrustJSON = string(encoded)
+	}
 	identity := &store.Identity{
 		ID:              uuid.NewString(),
 		OrgID:           org.ID,
@@ -138,6 +158,7 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		Type:            in.Type,
 		TokenTTLSeconds: ttlDays * 24 * 3600,
 		OIDCTrust:       trustJSON,
+		AWSTrust:        awsTrustJSON,
 	}
 	if err := s.Store.CreateIdentity(ctx, identity); err != nil {
 		if errors.Is(err, store.ErrConflict) {
@@ -218,6 +239,12 @@ func (s *Service) ListIdentities(ctx context.Context, actor authz.Actor, orgSlug
 			var trust OIDCTrust
 			if json.Unmarshal([]byte(identities[i].OIDCTrust), &trust) == nil {
 				view.OIDC = &trust
+			}
+		}
+		if identities[i].AWSTrust != "" && identities[i].AWSTrust != "{}" {
+			var trust AWSTrust
+			if json.Unmarshal([]byte(identities[i].AWSTrust), &trust) == nil {
+				view.AWS = &trust
 			}
 		}
 		out = append(out, view)
@@ -435,4 +462,17 @@ func (s *Service) ExchangeOIDC(ctx context.Context, orgSlug, identityName, rawTo
 		s.Logger.Error("audit identity.oidc_login failed", "identity_id", identity.ID, "error", err)
 	}
 	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+}
+
+func validateAWSTrust(trust *AWSTrust) error {
+	trust.Account = strings.TrimSpace(trust.Account)
+	trust.ARNPattern = strings.TrimSpace(trust.ARNPattern)
+	trust.UserIDPattern = strings.TrimSpace(trust.UserIDPattern)
+	if trust.Account == "" && trust.ARNPattern == "" && trust.UserIDPattern == "" {
+		return fmt.Errorf("%w: at least one AWS trust condition is required", ErrValidation)
+	}
+	if trust.Account != "" && (len(trust.Account) != 12 || strings.Trim(trust.Account, "0123456789") != "") {
+		return fmt.Errorf("%w: AWS account must be 12 digits", ErrValidation)
+	}
+	return nil
 }

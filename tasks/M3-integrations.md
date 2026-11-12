@@ -12,7 +12,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [x] **M3-05** 🔒 GitHub Actions OIDC (repo/branch/environment claim conditions) (S)
 - [x] **M3-06** 🔒 GitLab CI OIDC (S)
 - [x] **M3-07** 🔒 Kubernetes service account token auth (TokenReview or OIDC) (M)
-- [ ] **M3-08** 🔒 AWS IAM auth (signed `GetCallerIdentity`) (M)
+- [x] **M3-08** 🔒 AWS IAM auth (signed `GetCallerIdentity`) (M)
 - [x] **M3-09** 🔒 GCP workload identity (S)
 
 ## Root key providers 🔒

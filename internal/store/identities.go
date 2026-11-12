@@ -18,6 +18,7 @@ type Identity struct {
 	TokenTTLSeconds int
 	AllowedCommands string
 	OIDCTrust       string
+	AWSTrust        string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -55,11 +56,14 @@ func (s *Store) CreateIdentity(ctx context.Context, identity *Identity) error {
 	if identity.OIDCTrust == "" {
 		identity.OIDCTrust = "{}"
 	}
+	if identity.AWSTrust == "" {
+		identity.AWSTrust = "{}"
+	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO identities
-		(id, org_id, name, type, auth_methods, token_ttl_seconds, allowed_commands, oidc_trust, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		(id, org_id, name, type, auth_methods, token_ttl_seconds, allowed_commands, oidc_trust, aws_trust, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		identity.ID, identity.OrgID, identity.Name, identity.Type, identity.AuthMethods,
-		identity.TokenTTLSeconds, identity.AllowedCommands, identity.OIDCTrust,
+		identity.TokenTTLSeconds, identity.AllowedCommands, identity.OIDCTrust, identity.AWSTrust,
 		formatTime(identity.CreatedAt), formatTime(identity.UpdatedAt))
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -71,7 +75,7 @@ func (s *Store) CreateIdentity(ctx context.Context, identity *Identity) error {
 }
 
 const identityColumns = `id, org_id, name, type, auth_methods, token_ttl_seconds,
-	allowed_commands, oidc_trust, created_at, updated_at`
+	allowed_commands, oidc_trust, aws_trust, created_at, updated_at`
 
 func scanIdentity(row rowScanner) (*Identity, error) {
 	var (
@@ -80,7 +84,7 @@ func scanIdentity(row rowScanner) (*Identity, error) {
 	)
 	err := row.Scan(&identity.ID, &identity.OrgID, &identity.Name, &identity.Type,
 		&identity.AuthMethods, &identity.TokenTTLSeconds, &identity.AllowedCommands,
-		&identity.OIDCTrust, &createdAt, &updatedAt)
+		&identity.OIDCTrust, &identity.AWSTrust, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

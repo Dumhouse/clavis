@@ -60,7 +60,8 @@ type Service struct {
 	// BreachCheck is optional. When set, passwords are checked with k-anonymity.
 	BreachCheck func(ctx context.Context, password string) (bool, error)
 	// SSOClient is used for OIDC discovery, token exchange, and JWKS fetches.
-	SSOClient *http.Client
+	SSOClient      *http.Client
+	AWSSTSEndpoint string
 	// AuditSink asynchronously delivers audit events to external systems.
 	AuditSink     AuditSink
 	WebhookClient *http.Client

@@ -87,6 +87,9 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 		k8sNamespace      string
 		k8sServiceAccount string
 		gcpServiceAccount string
+		awsAccount        string
+		awsARN            string
+		awsUserID         string
 		claims            []string
 		project           string
 		environment       string
@@ -124,6 +127,11 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 			if trust != nil {
 				body["oidc"] = trust
 			}
+			if awsAccount != "" || awsARN != "" || awsUserID != "" {
+				body["aws"] = map[string]string{
+					"account": awsAccount, "arn_pattern": awsARN, "user_id_pattern": awsUserID,
+				}
+			}
 			var result identityCreateResponse
 			endpoint := "/api/v1/orgs/" + url.PathEscape(resolved.Org) + "/identities"
 			if err := c.Post(cmd.Context(), endpoint, body, &result); err != nil {
@@ -150,6 +158,9 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&k8sNamespace, "k8s-namespace", "", "Kubernetes namespace for service account auth")
 	cmd.Flags().StringVar(&k8sServiceAccount, "k8s-service-account", "", "Kubernetes service account name")
 	cmd.Flags().StringVar(&gcpServiceAccount, "gcp-service-account", "", "GCP service account email claim")
+	cmd.Flags().StringVar(&awsAccount, "aws-account", "", "AWS account ID for SigV4 trust")
+	cmd.Flags().StringVar(&awsARN, "aws-arn", "", "AWS ARN glob for SigV4 trust")
+	cmd.Flags().StringVar(&awsUserID, "aws-user-id", "", "AWS user ID glob for SigV4 trust")
 	cmd.Flags().StringArrayVar(&claims, "claim", nil, "additional OIDC claim condition key=value")
 	cmd.Flags().StringVar(&project, "project", "", "project slug scope")
 	cmd.Flags().StringVar(&environment, "identity-env", "", "environment glob scope")

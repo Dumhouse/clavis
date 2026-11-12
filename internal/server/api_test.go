@@ -66,6 +66,11 @@ func (f *fakeMailer) Messages() []email.Message {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureOptions(t)
+}
+
+func newFixtureOptions(t *testing.T, opts ...server.Option) *fixture {
+	t.Helper()
 	st := storetest.Open(t)
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -78,8 +83,8 @@ func newFixture(t *testing.T) *fixture {
 	cfg.Server.Dev = true
 	cfg.Database.Path = filepath.Join(dir, "clavis.db")
 	mailer := &fakeMailer{}
-	srv, err := server.New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), key,
-		server.WithWebFS(testWebFS()), server.WithMailer(mailer))
+	baseOpts := []server.Option{server.WithWebFS(testWebFS()), server.WithMailer(mailer)}
+	srv, err := server.New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), key, append(baseOpts, opts...)...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2185,6 +2190,74 @@ func TestSharedSets(t *testing.T) {
 	after := owner.request(http.MethodGet, dev+"?reveal=true", nil)
 	if strings.Contains(after.Body.String(), "from-set") {
 		t.Fatalf("set still applied after detach: %s", after.Body)
+	}
+}
+
+func TestAWSWorkloadIdentity(t *testing.T) {
+	sts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "text/xml")
+		_, _ = w.Write([]byte(`<GetCallerIdentityResponse><GetCallerIdentityResult><Arn>arn:aws:iam::123456789012:role/ci</Arn><UserId>AIDAEXAMPLE</UserId><Account>123456789012</Account></GetCallerIdentityResult></GetCallerIdentityResponse>`))
+	}))
+	defer sts.Close()
+
+	f := newFixtureOptions(t, server.WithAWSSTSEndpoint(sts.URL))
+	owner, _ := f.setup(t)
+	created := owner.request(http.MethodPost, "/api/v1/orgs/acme/identities", map[string]any{
+		"name": "aws-ci", "type": "machine", "role": "Developer",
+		"project": "web-app", "environment": "dev",
+		"aws": map[string]any{
+			"account": "123456789012", "arn_pattern": "arn:aws:iam::123456789012:role/*",
+		},
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create aws identity = %d body=%s", created.Code, created.Body)
+	}
+	exchange := func(identity string) *httptest.ResponseRecorder {
+		payload, _ := json.Marshal(map[string]string{
+			"org": "acme", "identity": identity,
+			"authorization": "AWS4-HMAC-SHA256 Credential=AKID/20260101/eu-central-1/sts/aws4_request, SignedHeaders=host;x-amz-date, Signature=abc",
+			"amz_date":      "20260101T000000Z",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/aws", strings.NewReader(string(payload)))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		f.srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	ok := exchange("aws-ci")
+	if ok.Code != http.StatusOK {
+		t.Fatalf("exchange = %d body=%s", ok.Code, ok.Body)
+	}
+	var exchanged struct {
+		Token string `json:"token"`
+	}
+	exchanged = decode[struct {
+		Token string `json:"token"`
+	}](t, ok)
+	if !strings.HasPrefix(exchanged.Token, "clv_mt_") {
+		t.Fatalf("token = %q", exchanged.Token)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets", nil)
+	req.Header.Set("Authorization", "Bearer "+exchanged.Token)
+	rec := httptest.NewRecorder()
+	f.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("workload read = %d body=%s", rec.Code, rec.Body)
+	}
+
+	// A different account in the trust is rejected.
+	if rec := owner.request(http.MethodPost, "/api/v1/orgs/acme/identities", map[string]any{
+		"name": "aws-other", "type": "machine", "project": "web-app", "environment": "dev",
+		"aws": map[string]any{"account": "999999999999"},
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create other = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := exchange("aws-other"); rec.Code != http.StatusForbidden {
+		t.Fatalf("mismatched account = %d body=%s", rec.Code, rec.Body)
 	}
 }
 
