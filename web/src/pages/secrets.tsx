@@ -1,31 +1,43 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Check,
   Copy,
   Eye,
   EyeOff,
+  Folder,
+  GitCompare,
+  KeyRound,
   Loader2,
   Lock,
   MoreHorizontal,
-  Folder,
+  PanelRight,
   Pencil,
   Plus,
   Search,
+  Sparkles,
+  Upload,
   X,
 } from 'lucide-react'
-import { useCallback, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { askRevealReason } from '@/components/ui/dialogs'
+import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
+import { Menu } from '@/components/ui/menu'
+import { Modal, ModalFooter, ModalHeader } from '@/components/ui/modal'
+import { toast } from '@/components/ui/toast'
 import { apiErrorMessage } from '@/lib/api-error'
+import { rememberProject } from '@/lib/last-project'
+import { takeOpenKey } from '@/lib/open-key'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
-import { EditSecretDialog } from '@/pages/secrets-dialogs'
-import { ImportSecretsDialog } from '@/pages/import-dialog'
 import { GenerateSecretDialog } from '@/pages/generate-dialog'
+import { ImportSecretsDialog } from '@/pages/import-dialog'
+import { envClassNames, envShort, SecretSheet } from '@/pages/secret-sheet'
 import { isRequired, validateSchemaValue, type SchemaEntry } from '@/lib/schema'
 import { cn } from '@/lib/utils'
 
@@ -35,19 +47,6 @@ type Overlay = components['schemas']['OverlayBody']
 type OverlaySecret = components['schemas']['OverlaySecretBody']
 
 const envOrder: Record<string, number> = { development: 0, preview: 1, staging: 2, production: 3 }
-const envClassNames: Record<string, string> = {
-  development: 'env-development',
-  preview: 'env-preview',
-  staging: 'env-staging',
-  production: 'env-production',
-}
-const envShort: Record<string, string> = {
-  development: 'dev',
-  preview: 'preview',
-  staging: 'staging',
-  production: 'prod',
-}
-
 function sortEnvs(envs: Env[] | null | undefined): Env[] {
   return [...(envs ?? [])].sort((a, b) => (envOrder[a.type] ?? 9) - (envOrder[b.type] ?? 9))
 }
@@ -70,6 +69,23 @@ export function SecretsPage() {
   const params = useParams({ strict: false }) as { project?: string }
   const projectSlug = params.project ?? ''
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (projectSlug) rememberProject(projectSlug)
+  }, [projectSlug])
+  // Open a key requested from the command palette once its data is loaded.
+  const [pendingKey, setPendingKey] = useState<string | null>(() => takeOpenKey())
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const key = (event as CustomEvent<string>).detail
+      takeOpenKey()
+      setPendingKey(key)
+    }
+    window.addEventListener('clavis:open-key', handler)
+    return () => {
+      window.removeEventListener('clavis:open-key', handler)
+    }
+  }, [])
   const [filter, setFilter] = useState('')
   const [folderFilter, setFolderFilter] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
@@ -79,14 +95,42 @@ export function SecretsPage() {
   const [adding, setAdding] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [editing, setEditing] = useState<{ env: string; secret: Secret } | null>(null)
+  const [detail, setDetail] = useState<{ key: string; env: string } | null>(null)
   const [cells, setCells] = useState<Record<string, CellState>>({})
   const [edits, setEdits] = useState<Record<string, PendingEdit>>({})
   const [reviewOpen, setReviewOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null)
+  // Page shortcuts advertised in the hint bar: N add, P import, / filter.
+  const filterRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT' ||
+        target?.isContentEditable === true
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return
+      if (document.querySelector('dialog[open]')) return
+      const key = event.key.toLowerCase()
+      if (key === 'n') {
+        event.preventDefault()
+        setAdding(true)
+      } else if (key === 'p') {
+        event.preventDefault()
+        setPasting(true)
+      } else if (event.key === '/') {
+        event.preventDefault()
+        filterRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => {
+      window.removeEventListener('keydown', handler)
+    }
+  }, [])
 
   useOrgEvents(org?.slug, (event) => {
     if (event.project && event.project !== projectSlug) return
@@ -305,6 +349,16 @@ export function SecretsPage() {
       })
   }, [secretsByEnv, filter, folderFilter])
 
+  useEffect(() => {
+    if (!pendingKey || envs.length === 0 || secretQueries.some((query) => query.isLoading)) return
+    const env =
+      envs.find((candidate) =>
+        secretsByEnv.get(candidate.slug)?.some((secret) => secret.key === pendingKey),
+      ) ?? envs[0]
+    setDetail({ key: pendingKey, env: env?.slug ?? '' })
+    setPendingKey(null)
+  }, [pendingKey, envs, secretsByEnv, secretQueries])
+
   const compareA = compareASlug || envs[0]?.slug || ''
   const compareB = compareBSlug || envs[1]?.slug || envs[0]?.slug || ''
 
@@ -367,18 +421,19 @@ export function SecretsPage() {
     [secretsByEnv],
   )
 
-  function notify(message: string, undo?: () => void) {
-    setToast(undo ? { message, undo } : { message })
-    window.setTimeout(
-      () => {
-        setToast(null)
-      },
-      undo ? 8000 : 4000,
-    )
+  function notify(message: string, tone: 'success' | 'error' | 'info' = 'success') {
+    toast(message, { tone })
   }
 
   const createSecret = useMutation({
-    mutationFn: async (input: { env: string; key: string; value: string }) => {
+    mutationFn: async (input: {
+      env: string
+      key: string
+      value: string
+      kind: string
+      folder: string
+      message: string
+    }) => {
       if (!org) throw new Error('No organization.')
       const result = await api.POST(
         '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets',
@@ -387,8 +442,9 @@ export function SecretsPage() {
           body: {
             key: input.key,
             value: input.value,
-            kind: 'secret',
-            message: 'Created from the web UI',
+            kind: input.kind as 'secret' | 'variable' | 'file',
+            folder: input.folder,
+            message: input.message || 'Created from the web UI',
           },
         },
       )
@@ -416,9 +472,9 @@ export function SecretsPage() {
     }
     let reason = 'Viewed in the web UI'
     if (env.type === 'production') {
-      const entered = window.prompt('Why are you revealing this production value?')
-      if (!entered || entered.trim() === '') return
-      reason = entered.trim()
+      const entered = await askRevealReason(`${key} in ${env.slug}`, true)
+      if (!entered) return
+      reason = entered
     }
     setCells((state) => ({
       ...state,
@@ -435,6 +491,7 @@ export function SecretsPage() {
     )
     if (result.error || !result.data) {
       setCells((state) => ({ ...state, [id]: { value: '', revealed: false, loading: false } }))
+      notify(apiErrorMessage(result.error, 'Could not reveal the value.'), 'error')
       return
     }
     setCells((state) => ({
@@ -443,38 +500,29 @@ export function SecretsPage() {
     }))
   }
 
-  async function startEdit(env: Env, key: string, secret?: Secret) {
+  // Inline edits never reveal: secrets are replaced with a new value, while
+  // variables (already plain in the list) start from their current value.
+  function startEdit(env: Env, key: string, secret?: Secret) {
     if (!org) return
-    if (env.protected && org.role !== 'Owner' && org.role !== 'Admin') {
-      notify('This environment is protected. Ask an Admin to make the change.')
+    if (env.protected && !canAdmin) {
+      notify('This environment is protected. Ask an Admin to make the change.', 'info')
       return
     }
     const id = `${env.slug}:${key}`
     if (edits[id]) return
-    let value = cells[id]?.revealed ? (cells[id]?.value ?? '') : ''
-    if (secret && !value) {
-      const result = await api.GET(
-        '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}',
-        {
-          params: {
-            path: { org: org.slug, project: projectSlug, env: env.slug, key },
-            query: { reveal: true, reason: 'Editing in the web UI' },
-          },
-        },
-      )
-      if (result.error || !result.data) {
-        notify(apiErrorMessage(result.error, 'Could not load the value.'))
-        return
-      }
-      value = result.data.value ?? ''
-    }
+    const value =
+      secret?.kind === 'variable'
+        ? (secret.value ?? '')
+        : cells[id]?.revealed
+          ? (cells[id]?.value ?? '')
+          : ''
     setEdits((state) => ({
       ...state,
       [id]: {
         env: env.slug,
         key,
         value,
-        kind: secret?.kind ?? 'secret',
+        kind: secret?.kind ?? schemaByKey.get(key)?.kind ?? 'secret',
         comment: secret?.comment ?? '',
         tags: secret?.tags ?? [],
         message: '',
@@ -502,6 +550,10 @@ export function SecretsPage() {
   async function saveEdits() {
     if (!org || editCount === 0) return
     for (const edit of Object.values(edits)) {
+      if (edit.value === '' && edit.kind !== 'variable') {
+        setSaveError(`${edit.key} in ${edit.env}: enter a value or discard this change.`)
+        return
+      }
       const problem = validateSchemaValue(schemaByKey.get(edit.key), edit.value)
       if (problem) {
         setSaveError(`${edit.key} in ${edit.env}: ${problem}`)
@@ -556,112 +608,89 @@ export function SecretsPage() {
     }, 1500)
   }
 
-  if (!projectQuery.data && !projectQuery.isLoading) {
+  const project = projectQuery.data
+  const prodEdits = Object.values(edits).filter(
+    (edit) => envs.find((env) => env.slug === edit.env)?.type === 'production',
+  ).length
+
+  if (!project && !projectQuery.isLoading) {
     return (
       <div className="space-y-3">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
-        >
-          <ArrowLeft className="size-3.5" /> Projects
-        </Link>
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
-          {loadError ?? 'Project not found.'}
-        </div>
+        <BackLink />
+        <Notice>{loadError ?? 'Project not found.'}</Notice>
       </div>
     )
   }
 
-  const project = projectQuery.data
+  const projectLinks: Array<[string, string]> = [
+    ['/projects/$project/environments', 'Environments'],
+    ['/projects/$project/schema', 'Schema'],
+    ['/projects/$project/promote', 'Promote'],
+    ['/projects/$project/rotation', 'Rotation'],
+    ['/projects/$project/dynamic', 'Dynamic secrets'],
+    ['/projects/$project/snapshots', 'Snapshots'],
+    ['/projects/$project/access', 'Access'],
+  ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-text"
-        >
-          <ArrowLeft className="size-3.5" /> Projects
-        </Link>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="font-head text-[25px] font-semibold tracking-tight">
+        <BackLink />
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-head text-2xl font-semibold tracking-tight">
               {project?.name ?? projectSlug}
             </h1>
-            <p className="mt-1 font-mono text-[12.5px] text-dim">{projectSlug}</p>
-            <p className="mt-2 max-w-2xl text-[14px] text-muted">
-              Secrets and typed configuration for every environment in this project. Edit a cell to
-              write a new version, then promote, sync, or validate values against the schema.
+            <p className="mt-1 text-sm text-muted">
+              <span className="font-mono text-dim">{projectSlug}</span>
+              {' · '}
+              {keys.length} {keys.length === 1 ? 'key' : 'keys'} across {envs.length}{' '}
+              {envs.length === 1 ? 'environment' : 'environments'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap items-center gap-2 md:hidden">
-              <Link
-                to="/projects/$project/rotation"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Rotation
-              </Link>
-              <Link
-                to="/projects/$project/dynamic"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Dynamic
-              </Link>
-              <Link
-                to="/projects/$project/promote"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Promote
-              </Link>
-              <Link
-                to="/projects/$project/schema"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Schema
-              </Link>
-              <Link
-                to="/projects/$project/snapshots"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Snapshots
-              </Link>
-              <Link
-                to="/projects/$project/access"
-                params={{ project: projectSlug }}
-                className="rounded-app-sm border border-border bg-surface px-3.5 py-2 text-[13px] font-medium text-text hover:bg-elev"
-              >
-                Access
-              </Link>
-            </div>
+          <div className="flex items-center gap-2">
+            <Menu
+              label="More actions"
+              triggerClassName={cn(buttonVariants({ variant: 'secondary', size: 'md' }), 'px-2.5')}
+              trigger={<MoreHorizontal className="size-4" />}
+              items={[
+                {
+                  label: 'Generate a value',
+                  icon: <Sparkles />,
+                  disabled: writableEnvs.length === 0,
+                  onSelect: () => {
+                    setGenerating(true)
+                  },
+                },
+                {
+                  label: 'Import .env or JSON',
+                  icon: <Upload />,
+                  disabled: envs.length === 0,
+                  onSelect: () => {
+                    setPasting(true)
+                  },
+                },
+                'separator',
+                ...projectLinks.map(([to, label]) => ({
+                  label,
+                  onSelect: () => {
+                    void navigate({ to, params: { project: projectSlug } })
+                  },
+                })),
+              ]}
+            />
             <Button
               variant="secondary"
-              size="md"
-              onClick={() => {
-                setGenerating(true)
-              }}
-              disabled={writableEnvs.length === 0}
-            >
-              Generate
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
+              className="hidden sm:inline-flex"
               onClick={() => {
                 setPasting(true)
               }}
               disabled={envs.length === 0}
             >
-              Import
+              <Upload className="size-4" /> Import
             </Button>
             <Button
               variant="primary"
-              size="md"
               onClick={() => {
                 setAdding(true)
               }}
@@ -674,40 +703,49 @@ export function SecretsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex h-8 min-w-60 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5">
-          <Search className="size-3.5 text-dim" />
-          <input
-            className="w-full bg-transparent text-[13px] text-text placeholder:text-dim focus:outline-none"
-            placeholder="Filter keys…"
+        <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5 focus-within:border-accent-line sm:max-w-72">
+          <Search className="size-3.5 shrink-0 text-dim" aria-hidden />
+          <span className="sr-only">Filter keys</span>
+          <Input
+            className="bg-transparent"
+            ref={filterRef}
+            placeholder="Filter keys…  /"
             value={filter}
             onChange={(event) => {
               setFilter(event.target.value)
             }}
           />
-        </div>
-        {envs.map((env) => (
-          <span key={env.id} className={cn('env-chip', envClassNames[env.type])}>
-            {envShort[env.type] ?? env.type}
-            {env.protected && <Lock className="ml-1 size-2.5" />}
-          </span>
-        ))}
+          {filter && (
+            <button
+              type="button"
+              aria-label="Clear filter"
+              className="text-dim hover:text-text"
+              onClick={() => {
+                setFilter('')
+              }}
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </label>
         <Button
           variant={compare ? 'primary' : 'secondary'}
           size="sm"
+          aria-pressed={compare}
           onClick={() => {
             setCompare((value) => !value)
           }}
         >
-          Compare
+          <GitCompare className="size-3.5" /> Compare
         </Button>
         {overlaySlugs.length > 0 && (
-          <select
-            className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+          <Select
+            size="sm"
+            aria-label="Tenant or region overlay"
             value={overlaySlug}
             onChange={(event) => {
               setOverlaySlug(event.target.value)
             }}
-            title="Tenant/region overlay"
           >
             <option value="">No overlay</option>
             {overlaySlugs.map((slug) => (
@@ -715,12 +753,13 @@ export function SecretsPage() {
                 overlay: {slug}
               </option>
             ))}
-          </select>
+          </Select>
         )}
         {compare && envs.length >= 2 && (
-          <div className="flex items-center gap-1.5 text-[12px] text-muted">
-            <select
-              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Select
+              size="sm"
+              aria-label="Compare from"
               value={compareA}
               onChange={(event) => {
                 setCompareASlug(event.target.value)
@@ -731,10 +770,11 @@ export function SecretsPage() {
                   {env.slug}
                 </option>
               ))}
-            </select>
+            </Select>
             <span>vs</span>
-            <select
-              className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+            <Select
+              size="sm"
+              aria-label="Compare to"
               value={compareB}
               onChange={(event) => {
                 setCompareBSlug(event.target.value)
@@ -745,57 +785,57 @@ export function SecretsPage() {
                   {env.slug}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
       </div>
 
-      {loadError && (
-        <div className="rounded-app bg-danger-bg px-4 py-3 text-[13px] text-danger">
-          {loadError}
-        </div>
-      )}
+      {loadError && <Notice>{loadError}</Notice>}
 
       {compare ? (
         <div className="overflow-x-auto rounded-app border border-border bg-surface">
           <table className="w-full min-w-[560px] border-collapse text-left">
+            <caption className="sr-only">
+              Keys that differ between {compareA} and {compareB}
+            </caption>
             <thead>
-              <tr className="border-b border-border text-[11.5px] uppercase tracking-[0.06em] text-dim">
-                <th className="px-4 py-2.5 font-semibold">Key</th>
-                <th className="px-4 py-2.5 font-semibold">{compareA}</th>
-                <th className="px-4 py-2.5 font-semibold">{compareB}</th>
+              <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
+                <th scope="col" className="px-4 py-2.5 font-semibold">
+                  Key
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-semibold">
+                  {compareA}
+                </th>
+                <th scope="col" className="px-4 py-2.5 font-semibold">
+                  {compareB}
+                </th>
               </tr>
             </thead>
             <tbody>
               {compareRows.map((row) => (
                 <tr key={row.key} className="border-b border-border-soft last:border-0">
-                  <td className="px-4 py-2 font-mono text-[12.5px] text-text">{row.key}</td>
-                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[12px]">
-                    {row.left ? (
-                      <span className="text-muted">{row.left.value || '(empty)'}</span>
-                    ) : (
-                      <span className="text-danger">missing</span>
-                    )}
-                  </td>
-                  <td className="max-w-64 truncate px-4 py-2 font-mono text-[12px]">
-                    {row.right ? (
-                      <span className="text-muted">{row.right.value || '(empty)'}</span>
-                    ) : (
-                      <span className="text-danger">missing</span>
-                    )}
-                  </td>
+                  <td className="px-4 py-2 font-mono text-xs text-text">{row.key}</td>
+                  {[row.left, row.right].map((side, index) => (
+                    <td key={index} className="max-w-64 truncate px-4 py-2 font-mono text-xs">
+                      {side ? (
+                        <span className="text-muted">{side.value || '(empty)'}</span>
+                      ) : (
+                        <span className="text-danger">missing</span>
+                      )}
+                    </td>
+                  ))}
                 </tr>
               ))}
               {compareRows.length === 0 && !compareQueries.some((query) => query.isLoading) && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-10 text-center text-[13px] text-muted">
+                  <td colSpan={3} className="px-4 py-10 text-center text-sm text-muted">
                     These environments have identical keys and values.
                   </td>
                 </tr>
               )}
               {compareQueries.some((query) => query.isLoading) && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-[13px] text-muted">
+                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted">
                     <Loader2 className="mr-2 inline size-3.5 animate-spin" /> Comparing…
                   </td>
                 </tr>
@@ -805,68 +845,70 @@ export function SecretsPage() {
         </div>
       ) : (
         <div className="flex gap-4">
-          <aside className="hidden w-44 shrink-0 md:block">
-            <div className="rounded-app border border-border bg-surface p-2">
-              <p className="px-1.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-dim">
-                Folders
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setFolderFilter(null)
-                }}
-                className={cn(
-                  'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[12.5px]',
-                  folderFilter === null
-                    ? 'bg-hover text-text'
-                    : 'text-muted hover:bg-hover hover:text-text',
-                )}
-              >
-                <Folder className="size-3.5 text-dim" /> All keys
-              </button>
-              {folders.map(([path, count]) => (
-                <button
-                  key={path}
-                  type="button"
+          {folders.length > 0 && (
+            <nav aria-label="Folders" className="hidden w-44 shrink-0 md:block">
+              <div className="rounded-app border border-border bg-surface p-2">
+                <p className="px-1.5 pb-1 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
+                  Folders
+                </p>
+                <FolderButton
+                  active={folderFilter === null}
                   onClick={() => {
-                    setFolderFilter(path)
+                    setFolderFilter(null)
                   }}
-                  className={cn(
-                    'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left font-mono text-[12px]',
-                    folderFilter === path
-                      ? 'bg-hover text-text'
-                      : 'text-muted hover:bg-hover hover:text-text',
-                  )}
-                  title={path}
                 >
-                  <span className="truncate">{path.replace(/^\//, '')}</span>
-                  <span className="ml-auto text-[11px] text-dim">{count}</span>
-                </button>
-              ))}
-              {folders.length === 0 && (
-                <p className="px-1.5 py-1 text-[11.5px] text-dim">No folders yet.</p>
-              )}
-            </div>
-          </aside>
+                  <Folder className="size-3.5 text-dim" /> All keys
+                </FolderButton>
+                {folders.map(([path, count]) => (
+                  <FolderButton
+                    key={path}
+                    active={folderFilter === path}
+                    onClick={() => {
+                      setFolderFilter(path)
+                    }}
+                  >
+                    <span className="truncate font-mono text-xs" title={path}>
+                      {path.replace(/^\//, '')}
+                    </span>
+                    <span className="ml-auto text-2xs text-dim">{count}</span>
+                  </FolderButton>
+                ))}
+              </div>
+            </nav>
+          )}
           <div className="min-w-0 flex-1 overflow-x-auto rounded-app border border-border bg-surface">
             {loading && keys.length === 0 ? (
-              <div className="flex items-center gap-2 px-4 py-8 text-[13px] text-muted">
+              <div className="flex items-center gap-2 px-4 py-8 text-sm text-muted">
                 <Loader2 className="size-4 animate-spin" /> Loading secrets…
               </div>
+            ) : keys.length === 0 && !filter && folderFilter === null ? (
+              <EmptyState
+                canWrite={writableEnvs.length > 0}
+                onAdd={() => {
+                  setAdding(true)
+                }}
+                onImport={() => {
+                  setPasting(true)
+                }}
+              />
             ) : (
-              <table className="w-full min-w-[640px] border-collapse text-left">
+              <table className="w-full border-collapse text-left">
+                <caption className="sr-only">Secrets by environment</caption>
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+                    <th
+                      scope="col"
+                      className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-2xs font-semibold uppercase tracking-[0.06em] text-dim"
+                    >
                       Key
                     </th>
                     {envs.map((env) => (
-                      <th
-                        key={env.id}
-                        className="px-3 py-2.5 text-[11.5px] font-semibold uppercase tracking-[0.06em]"
-                      >
+                      <th key={env.id} scope="col" className="px-3 py-2.5">
                         <span className={cn('env-chip', envClassNames[env.type])}>
                           {envShort[env.type] ?? env.type}
+                          {env.protected && (
+                            <Lock className="ml-1 size-2.5" aria-label="protected" />
+                          )}
                         </span>
                       </th>
                     ))}
@@ -874,7 +916,8 @@ export function SecretsPage() {
                       envs.map((env) => (
                         <th
                           key={env.id + '-overlay'}
-                          className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-dim"
+                          scope="col"
+                          className="px-3 py-2.5 text-2xs font-semibold uppercase tracking-[0.06em] text-dim"
                         >
                           {overlaySlug}:{envShort[env.type] ?? env.type}
                         </th>
@@ -883,35 +926,36 @@ export function SecretsPage() {
                 </thead>
                 <tbody>
                   {keys.map((key) => (
-                    <tr key={key} className="border-b border-border-soft last:border-0">
-                      <td className="sticky left-0 z-10 bg-surface px-4 py-2">
-                        <span className="font-mono text-[12.5px] text-text">{key}</span>
-                        {schemaByKey.get(key) && (
-                          <span className="ml-1.5 rounded-full border border-border bg-elev px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                            {schemaByKey.get(key)?.type}
-                          </span>
-                        )}
-                        {ownerGroups.get(key) && (
-                          <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10.5px] font-medium text-accent-text">
-                            {ownerGroups.get(key)}
-                          </span>
-                        )}
-                        {inheritedSources.get(key) && (
-                          <span className="ml-1 rounded-full bg-elev px-1.5 py-0.5 font-mono text-[10px] text-dim">
-                            from {inheritedSources.get(key)}
-                          </span>
-                        )}
-                        {overriddenKeys.has(key) && (
-                          <span className="ml-1 rounded-full bg-amber-bg px-1.5 py-0.5 text-[10px] font-semibold text-amber-fg">
-                            override
-                          </span>
-                        )}
-                        {expiringKeys.has(key) && (
-                          <span className="ml-1 rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-medium text-dim">
-                            expires {new Date(expiringKeys.get(key) ?? '').toLocaleDateString()}
-                          </span>
-                        )}
-                      </td>
+                    <tr
+                      key={key}
+                      className="group border-b border-border-soft last:border-0 hover:bg-hover-soft"
+                    >
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 max-w-72 bg-surface px-4 py-2 text-left font-normal group-hover:bg-[color-mix(in_srgb,var(--surface),var(--text)_2%)]"
+                      >
+                        <button
+                          type="button"
+                          className="max-w-full truncate font-mono text-xs text-text hover:text-accent-text hover:underline"
+                          title="Open details and history"
+                          onClick={() => {
+                            const first =
+                              envs.find((env) =>
+                                secretsByEnv.get(env.slug)?.some((secret) => secret.key === key),
+                              ) ?? envs[0]
+                            setDetail({ key, env: first?.slug ?? '' })
+                          }}
+                        >
+                          {key}
+                        </button>
+                        <KeyBadges
+                          schemaType={schemaByKey.get(key)?.type}
+                          owner={ownerGroups.get(key)}
+                          inheritedFrom={inheritedSources.get(key)}
+                          overridden={overriddenKeys.has(key)}
+                          expires={expiringKeys.get(key)}
+                        />
+                      </th>
                       {envs.map((env) => {
                         const secret = secretsByEnv
                           .get(env.slug)
@@ -921,14 +965,20 @@ export function SecretsPage() {
                         const edit = edits[id]
                         const schemaEntry = schemaByKey.get(key)
                         if (edit) {
-                          const validation = validateSchemaValue(schemaEntry, edit.value)
+                          const validation =
+                            edit.value === '' ? null : validateSchemaValue(schemaEntry, edit.value)
                           return (
                             <td key={env.id} className="px-3 py-2">
                               <div className="space-y-1">
-                                <input
+                                <Input
                                   autoFocus
+                                  aria-label={`New value for ${key} in ${env.slug}`}
+                                  aria-invalid={validation ? true : undefined}
+                                  placeholder={edit.existing ? 'New value' : 'Value'}
+                                  autoComplete="off"
+                                  spellCheck={false}
                                   className={cn(
-                                    'h-7 w-full min-w-36 rounded border border-accent-line bg-bg px-2 font-mono text-[12px] text-text focus:outline-none',
+                                    'h-7 w-full min-w-36 rounded border border-accent-line bg-bg px-2 font-mono text-xs text-text focus:outline-none',
                                     validation && 'border-danger',
                                   )}
                                   value={edit.value}
@@ -941,7 +991,7 @@ export function SecretsPage() {
                                   }}
                                 />
                                 {validation && (
-                                  <p className="max-w-48 text-[11px] text-danger">{validation}</p>
+                                  <p className="max-w-48 text-2xs text-danger">{validation}</p>
                                 )}
                               </div>
                             </td>
@@ -949,88 +999,103 @@ export function SecretsPage() {
                         }
                         if (!secret) {
                           const required = isRequired(schemaEntry, env.type)
+                          const writable = !env.protected || canAdmin
                           return (
                             <td key={env.id} className="px-3 py-2">
                               <button
                                 type="button"
+                                disabled={!writable}
                                 onClick={() => {
-                                  void startEdit(env, key)
+                                  startEdit(env, key)
                                 }}
                                 className={cn(
-                                  'inline-flex h-6 items-center rounded border border-dashed px-2 text-[11.5px]',
+                                  'inline-flex h-6 items-center gap-1 rounded border border-dashed px-2 text-2xs disabled:cursor-not-allowed disabled:opacity-60',
                                   required
                                     ? 'border-danger/60 text-danger hover:border-danger'
                                     : 'border-border text-dim hover:border-accent-line hover:text-text',
                                 )}
-                                title={
-                                  required
-                                    ? `Required in ${env.type}; click to add it`
-                                    : 'Add this key to the environment'
-                                }
+                                aria-label={`Add ${key} to ${env.slug}`}
+                                title={required ? `Required in ${env.type}` : undefined}
                               >
-                                {required ? 'required' : 'missing'}
+                                <Plus className="size-3" />
+                                {required ? 'Required' : 'Add'}
                               </button>
                             </td>
                           )
                         }
+                        const plain = secret.kind === 'variable'
+                        const shown = plain
+                          ? (secret.value ?? '')
+                          : cell?.revealed
+                            ? cell.value
+                            : null
                         return (
                           <td key={env.id} className="px-3 py-2">
                             <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void toggleCell(env, key)
-                                }}
-                                className="inline-flex h-6 max-w-48 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-[12px] text-muted hover:border-accent-line hover:text-text"
-                                title={cell?.revealed ? 'Hide value' : 'Reveal value'}
-                              >
-                                {cell?.loading ? (
-                                  <Loader2 className="size-3 animate-spin" />
-                                ) : cell?.revealed ? (
-                                  <EyeOff className="size-3 text-accent-text" />
-                                ) : (
-                                  <Eye className="size-3 text-dim" />
-                                )}
-                                <span className="truncate">
-                                  {cell?.revealed ? cell.value : '••••••••'}
+                              {plain ? (
+                                <span
+                                  className="inline-flex h-6 max-w-48 items-center truncate rounded border border-transparent px-1 font-mono text-xs text-muted"
+                                  title={shown ?? ''}
+                                >
+                                  {shown || <span className="text-dim">(empty)</span>}
                                 </span>
-                              </button>
-                              {cell?.revealed && (
+                              ) : (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    void copy(id, cell.value)
+                                    void toggleCell(env, key)
                                   }}
-                                  className="inline-flex size-6 items-center justify-center rounded border border-border text-dim hover:text-text"
-                                  aria-label="Copy value"
+                                  className="inline-flex h-6 max-w-48 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted hover:border-accent-line hover:text-text"
+                                  aria-label={
+                                    cell?.revealed
+                                      ? `Hide ${key} in ${env.slug}`
+                                      : `Reveal ${key} in ${env.slug}`
+                                  }
                                 >
-                                  {copied === id ? (
-                                    <Check className="size-3 text-accent-text" />
+                                  {cell?.loading ? (
+                                    <Loader2 className="size-3 animate-spin" />
+                                  ) : cell?.revealed ? (
+                                    <EyeOff className="size-3 text-accent-text" />
                                   ) : (
-                                    <Copy className="size-3" />
+                                    <Eye className="size-3 text-dim" />
                                   )}
+                                  <span className="truncate">{shown ?? '••••••••'}</span>
                                 </button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void startEdit(env, key, secret)
-                                }}
-                                className="inline-flex size-6 items-center justify-center rounded border border-transparent text-dim hover:border-border hover:text-text"
-                                aria-label={`Edit ${key} in ${env.slug}`}
-                              >
-                                <Pencil className="size-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditing({ env: env.slug, secret })
-                                }}
-                                className="inline-flex size-6 items-center justify-center rounded border border-transparent text-dim hover:border-border hover:text-text"
-                                aria-label={`Details for ${key} in ${env.slug}`}
-                              >
-                                <MoreHorizontal className="size-3" />
-                              </button>
+                              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                                {shown !== null && (
+                                  <CellAction
+                                    label={`Copy ${key} in ${env.slug}`}
+                                    onClick={() => {
+                                      void copy(id, shown)
+                                    }}
+                                  >
+                                    {copied === id ? (
+                                      <Check className="size-3 text-accent-text" />
+                                    ) : (
+                                      <Copy className="size-3" />
+                                    )}
+                                  </CellAction>
+                                )}
+                                {(!env.protected || canAdmin) && (
+                                  <CellAction
+                                    label={`Edit ${key} in ${env.slug}`}
+                                    onClick={() => {
+                                      startEdit(env, key, secret)
+                                    }}
+                                  >
+                                    <Pencil className="size-3" />
+                                  </CellAction>
+                                )}
+                                <CellAction
+                                  label={`Details for ${key} in ${env.slug}`}
+                                  onClick={() => {
+                                    setDetail({ key, env: env.slug })
+                                  }}
+                                >
+                                  <PanelRight className="size-3" />
+                                </CellAction>
+                              </div>
                             </div>
                           </td>
                         )
@@ -1038,7 +1103,7 @@ export function SecretsPage() {
                       {overlaySlug &&
                         envs.map((env) => (
                           <td key={env.id + '-overlay'} className="px-3 py-2">
-                            <span className="inline-flex h-6 max-w-36 items-center truncate rounded border border-border bg-elev px-2 font-mono text-[12px] text-muted">
+                            <span className="inline-flex h-6 max-w-36 items-center truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted">
                               {overlayByEnv.get(env.slug)?.get(key) || '—'}
                             </span>
                           </td>
@@ -1049,9 +1114,9 @@ export function SecretsPage() {
                     <tr>
                       <td
                         colSpan={envs.length * (overlaySlug ? 2 : 1) + 1}
-                        className="px-4 py-10 text-center text-[13px] text-muted"
+                        className="px-4 py-10 text-center text-sm text-muted"
                       >
-                        No secrets yet. Add one to get started.
+                        No keys match{filter ? ` “${filter}”` : ' this folder'}.
                       </td>
                     </tr>
                   )}
@@ -1063,11 +1128,18 @@ export function SecretsPage() {
       )}
 
       {editCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-app border border-accent-line bg-accent-soft px-4 py-2.5">
-          <span className="text-[13px] font-medium text-accent-text">
+        <div
+          role="region"
+          aria-label="Unsaved changes"
+          className="sticky bottom-12 z-20 flex flex-wrap items-center gap-3 rounded-app border border-accent-line bg-surface px-4 py-2.5 shadow-app"
+        >
+          <span className="text-sm font-medium text-accent-text">
             {editCount} unsaved {editCount === 1 ? 'change' : 'changes'}
           </span>
-          <span className="text-[12px] text-muted">
+          {prodEdits > 0 && (
+            <span className="env-chip env-production">{prodEdits} in production</span>
+          )}
+          <span className="hidden text-xs text-muted sm:inline">
             Nothing is written until you review and save.
           </span>
           <div className="ml-auto flex gap-2">
@@ -1084,6 +1156,7 @@ export function SecretsPage() {
               variant="primary"
               size="sm"
               onClick={() => {
+                setSaveError(null)
                 setReviewOpen(true)
               }}
             >
@@ -1093,23 +1166,20 @@ export function SecretsPage() {
         </div>
       )}
 
-      <p className="text-[12px] text-dim">
-        Reveals are written to the audit log with the key's blind index and the reason. Values never
-        appear in logs.
-      </p>
-
       {adding && (
         <AddSecretDialog
           envs={writableEnvs}
+          schemaKind={(key) => schemaByKey.get(key)?.kind}
           busy={createSecret.isPending}
           error={createSecret.error instanceof Error ? createSecret.error.message : null}
           onClose={() => {
+            createSecret.reset()
             setAdding(false)
           }}
           onSubmit={(input) => {
             createSecret.mutate(input, {
               onSuccess: () => {
-                notify(`Created ${input.key}.`)
+                notify(`Added ${input.key} to ${input.env}.`)
               },
             })
           }}
@@ -1150,159 +1220,277 @@ export function SecretsPage() {
         />
       )}
 
-      {editing && org && (
-        <EditSecretDialog
+      {detail && org && (
+        <SecretSheet
           orgSlug={org.slug}
           projectSlug={projectSlug}
-          env={editing.env}
-          secret={editing.secret}
-          readOnly={Boolean(
-            envs.find((candidate) => candidate.slug === editing.env)?.protected && !canAdmin,
-          )}
+          secretKey={detail.key}
+          envs={envs}
+          initialEnv={detail.env}
+          secretIn={(envSlug) =>
+            secretsByEnv.get(envSlug)?.find((candidate) => candidate.key === detail.key)
+          }
+          canWrite={(env) => !env.protected || canAdmin}
+          schema={schemaByKey.get(detail.key)}
           onClose={() => {
-            setEditing(null)
+            setDetail(null)
           }}
-          onDone={(message) => {
-            setEditing(null)
-            notify(message)
+          onChanged={() => {
             void queryClient.invalidateQueries({ queryKey: ['secrets', org.slug, projectSlug] })
-          }}
-          onDeleted={(key, value) => {
-            notify(`Deleted ${key}.`, () => {
-              if (!org) return
-              void api
-                .POST('/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets', {
-                  params: { path: { org: org.slug, project: projectSlug, env: editing.env } },
-                  body: { key, value, kind: 'secret', message: 'Restored from undo' },
-                })
-                .then(() => {
-                  notify(`Restored ${key}.`)
-                  void queryClient.invalidateQueries({
-                    queryKey: ['secrets', org.slug, projectSlug],
-                  })
-                })
-            })
           }}
         />
       )}
 
       {reviewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-app border border-border bg-surface p-5 shadow-app">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-head text-[18px] font-semibold">Review changes</h2>
-                <p className="mt-0.5 text-[13px] text-muted">
-                  {editCount} {editCount === 1 ? 'change' : 'changes'} will be written in one atomic
-                  batch per environment.
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setReviewOpen(false)
-                }}
-                aria-label="Close"
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-            <div className="mt-3 max-h-80 overflow-y-auto rounded-app-sm border border-border">
-              <table className="w-full text-left text-[12.5px]">
-                <thead className="sticky top-0 bg-surface">
-                  <tr className="border-b border-border text-[11px] uppercase tracking-[0.06em] text-dim">
-                    <th className="px-2.5 py-1.5 font-semibold">Environment</th>
-                    <th className="px-2.5 py-1.5 font-semibold">Key</th>
-                    <th className="px-2.5 py-1.5 font-semibold">Change</th>
-                    <th className="px-2.5 py-1.5 font-semibold">Value</th>
+        <Modal
+          onClose={() => {
+            setReviewOpen(false)
+          }}
+          className="max-w-2xl"
+        >
+          <ModalHeader
+            title="Review changes"
+            description={`${String(editCount)} ${editCount === 1 ? 'change' : 'changes'} will be written in one atomic batch per environment.`}
+            onClose={() => {
+              setReviewOpen(false)
+            }}
+          />
+          {prodEdits > 0 && (
+            <Notice tone="warning" className="mt-3">
+              {prodEdits} {prodEdits === 1 ? 'change touches' : 'changes touch'} production and
+              apply immediately.
+            </Notice>
+          )}
+          <div className="mt-3 max-h-80 overflow-y-auto rounded-app-sm border border-border">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-surface">
+                <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
+                  <th scope="col" className="px-2.5 py-1.5 font-semibold">
+                    Environment
+                  </th>
+                  <th scope="col" className="px-2.5 py-1.5 font-semibold">
+                    Key
+                  </th>
+                  <th scope="col" className="px-2.5 py-1.5 font-semibold">
+                    Change
+                  </th>
+                  <th scope="col" className="px-2.5 py-1.5 font-semibold">
+                    Value
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(edits).map(([id, edit]) => (
+                  <tr key={id} className="border-b border-border-soft last:border-0">
+                    <td className="px-2.5 py-1.5 text-muted">{edit.env}</td>
+                    <td className="px-2.5 py-1.5 font-mono text-text">{edit.key}</td>
+                    <td className="px-2.5 py-1.5">
+                      <span
+                        className={cn(
+                          'rounded px-1.5 py-0.5 text-2xs font-medium',
+                          edit.existing
+                            ? 'bg-amber-bg text-amber-fg'
+                            : 'bg-success-bg text-success',
+                        )}
+                      >
+                        {edit.existing ? 'update' : 'new'}
+                      </span>
+                    </td>
+                    <td className="max-w-64 truncate px-2.5 py-1.5 font-mono text-dim">
+                      {edit.kind === 'variable'
+                        ? edit.value || '(empty)'
+                        : edit.value
+                          ? `•••• (${String(edit.value.length)} chars)`
+                          : '(empty)'}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(edits).map(([id, edit]) => (
-                    <tr key={id} className="border-b border-border-soft last:border-0">
-                      <td className="px-2.5 py-1.5 text-muted">{edit.env}</td>
-                      <td className="px-2.5 py-1.5 font-mono text-text">{edit.key}</td>
-                      <td className="px-2.5 py-1.5">
-                        <span
-                          className={cn(
-                            'rounded px-1.5 py-0.5 text-[11px] font-medium',
-                            edit.existing
-                              ? 'bg-amber-bg text-amber-fg'
-                              : 'bg-success-bg text-success',
-                          )}
-                        >
-                          {edit.existing ? 'update' : 'new'}
-                        </span>
-                      </td>
-                      <td className="max-w-64 truncate px-2.5 py-1.5 font-mono text-dim">
-                        {edit.value || '(empty)'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {saveError && (
-              <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-                {saveError}
-              </p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setReviewOpen(false)
-                }}
-              >
-                Keep editing
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={saving}
-                onClick={() => {
-                  void saveEdits()
-                }}
-              >
-                {saving && <Loader2 className="size-3.5 animate-spin" />}
-                Save {editCount} changes
-              </Button>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-app-sm border border-border bg-elev px-3 py-2 text-[13px] text-text shadow-app">
-          <span>{toast.message}</span>
-          {toast.undo && (
-            <button
-              type="button"
-              className="font-medium text-accent-text hover:underline"
+          {saveError && <Notice className="mt-3">{saveError}</Notice>}
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
-                toast.undo?.()
-                setToast(null)
+                setReviewOpen(false)
               }}
             >
-              Undo
-            </button>
-          )}
-        </div>
+              Keep editing
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={saving}
+              onClick={() => {
+                void saveEdits()
+              }}
+            >
+              {saving && <Loader2 className="size-3.5 animate-spin" />}
+              Save {editCount} {editCount === 1 ? 'change' : 'changes'}
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   )
 }
 
+function BackLink() {
+  return (
+    <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-text">
+      <ArrowLeft className="size-3.5" /> Projects
+    </Link>
+  )
+}
+
+function FolderButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-current={active ? 'true' : undefined}
+      onClick={onClick}
+      className={cn(
+        'flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-xs',
+        active ? 'bg-hover text-text' : 'text-muted hover:bg-hover hover:text-text',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CellAction({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="inline-flex size-6 items-center justify-center rounded border border-transparent text-dim hover:border-border hover:bg-elev hover:text-text"
+    >
+      {children}
+    </button>
+  )
+}
+
+function KeyBadges({
+  schemaType,
+  owner,
+  inheritedFrom,
+  overridden,
+  expires,
+}: {
+  schemaType: string | undefined
+  owner: string | undefined
+  inheritedFrom: string | undefined
+  overridden: boolean
+  expires: string | undefined
+}) {
+  const expiresAt = expires ? new Date(expires) : null
+  const [now] = useState(() => Date.now())
+  const soon = expiresAt ? expiresAt.getTime() - now < 14 * 86_400_000 : false
+  return (
+    <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
+      {schemaType && (
+        <span className="rounded-full border border-border bg-elev px-1.5 text-3xs font-medium text-dim">
+          {schemaType}
+        </span>
+      )}
+      {owner && (
+        <span className="rounded-full bg-accent-soft px-1.5 text-3xs font-medium text-accent-text">
+          {owner}
+        </span>
+      )}
+      {inheritedFrom && (
+        <span className="rounded-full bg-elev px-1.5 font-mono text-3xs text-dim">
+          from {inheritedFrom}
+        </span>
+      )}
+      {overridden && (
+        <span className="rounded-full bg-amber-bg px-1.5 text-3xs font-semibold text-amber-fg">
+          override
+        </span>
+      )}
+      {expiresAt && (
+        <span
+          className={cn(
+            'rounded-full px-1.5 text-3xs font-medium',
+            soon ? 'bg-danger-bg text-danger' : 'bg-elev text-dim',
+          )}
+        >
+          expires {expiresAt.toLocaleDateString()}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function EmptyState({
+  canWrite,
+  onAdd,
+  onImport,
+}: {
+  canWrite: boolean
+  onAdd: () => void
+  onImport: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center px-6 py-14 text-center">
+      <span className="flex size-11 items-center justify-center rounded-full bg-accent-soft text-accent-text">
+        <KeyRound className="size-5" />
+      </span>
+      <h2 className="mt-3 font-head text-md font-semibold">No secrets yet</h2>
+      <p className="mt-1 max-w-sm text-sm text-muted">
+        Add your first secret, or import an existing <span className="font-mono">.env</span> file.
+        Values are encrypted before they reach the database.
+      </p>
+      {canWrite && (
+        <div className="mt-4 flex gap-2">
+          <Button variant="secondary" onClick={onImport}>
+            <Upload className="size-4" /> Import .env
+          </Button>
+          <Button variant="primary" onClick={onAdd}>
+            <Plus className="size-4" /> Add secret
+          </Button>
+        </div>
+      )}
+      <p className="mt-4 text-2xs text-dim">
+        Or from a terminal: <code className="font-mono">clavis import .env</code>
+      </p>
+    </div>
+  )
+}
+
+const keyPattern = /^[A-Za-z_][A-Za-z0-9_.-]*$/
+
 function AddSecretDialog({
   envs,
+  schemaKind,
   busy,
   error,
   onClose,
   onSubmit,
 }: {
   envs: Env[]
+  schemaKind: (key: string) => string | undefined
   busy: boolean
   error: string | null
   onClose: () => void
@@ -1315,128 +1503,144 @@ function AddSecretDialog({
     message: string
   }) => void
 }) {
-  const [env, setEnv] = useState(envs[0]?.slug ?? '')
+  const [env, setEnv] = useState(
+    envs.find((candidate) => candidate.type === 'development')?.slug ?? envs[0]?.slug ?? '',
+  )
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [folder, setFolder] = useState('')
   const [kind, setKind] = useState('secret')
+  const [kindTouched, setKindTouched] = useState(false)
   const [message, setMessage] = useState('')
+  const [more, setMore] = useState(false)
+  const target = envs.find((candidate) => candidate.slug === env)
+  const keyError =
+    key !== '' && !keyPattern.test(key)
+      ? 'Start with a letter or _; use letters, digits, _ . -'
+      : null
 
   function submit(event: FormEvent) {
     event.preventDefault()
+    if (keyError) return
     onSubmit({ env, key, value, folder, kind, message })
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
-      <div className="w-full max-w-lg rounded-app border border-border bg-surface p-5 shadow-app">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-head text-[18px] font-semibold">Add secret</h2>
-            <p className="mt-0.5 text-[13px] text-muted">
-              The value is encrypted before it reaches the database.
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="size-4" />
-          </Button>
-        </div>
-        <form onSubmit={submit} className="mt-4 space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Environment</span>
-            <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              value={env}
-              onChange={(event) => {
-                setEnv(event.target.value)
-              }}
-            >
-              {envs.map((candidate) => (
-                <option key={candidate.id} value={candidate.slug}>
-                  {candidate.name} ({envShort[candidate.type] ?? candidate.type})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Key</span>
-            <input
+    <Modal onClose={onClose}>
+      <form onSubmit={submit}>
+        <ModalHeader
+          title="Add secret"
+          description="The value is encrypted before it reaches the database."
+          onClose={onClose}
+        />
+        <div className="mt-4 space-y-3">
+          <Field label="Key" error={keyError}>
+            <Input
               autoFocus
               required
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
+              mono
+              autoComplete="off"
+              spellCheck={false}
               placeholder="STRIPE_SECRET_KEY"
               value={key}
               onChange={(event) => {
-                setKey(event.target.value.toUpperCase().replace(/[^A-Z0-9_.-]/g, '_'))
+                const next = event.target.value.toUpperCase().replace(/\s/g, '_')
+                setKey(next)
+                const fromSchema = schemaKind(next)
+                if (fromSchema && !kindTouched) setKind(fromSchema)
               }}
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Kind</span>
-            <select
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              value={kind}
-              onChange={(event) => {
-                setKind(event.target.value)
-              }}
-            >
-              <option value="secret">Secret (masked, reveal audited)</option>
-              <option value="variable">Variable (plain configuration)</option>
-              <option value="file">File (masked, mount/download)</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">
-              Folder (optional)
-            </span>
-            <input
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="/backend/db"
-              value={folder}
-              onChange={(event) => {
-                setFolder(event.target.value)
-              }}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Value</span>
-            <textarea
+          </Field>
+          <Field label="Value">
+            <Textarea
               required
+              mono
               rows={3}
-              className="w-full rounded-app-sm border border-border bg-bg px-2.5 py-2 font-mono text-[13px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="sk_live_…"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={kind === 'variable' ? 'info' : 'sk_live_…'}
               value={value}
               onChange={(event) => {
                 setValue(event.target.value)
               }}
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12.5px] font-medium text-muted">Change message</span>
-            <input
-              className="h-9 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[13.5px] text-text focus:border-accent-line focus:outline-none"
-              placeholder="Why this exists"
-              value={message}
-              onChange={(event) => {
-                setMessage(event.target.value)
-              }}
-            />
-          </label>
-          {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[12.5px] text-danger">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="sm" disabled={busy}>
-              {busy && <Loader2 className="size-3.5 animate-spin" />} Save secret
-            </Button>
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Environment">
+              <Select
+                value={env}
+                onChange={(event) => {
+                  setEnv(event.target.value)
+                }}
+              >
+                {envs.map((candidate) => (
+                  <option key={candidate.id} value={candidate.slug}>
+                    {candidate.name} ({envShort[candidate.type] ?? candidate.type})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Kind">
+              <Select
+                value={kind}
+                onChange={(event) => {
+                  setKind(event.target.value)
+                  setKindTouched(true)
+                }}
+              >
+                <option value="secret">Secret — masked</option>
+                <option value="variable">Variable — plain</option>
+                <option value="file">File — masked</option>
+              </Select>
+            </Field>
           </div>
-        </form>
-      </div>
-    </div>
+          {target?.type === 'production' && (
+            <Notice tone="warning">This writes to production and applies immediately.</Notice>
+          )}
+          {more ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Folder">
+                <Input
+                  mono
+                  placeholder="/backend/db"
+                  value={folder}
+                  onChange={(event) => {
+                    setFolder(event.target.value)
+                  }}
+                />
+              </Field>
+              <Field label="Change message">
+                <Input
+                  placeholder="Why this exists"
+                  value={message}
+                  onChange={(event) => {
+                    setMessage(event.target.value)
+                  }}
+                />
+              </Field>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="text-2xs font-medium text-accent-text hover:underline"
+              onClick={() => {
+                setMore(true)
+              }}
+            >
+              Folder and change message…
+            </button>
+          )}
+          {error && <Notice>{error}</Notice>}
+        </div>
+        <ModalFooter>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" disabled={busy || Boolean(keyError)}>
+            {busy && <Loader2 className="size-3.5 animate-spin" />} Add to {env || 'environment'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   )
 }

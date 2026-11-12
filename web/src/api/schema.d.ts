@@ -878,6 +878,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/identities/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a delegated agent session
+         * @description Returns a one-hour agent token tied to the caller's own session or personal access token. `{id}` may be the identity ID or name.
+         */
+        post: operations["start-agent-session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/identities/{id}/tokens": {
         parameters: {
             query?: never;
@@ -2078,6 +2098,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search secret key names across projects */
+        get: operations["search-keys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/sets": {
         parameters: {
             query?: never;
@@ -2369,6 +2406,15 @@ export interface components {
         AgentCommandsInputBody: {
             commands: string[] | null;
         };
+        AgentSessionOutputBody: {
+            environment: string;
+            /** Format: date-time */
+            expires_at: string;
+            identity: string;
+            identity_id: string;
+            /** @description Agent token; keep it in memory only */
+            token: string;
+        };
         AuditActor: {
             id: string;
             kind: string;
@@ -2409,8 +2455,12 @@ export interface components {
         };
         AuditRes: {
             env_id?: string;
+            environment?: string;
             id?: string;
+            /** @description Decrypted key name, when the caller may read names */
+            key?: string;
             name?: string;
+            project?: string;
             project_id?: string;
             type: string;
         };
@@ -2706,6 +2756,10 @@ export interface components {
             delete_missing?: boolean;
             endpoint?: string;
             environment: string;
+            /** @description owner/name for repo scope, or the organization for org scope */
+            forgejo_repo?: string;
+            /** @enum {string} */
+            forgejo_scope?: "repo" | "org";
             gcp_prefix?: string;
             gcp_project?: string;
             gcp_service_account?: string;
@@ -2951,6 +3005,11 @@ export interface components {
             identities: components["schemas"]["IdentityBody"][] | null;
         };
         IdentityBody: {
+            /**
+             * Format: int64
+             * @description Unexpired agent sessions started with clavis mcp --agent
+             */
+            active_sessions: number;
             allowed_commands?: string[] | null;
             aws_account?: string;
             aws_arn?: string;
@@ -3001,6 +3060,12 @@ export interface components {
             org: string;
             org_slug: string;
             role: string;
+        };
+        KeyMatchBody: {
+            environments: string[] | null;
+            key: string;
+            project: string;
+            project_name: string;
         };
         LeaseBody: {
             config_id: string;
@@ -3483,6 +3548,9 @@ export interface components {
         ScimTokensOutputBody: {
             tokens: components["schemas"]["ScimTokenBody"][] | null;
         };
+        SearchOutputBody: {
+            keys: components["schemas"]["KeyMatchBody"][] | null;
+        };
         SecretBody: {
             comment?: string;
             /** Format: date-time */
@@ -3729,6 +3797,8 @@ export interface components {
             /** Format: date-time */
             expires_at?: string;
             folder?: string;
+            /** @description Keep the current value and ignore value; edits metadata without revealing it */
+            keep_value?: boolean;
             /**
              * @default secret
              * @enum {string}
@@ -5686,6 +5756,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentCommandCheckOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "start-agent-session": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionOutputBody"];
                 };
             };
             /** @description Error */
@@ -9030,6 +9134,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "search-keys": {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring of a key name */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOutputBody"];
+                };
             };
             /** @description Error */
             default: {
