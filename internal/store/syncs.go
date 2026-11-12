@@ -137,6 +137,16 @@ func (s *Store) UpdateSyncStatus(ctx context.Context, id, status string, syncedA
 	return expectOne(res, "update sync")
 }
 
+// UpdateSyncConfig replaces the provider configuration JSON.
+func (s *Store) UpdateSyncConfig(ctx context.Context, projectID, id, config string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE syncs SET config = ?, updated_at = ?
+		WHERE id = ? AND project_id = ?`, config, formatTime(time.Now().UTC()), id, projectID)
+	if err != nil {
+		return fmt.Errorf("store: update sync config: %w", err)
+	}
+	return expectOne(res, "update sync config")
+}
+
 // UpdateSyncDrift records a drift check result.
 func (s *Store) UpdateSyncDrift(ctx context.Context, id, keys string, checkedAt time.Time) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE syncs SET drift_keys = ?, drift_checked_at = ? WHERE id = ?`,

@@ -48,6 +48,7 @@ type syncConfig struct {
 	GitHubRepo        string `json:"github_repo,omitempty"`
 	GitHubEnv         string `json:"github_environment,omitempty"`
 	GitHubScope       string `json:"github_scope,omitempty"`
+	DeleteMissing     bool   `json:"delete_missing,omitempty"`
 	VercelProject     string `json:"vercel_project,omitempty"`
 	VercelTeamID      string `json:"vercel_team_id,omitempty"`
 	AWSRegion         string `json:"aws_region,omitempty"`
@@ -98,6 +99,7 @@ type SyncInput struct {
 	CloudflareProject string
 	CloudflareScript  string
 	CloudflareMode    string
+	DeleteMissing     bool
 }
 
 // SyncView is a sync plus its environment slug.
@@ -143,7 +145,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	id := uuid.NewString()
-	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
+	config := syncConfig{Protected: in.Protected, Masked: in.Masked, DeleteMissing: in.DeleteMissing}
 	endpoint := strings.TrimSpace(in.Endpoint)
 	if provider == "http" {
 		if !strings.HasPrefix(endpoint, "https://") && !strings.HasPrefix(endpoint, "http://") {
@@ -717,6 +719,27 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 			return fmt.Errorf("gitlab: setting %s returned %d: %s", key, response.StatusCode, detail)
 		}
 	}
+	if config.DeleteMissing {
+		for remoteKey := range existing {
+			if _, ok := values[remoteKey]; ok {
+				continue
+			}
+			request, err := http.NewRequestWithContext(ctx, http.MethodDelete,
+				variablesURL+"/"+url.PathEscape(remoteKey), nil)
+			if err != nil {
+				return err
+			}
+			request.Header.Set("PRIVATE-TOKEN", token)
+			response, err := client.Do(request)
+			if err != nil {
+				return fmt.Errorf("gitlab: delete %s failed: %v", remoteKey, err)
+			}
+			_ = response.Body.Close()
+			if response.StatusCode >= 300 && response.StatusCode != http.StatusNotFound {
+				return fmt.Errorf("gitlab: delete %s returned %d", remoteKey, response.StatusCode)
+			}
+		}
+	}
 	return nil
 }
 
@@ -839,6 +862,44 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		if status < 200 || status >= 300 {
 			return githubStatusError("variable "+name, status, body)
+		}
+	}
+	if config.DeleteMissing {
+		for name := range existing {
+			if _, keep := values[name]; keep {
+				continue
+			}
+			status, body, err := githubRequest(ctx, client, http.MethodDelete,
+				actions+"/variables/"+url.PathEscape(name), token, nil)
+			if err != nil {
+				return fmt.Errorf("github: delete variable %s failed: %v", name, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return githubStatusError("delete variable "+name, status, body)
+			}
+		}
+		status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/secrets?per_page=100", token, nil)
+		if err == nil && status == http.StatusOK {
+			var listing struct {
+				Secrets []struct {
+					Name string `json:"name"`
+				} `json:"secrets"`
+			}
+			if json.Unmarshal(body, &listing) == nil {
+				for _, remote := range listing.Secrets {
+					if _, keep := values[remote.Name]; keep {
+						continue
+					}
+					status, body, err := githubRequest(ctx, client, http.MethodDelete,
+						actions+"/secrets/"+url.PathEscape(remote.Name), token, nil)
+					if err != nil {
+						return fmt.Errorf("github: delete secret %s failed: %v", remote.Name, err)
+					}
+					if status >= 300 && status != http.StatusNotFound {
+						return githubStatusError("delete secret "+remote.Name, status, body)
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -971,6 +1032,21 @@ func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		if status < 200 || status >= 300 {
 			return vercelStatusError("set "+key, status, body)
+		}
+	}
+	if config.DeleteMissing {
+		for remoteKey, id := range existing {
+			if _, keep := values[remoteKey]; keep {
+				continue
+			}
+			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
+				base+"/v10/projects/"+project+"/env/"+url.PathEscape(id)+query, token, nil)
+			if err != nil {
+				return fmt.Errorf("vercel: delete %s failed: %v", remoteKey, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return vercelStatusError("delete "+remoteKey, status, body)
+			}
 		}
 	}
 	return nil
@@ -1410,6 +1486,21 @@ func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.S
 			return netlifyStatusError("set "+key, status, body)
 		}
 	}
+	if config.DeleteMissing {
+		for remoteKey := range existing {
+			if _, keep := values[remoteKey]; keep {
+				continue
+			}
+			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
+				envURL+"/"+url.PathEscape(remoteKey)+query, token, nil)
+			if err != nil {
+				return fmt.Errorf("netlify: delete %s failed: %v", remoteKey, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return netlifyStatusError("delete "+remoteKey, status, body)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1684,4 +1775,43 @@ func (s *Service) driftGitLab(ctx context.Context, org *store.Org, sync *store.S
 	}
 	sort.Strings(keys)
 	return keys, nil
+}
+
+// UpdateSyncBehavior toggles provider behavior without recreating the sync.
+func (s *Service) UpdateSyncBehavior(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, id string, deleteMissing bool, meta AuditMeta) (*SyncView, error) {
+	org, project, err := s.projectForWrite(ctx, actor, orgSlug, projectSlug, authz.SyncsManage)
+	if err != nil {
+		return nil, err
+	}
+	sync, err := s.Store.GetSync(ctx, project.ID, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	var config syncConfig
+	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
+		return nil, err
+	}
+	config.DeleteMissing = deleteMissing
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Store.UpdateSyncConfig(ctx, project.ID, id, string(encoded)); err != nil {
+		return nil, err
+	}
+	sync.Config = string(encoded)
+	env, _ := s.Store.GetEnvironmentByID(ctx, sync.EnvironmentID)
+	envSlug := ""
+	if env != nil {
+		envSlug = env.Slug
+	}
+	if err := s.record(ctx, toAuditActor(actor), org.ID, "sync.behavior",
+		audit.Resource{Type: "sync", ID: sync.ID, ProjectID: project.ID, EnvID: sync.EnvironmentID},
+		audit.Details{Environment: envSlug, Reason: fmt.Sprintf("delete_missing=%t", deleteMissing)}, meta); err != nil {
+		s.Logger.Error("audit sync.behavior failed", "sync_id", sync.ID, "error", err)
+	}
+	return &SyncView{Sync: sync, Environment: envSlug}, nil
 }

@@ -146,6 +146,11 @@ func (c *Client) Put(ctx context.Context, path string, in, out any) error {
 	return c.Do(ctx, http.MethodPut, path, in, out)
 }
 
+// Patch performs a PATCH request.
+func (c *Client) Patch(ctx context.Context, path string, in, out any) error {
+	return c.Do(ctx, http.MethodPatch, path, in, out)
+}
+
 // Delete performs a DELETE request.
 func (c *Client) Delete(ctx context.Context, path string) error {
 	return c.Do(ctx, http.MethodDelete, path, nil, nil)

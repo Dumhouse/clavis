@@ -21,6 +21,7 @@ type syncBody struct {
 	Confirmed      bool       `json:"confirmed"`
 	DriftKeys      []string   `json:"drift_keys"`
 	DriftCheckedAt *time.Time `json:"drift_checked_at,omitempty"`
+	DeleteMissing  bool       `json:"delete_missing"`
 	LastSyncedAt   *time.Time `json:"last_synced_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 }
@@ -53,6 +54,7 @@ type createSyncInput struct {
 		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
 		VercelProject     string `json:"vercel_project,omitempty" maxLength:"500"`
 		VercelTeamID      string `json:"vercel_team_id,omitempty" maxLength:"200"`
+		DeleteMissing     bool   `json:"delete_missing,omitempty"`
 		AWSRegion         string `json:"aws_region,omitempty" maxLength:"60"`
 		AWSAccessKey      string `json:"aws_access_key,omitempty" maxLength:"200"`
 		AWSSecretKey      string `json:"aws_secret_key,omitempty" maxLength:"500"`
@@ -75,6 +77,15 @@ type syncPath struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	ID      string `path:"id"`
+}
+
+type updateSyncInput struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	ID      string `path:"id"`
+	Body    struct {
+		DeleteMissing bool `json:"delete_missing"`
+	}
 }
 
 type runSyncInput struct {
@@ -157,7 +168,8 @@ func (s *Server) registerSyncRoutes() error {
 			GitHubRepo: in.Body.GitHubRepo, GitHubEnvironment: in.Body.GitHubEnvironment,
 			GitHubScope:   in.Body.GitHubScope,
 			VercelProject: in.Body.VercelProject, VercelTeamID: in.Body.VercelTeamID,
-			AWSRegion: in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
+			DeleteMissing: in.Body.DeleteMissing,
+			AWSRegion:     in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
 			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
 			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
 			GCPProject: in.Body.GCPProject, GCPServiceAccount: in.Body.GCPServiceAccount,
@@ -258,16 +270,34 @@ func (s *Server) registerSyncRoutes() error {
 		out.Body.Detail = result.Detail
 		return out, nil
 	})
+	if err := s.registry.Declare(http.MethodPatch, base+"/{id}", authz.SyncsManage, "update sync behavior"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "update-sync", Method: http.MethodPatch, Path: base + "/{id}",
+		Summary: "Update sync behavior", Tags: []string{"syncs"},
+	}, func(ctx context.Context, in *updateSyncInput) (*syncOutput, error) {
+		actor, _ := actorFrom(ctx)
+		view, err := s.svc.UpdateSyncBehavior(ctx, actor, in.Org, in.Project, in.ID, in.Body.DeleteMissing, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &syncOutput{Body: syncFromView(*view)}, nil
+	})
 	return nil
 }
 
 func syncFromView(view service.SyncView) syncBody {
 	keys := []string{}
 	_ = json.Unmarshal([]byte(view.Sync.DriftKeys), &keys)
+	var cfg struct {
+		DeleteMissing bool `json:"delete_missing"`
+	}
+	_ = json.Unmarshal([]byte(view.Sync.Config), &cfg)
 	return syncBody{
 		ID: view.Sync.ID, Environment: view.Environment, Provider: view.Sync.Provider,
 		Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
-		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt,
+		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt, DeleteMissing: cfg.DeleteMissing,
 		LastSyncedAt: view.Sync.LastSyncedAt, CreatedAt: view.Sync.CreatedAt,
 	}
 }

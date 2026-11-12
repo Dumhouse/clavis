@@ -347,7 +347,7 @@ Create a generic HTTP sync. The receiver gets a signed JSON POST.
 clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --secret "$SYNC_SECRET"
 ```
 
-Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
+Flags: `--endpoint`, `--secret`, `--provider http|gitlab|github|vercel|aws|gcp|netlify|cloudflare`,
 `--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`,
 `--github-repo`, `--github-scope`, `--github-environment`, `--github-token`,
 `--vercel-project`, `--vercel-team`, `--vercel-token`, `--aws-region`,
@@ -355,7 +355,7 @@ Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
 `--aws-prefix`, `--gcp-project`, `--gcp-service-account-json`,
 `--gcp-prefix`, `--netlify-account`, `--netlify-site`, `--netlify-token`,
 `--cloudflare-account`, `--cloudflare-mode`, `--cloudflare-project`,
-`--cloudflare-script`, `--cloudflare-token`.
+`--cloudflare-script`, `--cloudflare-token`, `--delete-missing`.
 
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
@@ -418,6 +418,14 @@ sends values.
 ```sh
 clavis syncs run 123e4567 --dry-run
 clavis syncs run 123e4567 --yes
+```
+
+### `clavis syncs behavior ID`
+
+Change sync behavior toggles.
+
+```sh
+clavis syncs behavior 123e4567 --delete-missing
 ```
 
 ### `clavis syncs drift ID`

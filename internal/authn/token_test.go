@@ -35,14 +35,22 @@ func TestGenerateAndParseToken(t *testing.T) {
 
 func TestParseTokenRejectsTampering(t *testing.T) {
 	token, _ := GenerateToken(TokenMachine)
+	badEnd := "0"
+	if token[len(token)-1:] == "0" {
+		badEnd = "1"
+	}
+	badMid := "x"
+	if token[len(token)-9:len(token)-8] == "x" {
+		badMid = "y"
+	}
 	cases := []string{
 		"",
 		"clv_mt_short",
 		"clx_mt_" + strings.Repeat("a", 40),
 		"clv_zz_" + strings.Repeat("a", 40),
 		"clv_mt_" + strings.Repeat("!", 40),
-		token[:len(token)-1] + "0",
-		token[:len(token)-9] + "x" + token[len(token)-8:],
+		token[:len(token)-1] + badEnd,
+		token[:len(token)-9] + badMid + token[len(token)-8:],
 	}
 	for _, candidate := range cases {
 		if _, err := ParseToken(candidate); err == nil {

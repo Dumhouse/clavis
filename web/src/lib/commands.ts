@@ -230,6 +230,11 @@ export const commandGroups: CommandGroup[] = [
         flags: ['--dry-run', '--yes'],
       },
       {
+        name: 'syncs behavior',
+        usage: 'clavis syncs behavior ID [--delete-missing]',
+        description: 'Toggle deleting remote keys that are not in Clavis.',
+      },
+      {
         name: 'syncs drift',
         usage: 'clavis syncs drift ID',
         description: 'Compare local values with a readable remote provider.',

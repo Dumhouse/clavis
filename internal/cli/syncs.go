@@ -52,6 +52,7 @@ func newSyncsCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newSyncsRunCommand(opts))
 	cmd.AddCommand(newSyncsLogsCommand(opts))
 	cmd.AddCommand(newSyncsDriftCommand(opts))
+	cmd.AddCommand(newSyncsBehaviorCommand(opts))
 	return cmd
 }
 
@@ -108,7 +109,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var gcpProject, gcpServiceAccount, gcpPrefix string
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
-	var protected, masked bool
+	var protected, masked, deleteMissing bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
 		Short: "Create a generic HTTP sync",
@@ -147,6 +148,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"netlify_account": netlifyAccount, "netlify_site": netlifySite,
 				"cloudflare_account": cfAccount, "cloudflare_project": cfProject,
 				"cloudflare_script": cfScript, "cloudflare_mode": cfMode,
+				"delete_missing": deleteMissing,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -190,6 +192,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&cfMode, "cloudflare-mode", "workers", "Cloudflare mode: workers or pages")
 	cmd.Flags().StringVar(&cfProject, "cloudflare-project", "", "Cloudflare Pages project")
 	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
+	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
 	cmd.Flags().StringVar(&token, "cloudflare-token", "", "Cloudflare API token")
 	return cmd
 }
@@ -308,4 +311,36 @@ func newSyncsDriftCommand(opts *Options) *cobra.Command {
 			return &ExitError{Code: ExitGeneral, Err: fmt.Errorf("drift detected"), Silent: true}
 		},
 	}
+}
+
+func newSyncsBehaviorCommand(opts *Options) *cobra.Command {
+	var deleteMissing bool
+	cmd := &cobra.Command{
+		Use:   "behavior ID",
+		Short: "Update sync behavior toggles",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := opts.output()
+			resolved, err := opts.syncContext()
+			if err != nil {
+				return err
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			var updated syncJSON
+			path := syncsBase(resolved) + "/" + url.PathEscape(args[0])
+			if err := c.Patch(cmd.Context(), path, map[string]bool{"delete_missing": deleteMissing}, &updated); err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(updated)
+			}
+			out.Success("Updated sync %s (delete_missing=%t).", args[0], deleteMissing)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
+	return cmd
 }

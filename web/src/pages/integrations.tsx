@@ -114,6 +114,21 @@ export function IntegrationsPage() {
     },
   })
 
+  const toggleDelete = useMutation({
+    mutationFn: async (input: { sync: Sync; value: boolean }) => {
+      if (!org) throw new Error('No organization.')
+      const result = await api.PATCH('/api/v1/orgs/{org}/projects/{project}/syncs/{id}', {
+        params: { path: { org: org.slug, project, id: input.sync.id } },
+        body: { delete_missing: input.value },
+      })
+      if (result.error) throw new Error(apiErrorMessage(result.error, 'Could not update the sync.'))
+    },
+    onSuccess: invalidate,
+    onError: (cause: unknown) => {
+      setNotice(cause instanceof Error ? cause.message : 'Could not update the sync.')
+    },
+  })
+
   const remove = useMutation({
     mutationFn: async (sync: Sync) => {
       if (!org) throw new Error('No organization.')
@@ -261,6 +276,17 @@ export function IntegrationsPage() {
                     </Button>
                   </span>
                 </div>
+                <label className="mt-1 flex items-center gap-1.5 text-[10.5px] text-dim">
+                  <input
+                    type="checkbox"
+                    checked={sync.delete_missing}
+                    disabled={toggleDelete.isPending}
+                    onChange={(event) => {
+                      toggleDelete.mutate({ sync, value: event.target.checked })
+                    }}
+                  />
+                  Delete remote keys not in Clavis
+                </label>
                 <p className="mt-1 text-[10.5px] text-dim">
                   Last synced{' '}
                   {sync.last_synced_at ? new Date(sync.last_synced_at).toLocaleString() : 'never'} ·

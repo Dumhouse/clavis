@@ -2348,6 +2348,53 @@ func TestGitHubPreviewEnvironments(t *testing.T) {
 	}
 }
 
+func TestSyncDeleteMissing(t *testing.T) {
+	deleted := make(chan string, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/variables"):
+			_, _ = w.Write([]byte(`[{"key":"EXTRA_KEY","value":"stale"}]`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/variables"):
+			_, _ = w.Write([]byte(`{}`))
+		case r.Method == http.MethodDelete:
+			deleted <- r.URL.Path
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "gitlab", "base_url": srv.URL,
+		"gitlab_project": "group/project", "token": "glpat", "delete_missing": true,
+	})
+	if sync.Code != http.StatusCreated || !strings.Contains(sync.Body.String(), `"delete_missing":true`) {
+		t.Fatalf("create = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	owner.request(http.MethodPost, dev, map[string]any{"key": "KEEP_KEY", "value": "keep"})
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	select {
+	case path := <-deleted:
+		if !strings.HasSuffix(path, "/variables/EXTRA_KEY") {
+			t.Fatalf("deleted path = %s", path)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("extra key was not deleted")
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

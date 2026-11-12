@@ -1279,7 +1279,8 @@ export interface paths {
         delete: operations["delete-sync"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update sync behavior */
+        patch: operations["update-sync"];
         trace?: never;
     };
     "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/drift": {
@@ -1867,6 +1868,7 @@ export interface components {
             cloudflare_mode?: "workers" | "pages";
             cloudflare_project?: string;
             cloudflare_script?: string;
+            delete_missing?: boolean;
             endpoint?: string;
             environment: string;
             gcp_prefix?: string;
@@ -2547,6 +2549,7 @@ export interface components {
             confirmed: boolean;
             /** Format: date-time */
             created_at: string;
+            delete_missing: boolean;
             /** Format: date-time */
             drift_checked_at?: string;
             drift_keys: string[] | null;
@@ -2622,6 +2625,9 @@ export interface components {
             provider_url?: string;
             tags?: string[] | null;
             value: string;
+        };
+        UpdateSyncInputBody: {
+            delete_missing: boolean;
         };
         UpdateWebhookInputBody: {
             description?: string;
@@ -5832,6 +5838,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSyncInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncBody"];
+                };
             };
             /** @description Error */
             default: {
