@@ -118,7 +118,7 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 			return
 		}
 		// Origin checking protects login/setup too, before any session exists.
-		if origin := r.Header.Get("Origin"); origin != "" && !originAllowed(origin, r.Host) {
+		if origin := r.Header.Get("Origin"); origin != "" && !originAllowed(origin, r.Host) && !devOriginAllowed(s.cfg.Server.Dev, origin) {
 			p := problem.Forbidden("Cross-origin request rejected.")
 			p.Code = "csrf_origin"
 			p.RequestID = requestID(r.Context())
@@ -164,6 +164,21 @@ func originAllowed(origin, host string) bool {
 		return false
 	}
 	return strings.EqualFold(u.Host, host)
+}
+
+// devOriginAllowed accepts the Vite dev server as a same-site caller. The Vite
+// proxy rewrites Host to the API address, so the browser's Origin no longer
+// matches r.Host even though the request originates from the dev UI. Only
+// applies when the server runs with dev mode enabled.
+func devOriginAllowed(dev bool, origin string) bool {
+	if !dev {
+		return false
+	}
+	switch strings.TrimSuffix(origin, "/") {
+	case "http://localhost:5173", "http://127.0.0.1:5173":
+		return true
+	}
+	return false
 }
 
 func (s *Server) rateLimit(next http.Handler) http.Handler {

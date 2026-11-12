@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/netip"
@@ -412,6 +413,39 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerSecretRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerSchemaRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerPromotionRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerBranchRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerShareRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerOverlayRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerDynamicRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerRotationRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerAccessRequestRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerFreezeRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerHealthRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerOffboardingRoutes(); err != nil {
+		return err
+	}
 	if err := s.registerAuditRoutes(); err != nil {
 		return err
 	}
@@ -669,6 +703,10 @@ func (s *Server) listenEvents(ctx context.Context) {
 
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
+	go s.expiryLoop(ctx)
+	go s.leaseLoop(ctx)
+	go s.rotationLoop(ctx)
+	go s.rotationReminderLoop(ctx)
 	errCh := make(chan error, 1)
 	go func() {
 		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
@@ -692,6 +730,126 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("server: shutdown: %w", err)
 	}
 	return nil
+}
+
+func (s *Server) rotationReminderLoop(ctx context.Context) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		if time.Now().UTC().Weekday() == time.Monday {
+			s.sendRotationReminders(ctx)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) sendRotationReminders(ctx context.Context) {
+	if s.mailer == nil {
+		return
+	}
+	reminders := s.svc.ListManualRotationReminders(ctx, 90)
+	byEmail := map[string][]service.ManualRotationReminder{}
+	for _, reminder := range reminders {
+		for _, address := range reminder.Emails {
+			byEmail[address] = append(byEmail[address], reminder)
+		}
+	}
+	for address, items := range byEmail {
+		var text strings.Builder
+		text.WriteString("These secrets have no rotation policy and have not changed recently:\n\n")
+		for _, item := range items {
+			fmt.Fprintf(&text, "- %s in %s/%s/%s: %d days old\n",
+				item.Key, item.OrgSlug, item.ProjectSlug, item.EnvSlug, item.AgeDays)
+		}
+		text.WriteString("\nAdd a rotation policy or rotate and mark the secret safe.\n")
+		msg := email.Message{To: address, Subject: "Clavis secrets need rotation", Text: text.String()}
+		if err := s.mailer.Send(ctx, msg); err != nil {
+			s.logger.Warn("rotation reminder email failed", "to", address, "error", err)
+		}
+	}
+}
+
+func (s *Server) rotationLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		s.svc.RunDueRotations(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) leaseLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		s.svc.RevokeExpiredLeases(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) expiryLoop(ctx context.Context) {
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	for {
+		s.sendExpiryReminders(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) sendExpiryReminders(ctx context.Context) {
+	if s.mailer == nil {
+		return
+	}
+	now := time.Now().UTC()
+	reminders, err := s.svc.ListExpiringSecrets(ctx, now.Add(31*24*time.Hour))
+	if err != nil {
+		s.logger.Error("expiry reminder scan failed", "error", err)
+		return
+	}
+	byEmail := map[string][]service.ExpiringSecret{}
+	for _, reminder := range reminders {
+		days := int(math.Ceil(reminder.ExpiresAt.Sub(now).Hours() / 24))
+		if days != 30 && days != 7 && days != 1 {
+			continue
+		}
+		for _, address := range reminder.Emails {
+			byEmail[address] = append(byEmail[address], reminder)
+		}
+	}
+	for address, items := range byEmail {
+		var text strings.Builder
+		text.WriteString("These secrets are approaching their expiry date:\n\n")
+		for _, item := range items {
+			days := int(math.Ceil(item.ExpiresAt.Sub(now).Hours() / 24))
+			fmt.Fprintf(&text, "- %s in %s/%s expires in %d day(s) (%s)\n",
+				item.Key, item.ProjectSlug, item.EnvSlug, days, item.ExpiresAt.Format("2006-01-02"))
+		}
+		text.WriteString("\nRotate or extend them, or remove the expiry date if they are permanent.\n")
+		msg := email.Message{
+			To:      address,
+			Subject: "Clavis secrets expiring soon",
+			Text:    text.String(),
+		}
+		if err := s.mailer.Send(ctx, msg); err != nil {
+			s.logger.Warn("expiry reminder email failed", "to", address, "error", err)
+		}
+	}
 }
 
 // Close immediately closes the listener. Prefer Run's graceful shutdown.
