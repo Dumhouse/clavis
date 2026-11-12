@@ -204,6 +204,7 @@ export const commandGroups: CommandGroup[] = [
           '--gh-environment ENV',
           '--k8s-namespace NS',
           '--k8s-service-account NAME',
+          '--gcp-service-account EMAIL',
           '--claim key=value',
         ],
         examples: [
@@ -211,6 +212,7 @@ export const commandGroups: CommandGroup[] = [
           'clavis identities create github-actions --oidc github --repo acme/repo --branch main',
           'clavis identities create gitlab-ci --oidc gitlab --repo group/project --branch main',
           'clavis identities create k8s-deployer --oidc kubernetes --k8s-namespace apps --k8s-service-account deployer',
+          'clavis identities create gcp-deployer --oidc gcp --gcp-service-account deployer@project.iam.gserviceaccount.com',
         ],
       },
       {

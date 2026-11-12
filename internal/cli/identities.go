@@ -86,6 +86,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 		ghEnvironment     string
 		k8sNamespace      string
 		k8sServiceAccount string
+		gcpServiceAccount string
 		claims            []string
 		project           string
 		environment       string
@@ -114,7 +115,8 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 			trust, err := buildOIDCTrust(oidcTrustOptions{
 				Provider: oidc, Issuer: issuer, Audience: audience, Repo: repo,
 				Branch: branch, Environment: ghEnvironment,
-				K8sNamespace: k8sNamespace, K8sServiceAccount: k8sServiceAccount, Claims: claims,
+				K8sNamespace: k8sNamespace, K8sServiceAccount: k8sServiceAccount,
+				GCPServiceAccount: gcpServiceAccount, Claims: claims,
 			})
 			if err != nil {
 				return err
@@ -139,7 +141,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&identityType, "type", "machine", "machine or agent")
 	cmd.Flags().StringVar(&role, "role", "Developer", "role granted to the identity")
-	cmd.Flags().StringVar(&oidc, "oidc", "", "oidc provider preset: github, gitlab, kubernetes, or generic")
+	cmd.Flags().StringVar(&oidc, "oidc", "", "oidc provider preset: github, gitlab, kubernetes, gcp, or generic")
 	cmd.Flags().StringVar(&issuer, "issuer", "", "OIDC issuer URL")
 	cmd.Flags().StringVar(&audience, "audience", "", "OIDC audience (default clavis for GitHub/GitLab)")
 	cmd.Flags().StringVar(&repo, "repo", "", "repository claim (GitHub owner/name or GitLab project path)")
@@ -147,6 +149,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&ghEnvironment, "gh-environment", "", "GitHub environment claim")
 	cmd.Flags().StringVar(&k8sNamespace, "k8s-namespace", "", "Kubernetes namespace for service account auth")
 	cmd.Flags().StringVar(&k8sServiceAccount, "k8s-service-account", "", "Kubernetes service account name")
+	cmd.Flags().StringVar(&gcpServiceAccount, "gcp-service-account", "", "GCP service account email claim")
 	cmd.Flags().StringArrayVar(&claims, "claim", nil, "additional OIDC claim condition key=value")
 	cmd.Flags().StringVar(&project, "project", "", "project slug scope")
 	cmd.Flags().StringVar(&environment, "identity-env", "", "environment glob scope")
@@ -203,6 +206,7 @@ type oidcTrustOptions struct {
 	Environment       string
 	K8sNamespace      string
 	K8sServiceAccount string
+	GCPServiceAccount string
 	Claims            []string
 }
 
@@ -258,9 +262,19 @@ func buildOIDCTrust(in oidcTrustOptions) (map[string]any, error) {
 		if in.K8sNamespace != "" {
 			claimMap["sub"] = "system:serviceaccount:" + in.K8sNamespace + ":" + in.K8sServiceAccount
 		}
+	case "gcp":
+		if in.Issuer == "" {
+			in.Issuer = "https://accounts.google.com"
+		}
+		if in.Audience == "" {
+			in.Audience = "clavis"
+		}
+		if in.GCPServiceAccount != "" {
+			claimMap["email"] = in.GCPServiceAccount
+		}
 	case "generic":
 	default:
-		return nil, fmt.Errorf("--oidc must be github, gitlab, kubernetes, or generic")
+		return nil, fmt.Errorf("--oidc must be github, gitlab, kubernetes, gcp, or generic")
 	}
 	for _, claim := range in.Claims {
 		parts := strings.SplitN(claim, "=", 2)

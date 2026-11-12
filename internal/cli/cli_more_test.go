@@ -439,6 +439,20 @@ func TestBuildOIDCTrustPresets(t *testing.T) {
 		t.Fatalf("k8s claims = %+v", claims)
 	}
 
+	trust, err = buildOIDCTrust(oidcTrustOptions{
+		Provider: "gcp", GCPServiceAccount: "deployer@project.iam.gserviceaccount.com",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trust["issuer"] != "https://accounts.google.com" {
+		t.Fatalf("gcp trust = %+v", trust)
+	}
+	claims, _ = trust["claims"].(map[string]string)
+	if claims["email"] != "deployer@project.iam.gserviceaccount.com" {
+		t.Fatalf("gcp claims = %+v", claims)
+	}
+
 	if _, err := buildOIDCTrust(oidcTrustOptions{Provider: "unknown"}); err == nil {
 		t.Fatal("unknown provider accepted")
 	}

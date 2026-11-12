@@ -13,7 +13,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [x] **M3-06** 🔒 GitLab CI OIDC (S)
 - [x] **M3-07** 🔒 Kubernetes service account token auth (TokenReview or OIDC) (M)
 - [ ] **M3-08** 🔒 AWS IAM auth (signed `GetCallerIdentity`) (M)
-- [ ] **M3-09** 🔒 GCP workload identity (S)
+- [x] **M3-09** 🔒 GCP workload identity (S)
 
 ## Root key providers 🔒
 - [ ] **M3-10** 🔒 AWS KMS and GCP KMS root key providers (M)
@@ -45,7 +45,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [ ] **M3-25** Helm chart for server (HA, external Postgres, KMS config, ServiceMonitor) (M)
 
 ## Developer integrations
-- [ ] **M3-26** GitHub Action `clavis/action` (OIDC login, export to env / step outputs, masking) (M)
+- [x] **M3-26** GitHub Action `clavis/action` (OIDC login, export to env / step outputs, masking) (M)
 - [x] **M3-27** Docker/Compose helper: docs + `--format docker` env-file (S)
 
 ## Notifications

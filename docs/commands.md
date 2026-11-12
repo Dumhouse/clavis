@@ -248,7 +248,7 @@ clavis identities create ci \
 Flags: `--type machine|agent`, `--role`, `--project`, `--identity-env`,
 `--oidc github|gitlab|generic`, `--issuer`, `--audience`, `--repo`, `--branch`,
 `--gh-environment`, `--k8s-namespace`, `--k8s-service-account`,
-`--claim key=value` (repeatable).
+`--gcp-service-account`, `--claim key=value` (repeatable).
 
 For Kubernetes service account tokens, pass the cluster issuer, audience, and
 namespace/service account:
@@ -257,6 +257,13 @@ namespace/service account:
 clavis identities create k8s-deployer \
   --oidc kubernetes --issuer https://kubernetes.default.svc.cluster.local \
   --audience clavis --k8s-namespace apps --k8s-service-account deployer
+```
+
+For GCP service account ID tokens:
+
+```sh
+clavis identities create gcp-deployer \
+  --oidc gcp --gcp-service-account deployer@project.iam.gserviceaccount.com
 ```
 
 For GitLab, `--repo` sets the `project_path` claim:
