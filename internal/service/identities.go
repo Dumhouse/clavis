@@ -49,6 +49,7 @@ type IdentityResult struct {
 	Identity *store.Identity
 	Token    string
 	Record   *store.AccessToken
+	Scope    TokenScope
 }
 
 // TokenScope is the decoded scope of an identity token.
@@ -68,9 +69,10 @@ type IdentityView struct {
 }
 
 type tokenScopes struct {
-	Role        string `json:"role"`
-	ProjectID   string `json:"project_id,omitempty"`
-	Environment string `json:"environment,omitempty"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions,omitempty"`
+	ProjectID   string   `json:"project_id,omitempty"`
+	Environment string   `json:"environment,omitempty"`
 }
 
 // CreateIdentity creates an identity and one scoped token.
@@ -96,14 +98,28 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 	if in.Type != "machine" && in.Type != "agent" {
 		return nil, fmt.Errorf("%w: identity type must be machine or agent", ErrValidation)
 	}
-	if in.Role == "" {
-		in.Role = authz.RoleDeveloper
-	}
-	if !s.CanGrantRole(ctx, actor, org.ID, in.Role, scope) {
-		return nil, fmt.Errorf("%w: you cannot grant a role with more permissions than you hold", ErrForbidden)
-	}
-	if _, ok := s.RolePermissions(ctx, org.ID, in.Role); !ok {
-		return nil, fmt.Errorf("%w: unknown role", ErrValidation)
+	var agentPermissions []authz.Permission
+	if in.Type == "agent" {
+		// Agents are intentionally limited to discovering keys and using them.
+		// They cannot read values, write, delete, manage, or change their own
+		// allowlist.
+		in.Role = "Agent"
+		agentPermissions = []authz.Permission{authz.SecretsReadNames, authz.SecretsUse}
+		for _, perm := range agentPermissions {
+			if !s.Engine.Authorize(actor, perm, scope, s.Now()).Allowed {
+				return nil, fmt.Errorf("%w: you cannot grant an agent permissions you do not hold", ErrForbidden)
+			}
+		}
+	} else {
+		if in.Role == "" {
+			in.Role = authz.RoleDeveloper
+		}
+		if !s.CanGrantRole(ctx, actor, org.ID, in.Role, scope) {
+			return nil, fmt.Errorf("%w: you cannot grant a role with more permissions than you hold", ErrForbidden)
+		}
+		if _, ok := s.RolePermissions(ctx, org.ID, in.Role); !ok {
+			return nil, fmt.Errorf("%w: unknown role", ErrValidation)
+		}
 	}
 
 	projectID := ""
@@ -122,11 +138,20 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		environment = "*"
 	}
 	ttlDays := in.ExpiresInDays
-	if ttlDays <= 0 {
-		ttlDays = 90
-	}
-	if ttlDays > 365 {
-		ttlDays = 365
+	if in.Type == "agent" {
+		if ttlDays <= 0 {
+			ttlDays = 1
+		}
+		if ttlDays > 7 {
+			ttlDays = 7
+		}
+	} else {
+		if ttlDays <= 0 {
+			ttlDays = 90
+		}
+		if ttlDays > 365 {
+			ttlDays = 365
+		}
 	}
 
 	trustJSON := "{}"
@@ -167,9 +192,13 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		return nil, err
 	}
 
-	token, record, err := s.newToken(ctx, identity, tokenScopes{
+	scopes := tokenScopes{
 		Role: in.Role, ProjectID: projectID, Environment: environment,
-	}, time.Duration(ttlDays)*24*time.Hour)
+	}
+	for _, perm := range agentPermissions {
+		scopes.Permissions = append(scopes.Permissions, string(perm))
+	}
+	token, record, err := s.newToken(ctx, identity, scopes, time.Duration(ttlDays)*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +207,8 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		audit.Details{Environment: environment, Reason: in.Role}, meta); err != nil {
 		s.Logger.Error("audit identity.create failed", "identity_id", identity.ID, "error", err)
 	}
-	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+	return &IdentityResult{Identity: identity, Token: token, Record: record,
+		Scope: TokenScope{Role: in.Role, ProjectID: projectID, Environment: environment}}, nil
 }
 
 func (s *Service) newToken(ctx context.Context, identity *store.Identity, scopes tokenScopes, ttl time.Duration) (string, *store.AccessToken, error) {
@@ -276,15 +306,30 @@ func (s *Service) RotateIdentityToken(ctx context.Context, actor authz.Actor, or
 			return nil, fmt.Errorf("service: decode token scopes: %w", err)
 		}
 	}
+	if identity.Type == "agent" {
+		scopes.Role = "Agent"
+		if len(scopes.Permissions) == 0 {
+			scopes.Permissions = []string{string(authz.SecretsReadNames), string(authz.SecretsUse)}
+		}
+	}
 	if _, err := s.Store.DeleteTokensForIdentity(ctx, identity.ID); err != nil {
 		return nil, err
 	}
 	days := expiresInDays
-	if days <= 0 {
-		days = 90
-	}
-	if days > 365 {
-		days = 365
+	if identity.Type == "agent" {
+		if days <= 0 {
+			days = 1
+		}
+		if days > 7 {
+			days = 7
+		}
+	} else {
+		if days <= 0 {
+			days = 90
+		}
+		if days > 365 {
+			days = 365
+		}
 	}
 	token, record, err := s.newToken(ctx, identity, scopes, time.Duration(days)*24*time.Hour)
 	if err != nil {
@@ -295,7 +340,8 @@ func (s *Service) RotateIdentityToken(ctx context.Context, actor authz.Actor, or
 		audit.Details{Reason: scopes.Role}, meta); err != nil {
 		s.Logger.Error("audit identity.rotate failed", "identity_id", identity.ID, "error", err)
 	}
-	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+	return &IdentityResult{Identity: identity, Token: token, Record: record,
+		Scope: TokenScope{Role: scopes.Role, ProjectID: scopes.ProjectID, Environment: scopes.Environment}}, nil
 }
 
 // RevokeIdentity deletes an identity and all of its tokens.
@@ -304,6 +350,7 @@ func (s *Service) RevokeIdentity(ctx context.Context, actor authz.Actor, orgSlug
 	if err != nil {
 		return err
 	}
+	s.RevokeLeasesForIdentity(ctx, identityID)
 	if err := s.Store.DeleteIdentity(ctx, org.ID, identityID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
@@ -352,6 +399,7 @@ func (s *Service) AuthenticateMachineToken(ctx context.Context, raw, ip string) 
 				ProjectID:   scopes.ProjectID,
 				Environment: scopes.Environment,
 			},
+			Permissions: tokenPermissions(scopes.Permissions),
 		}},
 	}
 	if err := s.Store.TouchAccessToken(ctx, record.ID, ip); err != nil {
@@ -372,6 +420,20 @@ func (s *Service) tokenOrg(ctx context.Context, actor authz.Actor, orgSlug strin
 		return nil, err
 	}
 	return org, nil
+}
+
+func tokenPermissions(raw []string) []authz.Permission {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]authz.Permission, 0, len(raw))
+	for _, value := range raw {
+		perm := authz.Permission(value)
+		if perm.Valid() {
+			out = append(out, perm)
+		}
+	}
+	return out
 }
 
 func validateOIDCTrust(trust *OIDCTrust) error {
