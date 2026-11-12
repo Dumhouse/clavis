@@ -41,7 +41,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 ## Kubernetes
 - [x] **M3-23** Operator: `ClavisSecret` CRD → K8s `Secret`, periodic + event-driven refresh, file secrets as keys for volume mounts (L)
 - [x] **M3-24** Operator: rolling restart of annotated Deployments on change (S)
-- [ ] **M3-34** External Secrets Operator provider (Clavis as an ESO `SecretStore`, auth via K8s service account) (M)
+- [x] **M3-34** External Secrets Operator provider (Clavis as an ESO `SecretStore`, auth via K8s service account) (M)
 - [x] **M3-25** Helm chart for server (HA, external Postgres, KMS config, ServiceMonitor) (M)
 
 ## Developer integrations

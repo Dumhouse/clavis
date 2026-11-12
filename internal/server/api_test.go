@@ -2458,6 +2458,26 @@ func TestGitHubAppSync(t *testing.T) {
 	}
 }
 
+func TestESOWebhookEndpoint(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "ESO_KEY", "value": "eso-value"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d", rec.Code)
+	}
+	eso := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets:eso", nil)
+	if eso.Code != http.StatusOK {
+		t.Fatalf("eso = %d body=%s", eso.Code, eso.Body)
+	}
+	var values map[string]string
+	if err := json.Unmarshal(eso.Body.Bytes(), &values); err != nil {
+		t.Fatalf("decode: %v body=%s", err, eso.Body)
+	}
+	if values["ESO_KEY"] != "eso-value" {
+		t.Fatalf("values = %+v", values)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

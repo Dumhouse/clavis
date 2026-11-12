@@ -473,6 +473,9 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerPreviewRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerESORoutes(); err != nil {
+		return err
+	}
 	s.router.Get("/*", spaHandler(s.cfg, s.webFS).ServeHTTP)
 
 	s.router.NotFound(func(w http.ResponseWriter, r *http.Request) {

@@ -1143,6 +1143,23 @@ export interface paths {
         patch: operations["batch-secrets"];
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:eso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolved secrets for External Secrets Operator */
+        get: operations["eso-secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:resolve": {
         parameters: {
             query?: never;
@@ -1874,7 +1891,10 @@ export interface components {
             gcp_prefix?: string;
             gcp_project?: string;
             gcp_service_account?: string;
+            github_app_id?: string;
             github_environment?: string;
+            github_installation_id?: string;
+            github_private_key?: string;
             github_repo?: string;
             /** @enum {string} */
             github_scope?: "repo" | "environment" | "org";
@@ -5457,6 +5477,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BatchOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "eso-secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+                /** @description Environment slug */
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Error */
