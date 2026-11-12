@@ -126,23 +126,20 @@ export const guides: DocGuide[] = [
       },
       {
         title: 'Point your MCP client at it',
-        body: 'Run clavis mcp over stdio with the agent token and project context. Restart the client after rotating the token.',
+        body: 'Run clavis login once, then start clavis mcp with --agent. It uses your login to start a one-hour agent session, keeps the token in memory and renews it. The MCP config holds no secret, so it is safe to commit, and logging out ends the session. Headless agents can still use a static agent token in CLAVIS_TOKEN.',
         snippets: [
-          {
-            label: 'Claude Code',
-            code: 'claude mcp add clavis --env CLAVIS_TOKEN=clv_at_… --env CLAVIS_ORG=acme \\\n  --env CLAVIS_PROJECT=web-app --env CLAVIS_ENV=dev -- clavis mcp',
-          },
+          { label: 'Claude Code', code: 'claude mcp add clavis -- clavis mcp --agent claude-code' },
           {
             label: 'Cursor',
-            code: '{\n  "mcpServers": {\n    "clavis": {\n      "command": "clavis",\n      "args": ["mcp"],\n      "env": {\n        "CLAVIS_TOKEN": "clv_at_…",\n        "CLAVIS_ORG": "acme",\n        "CLAVIS_PROJECT": "web-app",\n        "CLAVIS_ENV": "dev"\n      }\n    }\n  }\n}',
+            code: '{\n  "mcpServers": {\n    "clavis": {\n      "command": "clavis",\n      "args": ["mcp", "--agent", "cursor"]\n    }\n  }\n}',
           },
           {
             label: 'Codex',
-            code: '[mcp_servers.clavis]\ncommand = "clavis"\nargs = ["mcp"]\nenv = { CLAVIS_TOKEN = "clv_at_…", CLAVIS_ORG = "acme", CLAVIS_PROJECT = "web-app", CLAVIS_ENV = "dev" }',
+            code: '[mcp_servers.clavis]\ncommand = "clavis"\nargs = ["mcp", "--agent", "codex"]',
           },
           {
             label: 'Windsurf',
-            code: '{\n  "mcpServers": {\n    "clavis": {\n      "command": "clavis",\n      "args": ["mcp"],\n      "env": {\n        "CLAVIS_TOKEN": "clv_at_…",\n        "CLAVIS_ORG": "acme",\n        "CLAVIS_PROJECT": "web-app",\n        "CLAVIS_ENV": "dev"\n      }\n    }\n  }\n}',
+            code: '{\n  "mcpServers": {\n    "clavis": {\n      "command": "clavis",\n      "args": ["mcp", "--agent", "windsurf"]\n    }\n  }\n}',
           },
         ],
       },
@@ -153,7 +150,7 @@ export const guides: DocGuide[] = [
     ],
     note: {
       title: 'Agent limitations',
-      body: 'An allowed command receives the secrets: if it runs agent-written code, that code can print or send values. Masking is best-effort and can be evaded by encoding. Allowlist patterns are prefix-style, not argument-level policy. Agents are not sandboxed — Clavis controls Clavis values, not filesystem, network, or process access. Development and preview are still real environments; keep high-value credentials in dynamic, short-lived issuance and out of agent scope.',
+      body: 'An allowed command receives the secrets: if it runs agent-written code, that code can print or send values. Masking is best-effort and can be evaded by encoding. Allowlist patterns are prefix-style, not argument-level policy. Clavis controls what reaches the agent through MCP; an agent with an unrestricted shell running as you can do anything you can, so run agents in their sandbox. Clavis does not restrict filesystem, network, or process access. Development and preview are still real environments; keep high-value credentials in dynamic, short-lived issuance and out of agent scope.',
     },
   },
   {

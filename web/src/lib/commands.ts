@@ -345,12 +345,14 @@ export const commandGroups: CommandGroup[] = [
           '--gcp-project ID',
           '--netlify-account SLUG',
           '--cloudflare-account ID',
+          '--forgejo-repo OWNER/NAME',
           '--delete-missing',
         ],
         examples: [
           'clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis',
           'clavis syncs create dev --provider gitlab --gitlab-project group/project --gitlab-token "$GITLAB_TOKEN"',
           'clavis syncs create dev --provider github --github-repo acme/repo --github-token "$GITHUB_TOKEN"',
+          'clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com --forgejo-repo team/web --forgejo-token "$FORGEJO_TOKEN"',
           'clavis syncs create dev --provider vercel --vercel-project prj_123 --vercel-token "$VERCEL_TOKEN"',
           'clavis syncs create dev --provider aws --aws-region eu-central-1 --aws-service ssm',
           'clavis syncs create dev --provider gcp --gcp-project my-project --gcp-service-account-json @service-account.json',
@@ -588,10 +590,13 @@ export const commandGroups: CommandGroup[] = [
       },
       {
         name: 'mcp',
-        usage: 'clavis mcp',
+        usage: 'clavis mcp [--agent NAME]',
         description:
-          'Run a stdio MCP server with list_secrets, check_env, run_with_secrets, and request_secret.',
-        examples: ['CLAVIS_TOKEN=clv_at_… clavis mcp'],
+          'Run a stdio MCP server with list_secrets, check_env, run_with_secrets, and request_secret. --agent starts an in-memory one-hour session with your login, so the MCP config holds no token.',
+        examples: [
+          'clavis mcp --agent claude-code',
+          'CLAVIS_TOKEN=clv_at_… clavis mcp  # headless only',
+        ],
       },
     ],
   },
