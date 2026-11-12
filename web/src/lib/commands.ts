@@ -158,6 +158,35 @@ export const commandGroups: CommandGroup[] = [
     ],
   },
   {
+    title: 'Syncs',
+    description: 'Push resolved secrets to external systems.',
+    commands: [
+      {
+        name: 'syncs ls',
+        usage: 'clavis syncs ls',
+        description: 'List syncs for the linked project.',
+      },
+      {
+        name: 'syncs create',
+        usage: 'clavis syncs create ENVIRONMENT --endpoint URL',
+        description: 'Create a signed generic HTTP sync.',
+        flags: ['--endpoint URL', '--secret VALUE', '--provider http'],
+        examples: ['clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis'],
+      },
+      {
+        name: 'syncs run',
+        usage: 'clavis syncs run ID [--dry-run] [--yes]',
+        description: 'Preview or execute a sync. The first push requires confirmation.',
+        flags: ['--dry-run', '--yes'],
+      },
+      {
+        name: 'syncs logs',
+        usage: 'clavis syncs logs ID',
+        description: 'Show recent run status, key counts, and errors.',
+      },
+    ],
+  },
+  {
     title: 'Organization and access',
     description: 'Inspect people, groups, and effective permissions.',
     commands: [

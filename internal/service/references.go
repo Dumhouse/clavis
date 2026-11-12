@@ -18,6 +18,14 @@ func (s *Service) ResolveSecrets(ctx context.Context, actor authz.Actor, orgSlug
 	if err != nil {
 		return nil, "", err
 	}
+	if err := resolveSecretReferences(secrets); err != nil {
+		return nil, "", err
+	}
+	return secrets, etag, nil
+}
+
+// resolveSecretReferences expands `${KEY}` references in place.
+func resolveSecretReferences(secrets []Secret) error {
 	byKey := make(map[string]*Secret, len(secrets))
 	for i := range secrets {
 		byKey[secrets[i].Key] = &secrets[i]
@@ -41,16 +49,14 @@ func (s *Service) ResolveSecrets(ctx context.Context, actor authz.Actor, orgSlug
 		}
 		trail[key] = true
 		value := secret.Value
-		missing := false
 		var firstErr error
 		value = referencePattern.ReplaceAllStringFunc(value, func(match string) string {
-			if missing {
+			if firstErr != nil {
 				return match
 			}
 			sub := referencePattern.FindStringSubmatch(match)
 			replacement, err := resolve(sub[1], trail)
 			if err != nil {
-				missing = true
 				firstErr = err
 				return match
 			}
@@ -69,9 +75,9 @@ func (s *Service) ResolveSecrets(ctx context.Context, actor authz.Actor, orgSlug
 		}
 		value, err := resolve(secrets[i].Key, map[string]bool{})
 		if err != nil {
-			return nil, "", err
+			return err
 		}
 		secrets[i].Value = value
 	}
-	return secrets, etag, nil
+	return nil
 }

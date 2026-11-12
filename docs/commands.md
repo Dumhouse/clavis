@@ -279,6 +279,38 @@ Delete an identity and its tokens.
 
 ---
 
+## Syncs
+
+### `clavis syncs ls`
+
+List syncs for the linked project.
+
+### `clavis syncs create ENVIRONMENT`
+
+Create a generic HTTP sync. The receiver gets a signed JSON POST.
+
+```sh
+clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --secret "$SYNC_SECRET"
+```
+
+Flags: `--endpoint`, `--secret`, `--provider http`.
+
+### `clavis syncs run ID`
+
+Preview or execute a sync. Use `--dry-run` to preview; `--yes` confirms and
+sends values.
+
+```sh
+clavis syncs run 123e4567 --dry-run
+clavis syncs run 123e4567 --yes
+```
+
+### `clavis syncs logs ID`
+
+Show recent run history, status, key count, and errors.
+
+---
+
 ## Audit
 
 ### `clavis admin audit verify`

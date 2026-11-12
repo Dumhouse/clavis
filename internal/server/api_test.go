@@ -1573,6 +1573,75 @@ func TestOIDCWorkloadIdentity(t *testing.T) {
 	}
 }
 
+func TestGenericHTTPSync(t *testing.T) {
+	type delivery struct {
+		body      []byte
+		signature string
+	}
+	deliveries := make(chan delivery, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		deliveries <- delivery{body: body, signature: r.Header.Get("X-Clavis-Signature")}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	created := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "http", "endpoint": srv.URL, "secret": "sync-secret",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create sync = %d body=%s", created.Code, created.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, created)
+
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "SYNCED", "value": "sync-value"}); rec.Code != http.StatusCreated {
+		t.Fatalf("secret = %d", rec.Code)
+	}
+	runURL := "/api/v1/orgs/acme/projects/web-app/syncs/" + syncBody.ID + "/run"
+	preview := owner.request(http.MethodPost, runURL, map[string]any{"dry_run": true})
+	if preview.Code != http.StatusCreated || !strings.Contains(preview.Body.String(), `"count":1`) {
+		t.Fatalf("preview = %d body=%s", preview.Code, preview.Body)
+	}
+	select {
+	case <-deliveries:
+		t.Fatal("dry run sent values")
+	case <-time.After(150 * time.Millisecond):
+	}
+	if rec := owner.request(http.MethodPost, runURL, map[string]any{}); rec.Code != http.StatusConflict {
+		t.Fatalf("unconfirmed run = %d body=%s", rec.Code, rec.Body)
+	}
+	run := owner.request(http.MethodPost, runURL, map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	select {
+	case body := <-deliveries:
+		mac := hmac.New(sha256.New, []byte("sync-secret"))
+		mac.Write(body.body)
+		want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+		if body.signature != want {
+			t.Fatalf("signature = %q want %q", body.signature, want)
+		}
+		if !strings.Contains(string(body.body), `"SYNCED":"sync-value"`) {
+			t.Fatalf("payload = %s", body.body)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("sync did not deliver")
+	}
+	runs := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/runs", nil)
+	if runs.Code != http.StatusOK || !strings.Contains(runs.Body.String(), `"status":"success"`) {
+		t.Fatalf("runs = %d body=%s", runs.Code, runs.Body)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

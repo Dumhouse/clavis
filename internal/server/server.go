@@ -417,6 +417,9 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerWebhookRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerSyncRoutes(); err != nil {
+		return err
+	}
 	if err := s.registerAccessRoutes(); err != nil {
 		return err
 	}
