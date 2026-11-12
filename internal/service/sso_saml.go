@@ -246,7 +246,7 @@ func (s *Service) FinishSAML(ctx context.Context, orgSlug, baseURL string, r *ht
 	if err := r.ParseForm(); err != nil {
 		return nil, nil, "", fmt.Errorf("%w: invalid SAML response", ErrSSOUnavailable)
 	}
-	assertion, err := sp.ParseResponse(r, []string{ticket.RequestID})
+	assertion, err := parseSAMLResponse(sp, r, ticket.RequestID)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("%w: %w", ErrSSOUnavailable, err)
 	}
@@ -266,6 +266,18 @@ func (s *Service) FinishSAML(ctx context.Context, orgSlug, baseURL string, r *ht
 		return nil, nil, "", err
 	}
 	return user, org, ticket.ReturnPath, nil
+}
+
+// parseSAMLResponse wraps crewjam/saml's ParseResponse. The library has an
+// unfixed advisory (GO-2026-6909), so a malformed assertion must fail the
+// login instead of taking down the request goroutine.
+func parseSAMLResponse(sp *saml.ServiceProvider, r *http.Request, requestID string) (assertion *saml.Assertion, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			assertion, err = nil, errors.New("malformed SAML response")
+		}
+	}()
+	return sp.ParseResponse(r, []string{requestID})
 }
 
 func normalizeEmail(email string) (string, error) {

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { defineConfig } from 'vitepress'
 
 import { faq } from './faq'
@@ -14,6 +17,23 @@ export default defineConfig({
   ignoreDeadLinks: true,
   appearance: true,
   lastUpdated: true,
+  // Pages without a description get one from their first paragraph.
+  transformPageData(pageData, { siteConfig }) {
+    if (pageData.frontmatter.description || pageData.relativePath === 'index.md') return
+    const body = readFileSync(join(siteConfig.srcDir, pageData.relativePath), 'utf8').replace(/^---[\s\S]*?\n---\n/, '')
+    const first = body
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .find((block) => block && !/^(#|---|<|```|\||[-*]\s|\d+\.\s|:::)/.test(block))
+    if (!first) return
+    const text = first
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/[`*_]/g, '')
+      .replace(/\s+/g, ' ')
+    const description = text.length > 155 ? `${text.slice(0, 152).trimEnd()}...` : text
+    pageData.frontmatter.description = description
+    pageData.description = description
+  },
   transformHead({ pageData }) {
     if (pageData.relativePath !== 'index.md') return
     const data = {
@@ -104,6 +124,7 @@ export default defineConfig({
         text: 'Project',
         items: [
           { text: 'API stability', link: '/api-stability' },
+          { text: 'Changelog', link: '/changelog' },
           { text: 'Community', link: '/community' },
           { text: 'Security policy', link: '/vulnerability-disclosure' },
           { text: 'Sustainability', link: '/sustainability' },

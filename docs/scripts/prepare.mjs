@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 /*
@@ -15,3 +15,18 @@ await cp(brandDir, target, { recursive: true })
 
 // Keep GitHub Pages from running Jekyll over the built assets.
 await writeFile(`${publicDir}/.nojekyll`, '')
+
+// The changelog lives at the repo root; publish it as a docs page.
+const changelog = await readFile(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
+await writeFile(
+  new URL('../changelog.md', import.meta.url),
+  `---\ndescription: Release notes for Clavis.\n---\n\n<!-- Generated from CHANGELOG.md by scripts/prepare.mjs. Do not edit. -->\n\n${changelog}`,
+)
+
+// Let crawlers in and point them at the sitemap.
+const origin = (process.env.DOCS_HOSTNAME || '').replace(/\/$/, '')
+const base = process.env.DOCS_BASE || '/'
+await writeFile(
+  `${publicDir}/robots.txt`,
+  `User-agent: *\nAllow: /\n${origin ? `\nSitemap: ${origin}${base}sitemap.xml\n` : ''}`,
+)
