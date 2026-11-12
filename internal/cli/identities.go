@@ -9,14 +9,15 @@ import (
 )
 
 type identityJSON struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Type         string `json:"type"`
-	Role         string `json:"role"`
-	ProjectID    string `json:"project_id,omitempty"`
-	Environment  string `json:"environment,omitempty"`
-	OIDCIssuer   string `json:"oidc_issuer,omitempty"`
-	OIDCAudience string `json:"oidc_audience,omitempty"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Role            string   `json:"role"`
+	ProjectID       string   `json:"project_id,omitempty"`
+	Environment     string   `json:"environment,omitempty"`
+	OIDCIssuer      string   `json:"oidc_issuer,omitempty"`
+	OIDCAudience    string   `json:"oidc_audience,omitempty"`
+	AllowedCommands []string `json:"allowed_commands,omitempty"`
 }
 
 type identitiesResponse struct {
@@ -93,6 +94,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 		claims            []string
 		project           string
 		environment       string
+		expiresInDays     int
 	)
 	cmd := &cobra.Command{
 		Use:   "create NAME",
@@ -114,6 +116,9 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 			body := map[string]any{
 				"name": args[0], "type": identityType, "role": role,
 				"project": project, "environment": environment,
+			}
+			if expiresInDays > 0 {
+				body["expires_in_days"] = expiresInDays
 			}
 			trust, err := buildOIDCTrust(oidcTrustOptions{
 				Provider: oidc, Issuer: issuer, Audience: audience, Repo: repo,
@@ -148,7 +153,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&identityType, "type", "machine", "machine or agent")
-	cmd.Flags().StringVar(&role, "role", "Developer", "role granted to the identity")
+	cmd.Flags().StringVar(&role, "role", "", "role granted to a machine identity (agents always get read-names + use)")
 	cmd.Flags().StringVar(&oidc, "oidc", "", "oidc provider preset: github, gitlab, kubernetes, gcp, or generic")
 	cmd.Flags().StringVar(&issuer, "issuer", "", "OIDC issuer URL")
 	cmd.Flags().StringVar(&audience, "audience", "", "OIDC audience (default clavis for GitHub/GitLab)")
@@ -164,6 +169,7 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringArrayVar(&claims, "claim", nil, "additional OIDC claim condition key=value")
 	cmd.Flags().StringVar(&project, "project", "", "project slug scope")
 	cmd.Flags().StringVar(&environment, "identity-env", "", "environment glob scope")
+	cmd.Flags().IntVar(&expiresInDays, "expires-in-days", 0, "token lifetime (agents default to 1 day, max 7)")
 	return cmd
 }
 

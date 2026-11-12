@@ -76,22 +76,23 @@ func projectFromStore(p *store.Project, envs []store.Environment) projectBody {
 }
 
 type secretBody struct {
-	Key               string    `json:"key"`
-	Kind              string    `json:"kind"`
-	Comment           string    `json:"comment,omitempty"`
-	Folder            string    `json:"folder,omitempty"`
-	Notes             string    `json:"notes,omitempty"`
-	ProviderURL       string    `json:"provider_url,omitempty"`
-	OwnerGroupID      string    `json:"owner_group_id,omitempty"`
-	OwnerGroupName    string    `json:"owner_group_name,omitempty"`
-	SourceEnvironment string    `json:"source_environment,omitempty"`
-	Inherited         bool      `json:"inherited,omitempty"`
-	Overridden        bool      `json:"overridden,omitempty"`
-	Tags              []string  `json:"tags,omitempty"`
-	Value             string    `json:"value,omitempty"`
-	Version           int       `json:"version"`
-	Revealed          bool      `json:"revealed"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	Key               string     `json:"key"`
+	Kind              string     `json:"kind"`
+	Comment           string     `json:"comment,omitempty"`
+	Folder            string     `json:"folder,omitempty"`
+	Notes             string     `json:"notes,omitempty"`
+	ProviderURL       string     `json:"provider_url,omitempty"`
+	OwnerGroupID      string     `json:"owner_group_id,omitempty"`
+	OwnerGroupName    string     `json:"owner_group_name,omitempty"`
+	SourceEnvironment string     `json:"source_environment,omitempty"`
+	Inherited         bool       `json:"inherited,omitempty"`
+	Overridden        bool       `json:"overridden,omitempty"`
+	Tags              []string   `json:"tags,omitempty"`
+	Value             string     `json:"value,omitempty"`
+	Version           int        `json:"version"`
+	Revealed          bool       `json:"revealed"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
 }
 
 func secretFromService(s *service.Secret) secretBody {
@@ -99,7 +100,7 @@ func secretFromService(s *service.Secret) secretBody {
 		Notes: s.Notes, ProviderURL: s.ProviderURL, OwnerGroupID: s.OwnerGroupID,
 		OwnerGroupName: s.OwnerGroupName, SourceEnvironment: s.SourceEnvironment,
 		Inherited: s.Inherited, Overridden: s.Overridden, Tags: s.Tags, Value: s.Value,
-		Version: s.Version, Revealed: s.Revealed, UpdatedAt: s.UpdatedAt}
+		Version: s.Version, Revealed: s.Revealed, UpdatedAt: s.UpdatedAt, ExpiresAt: s.ExpiresAt}
 }
 
 // apiError maps domain errors to RFC 9457 problems without leaking internals.
@@ -126,6 +127,13 @@ func (s *Server) apiError(ctx context.Context, err error) error {
 	case errors.Is(err, service.ErrProtected):
 		p := problem.Forbidden("This environment is protected. Ask an Admin or Owner to make the change.")
 		p.Code = "protected_environment"
+		return withRequestID(p, ctx)
+	case errors.Is(err, service.ErrAgentCommandDenied):
+		p := problem.Forbidden("That command is not on this agent's allowlist. Ask an Admin to approve it.")
+		p.Code = "agent_command_denied"
+		return withRequestID(p, ctx)
+	case errors.Is(err, service.ErrPromotionApprovalRequired):
+		p := problem.New(http.StatusConflict, "promotion_approval_required", "Promotion needs approval", "This target is protected. Create a promotion request and ask an Admin or Owner to approve it.")
 		return withRequestID(p, ctx)
 	case errors.Is(err, service.ErrForbidden):
 		return withRequestID(problem.Forbidden("You do not have permission to perform this action."), ctx)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -21,19 +22,20 @@ type identityTokenBody struct {
 }
 
 type identityBody struct {
-	ID           string              `json:"id"`
-	Name         string              `json:"name"`
-	Type         string              `json:"type"`
-	Role         string              `json:"role"`
-	ProjectID    string              `json:"project_id,omitempty"`
-	Environment  string              `json:"environment,omitempty"`
-	OIDCIssuer   string              `json:"oidc_issuer,omitempty"`
-	OIDCAudience string              `json:"oidc_audience,omitempty"`
-	OIDCClaims   map[string]string   `json:"oidc_claims,omitempty"`
-	AWSAccount   string              `json:"aws_account,omitempty"`
-	AWSARN       string              `json:"aws_arn,omitempty"`
-	CreatedAt    time.Time           `json:"created_at"`
-	Tokens       []identityTokenBody `json:"tokens"`
+	ID              string              `json:"id"`
+	Name            string              `json:"name"`
+	Type            string              `json:"type"`
+	Role            string              `json:"role"`
+	ProjectID       string              `json:"project_id,omitempty"`
+	Environment     string              `json:"environment,omitempty"`
+	OIDCIssuer      string              `json:"oidc_issuer,omitempty"`
+	OIDCAudience    string              `json:"oidc_audience,omitempty"`
+	OIDCClaims      map[string]string   `json:"oidc_claims,omitempty"`
+	AWSAccount      string              `json:"aws_account,omitempty"`
+	AWSARN          string              `json:"aws_arn,omitempty"`
+	AllowedCommands []string            `json:"allowed_commands,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	Tokens          []identityTokenBody `json:"tokens"`
 }
 
 type identitiesOutput struct {
@@ -47,10 +49,10 @@ type createIdentityInput struct {
 	Body struct {
 		Name          string `json:"name" minLength:"1" maxLength:"100"`
 		Type          string `json:"type,omitempty" enum:"machine,agent" default:"machine"`
-		Role          string `json:"role,omitempty" default:"Developer"`
+		Role          string `json:"role,omitempty"`
 		ProjectSlug   string `json:"project,omitempty" maxLength:"60"`
 		Environment   string `json:"environment,omitempty" maxLength:"60" doc:"Environment glob, e.g. dev or *"`
-		ExpiresInDays int    `json:"expires_in_days,omitempty" minimum:"1" maximum:"365" default:"90"`
+		ExpiresInDays int    `json:"expires_in_days,omitempty" minimum:"1" maximum:"365"`
 		OIDC          *struct {
 			Issuer   string            `json:"issuer" minLength:"1" maxLength:"500"`
 			Audience string            `json:"audience" minLength:"1" maxLength:"200"`
@@ -75,6 +77,56 @@ type identityPath struct {
 	Org    string `path:"org"`
 	ID     string `path:"id"`
 	Reauth string `header:"X-Clavis-Reauth"`
+}
+
+type agentCommandsInput struct {
+	Org  string `path:"org"`
+	ID   string `path:"id"`
+	Body struct {
+		Commands []string `json:"commands" maxItems:"100"`
+	}
+}
+
+type agentCommandCheckInput struct {
+	Org  string `path:"org"`
+	ID   string `path:"id"`
+	Body struct {
+		Command string `json:"command" minLength:"1" maxLength:"2048"`
+	}
+}
+
+type agentAllowlistBody struct {
+	IdentityID string   `json:"identity_id"`
+	Name       string   `json:"name"`
+	Commands   []string `json:"commands"`
+}
+
+type agentAllowlistOutput struct {
+	Body agentAllowlistBody
+}
+
+type agentCommandCheckOutput struct {
+	Body struct {
+		Allowed bool   `json:"allowed"`
+		Command string `json:"command"`
+	}
+}
+
+type agentSecretsInput struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	Env     string `path:"env"`
+	Command string `query:"command" minLength:"1" maxLength:"2048"`
+}
+
+type secretRequestBody struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	Env     string `path:"env"`
+	Body    struct {
+		Key    string `json:"key" minLength:"1" maxLength:"256"`
+		Reason string `json:"reason,omitempty" maxLength:"1024"`
+	}
 }
 
 func (s *Server) registerIdentityRoutes() error {
@@ -199,6 +251,93 @@ func (s *Server) registerIdentityRoutes() error {
 		out.Body.ExpiresAt = result.Record.ExpiresAt
 		return out, nil
 	})
+
+	commandsPath := "/api/v1/orgs/{org}/identities/{id}/commands"
+	if err := s.registry.Declare(http.MethodGet, commandsPath, authz.TokensManage, "read an agent command allowlist"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "get-agent-commands", Method: http.MethodGet, Path: commandsPath,
+		Summary: "Read an agent command allowlist", Tags: []string{"identities"},
+	}, func(ctx context.Context, in *identityPath) (*agentAllowlistOutput, error) {
+		actor, _ := actorFrom(ctx)
+		allowlist, err := s.svc.GetAgentAllowlist(ctx, actor, in.Org, in.ID)
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &agentAllowlistOutput{Body: agentAllowlistBody{
+			IdentityID: allowlist.IdentityID, Name: allowlist.Name, Commands: allowlist.Commands,
+		}}, nil
+	})
+	if err := s.registry.Declare(http.MethodPut, commandsPath, authz.TokensManage, "replace an agent command allowlist"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "set-agent-commands", Method: http.MethodPut, Path: commandsPath,
+		Summary: "Replace an agent command allowlist", Tags: []string{"identities"},
+	}, func(ctx context.Context, in *agentCommandsInput) (*agentAllowlistOutput, error) {
+		actor, _ := actorFrom(ctx)
+		allowlist, err := s.svc.SetAgentAllowlist(ctx, actor, in.Org, in.ID, in.Body.Commands, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &agentAllowlistOutput{Body: agentAllowlistBody{
+			IdentityID: allowlist.IdentityID, Name: allowlist.Name, Commands: allowlist.Commands,
+		}}, nil
+	})
+
+	checkPath := commandsPath + ":check"
+	if err := s.registry.Declare(http.MethodPost, checkPath, authz.SecretsUse, "check whether an agent command is allowed"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "check-agent-command", Method: http.MethodPost, Path: checkPath,
+		Summary: "Check an agent command against its allowlist", Tags: []string{"identities"},
+	}, func(ctx context.Context, in *agentCommandCheckInput) (*agentCommandCheckOutput, error) {
+		actor, _ := actorFrom(ctx)
+		if err := s.svc.CheckAgentCommand(ctx, actor, in.Org, in.ID, in.Body.Command, metaFrom(ctx)); err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &agentCommandCheckOutput{}
+		out.Body.Allowed = true
+		out.Body.Command = in.Body.Command
+		return out, nil
+	})
+
+	agentSecretsPath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:agent"
+	if err := s.registry.Declare(http.MethodGet, agentSecretsPath, authz.SecretsUse, "resolve secrets for an allowed agent command"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "agent-secrets", Method: http.MethodGet, Path: agentSecretsPath,
+		Summary: "Resolve secrets for an allowed agent command", Tags: []string{"secrets", "identities"},
+	}, func(ctx context.Context, in *agentSecretsInput) (*secretsOutput, error) {
+		actor, _ := actorFrom(ctx)
+		secrets, etag, err := s.svc.ResolveAgentSecrets(ctx, actor, in.Org, in.Project, in.Env, in.Command, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &secretsOutput{ETag: etag}
+		for i := range secrets {
+			out.Body.Secrets = append(out.Body.Secrets, secretFromService(&secrets[i]))
+		}
+		return out, nil
+	})
+
+	requestPath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secret-requests"
+	if err := s.registry.Declare(http.MethodPost, requestPath, authz.SecretsUse, "ask a human to add a missing secret"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "request-secret", Method: http.MethodPost, Path: requestPath,
+		Summary: "Ask a human to add a missing secret", Tags: []string{"secrets", "identities"}, DefaultStatus: http.StatusAccepted,
+	}, func(ctx context.Context, in *secretRequestBody) (*emptyOutput, error) {
+		actor, _ := actorFrom(ctx)
+		if err := s.svc.RequestSecret(ctx, actor, in.Org, in.Project, in.Env, in.Body.Key, in.Body.Reason, metaFrom(ctx)); err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &emptyOutput{}, nil
+	})
 	return nil
 }
 
@@ -207,6 +346,9 @@ func identityFromView(view service.IdentityView) identityBody {
 		ID: view.Identity.ID, Name: view.Identity.Name, Type: view.Identity.Type,
 		Role: view.Scope.Role, ProjectID: view.Scope.ProjectID, Environment: view.Scope.Environment,
 		CreatedAt: view.Identity.CreatedAt,
+	}
+	if view.Identity.AllowedCommands != "" {
+		_ = json.Unmarshal([]byte(view.Identity.AllowedCommands), &body.AllowedCommands)
 	}
 	if view.OIDC != nil {
 		body.OIDCIssuer = view.OIDC.Issuer
@@ -229,7 +371,8 @@ func identityFromView(view service.IdentityView) identityBody {
 func identityFromResult(result *service.IdentityResult) identityBody {
 	return identityBody{
 		ID: result.Identity.ID, Name: result.Identity.Name, Type: result.Identity.Type,
-		CreatedAt: result.Identity.CreatedAt,
+		Role: result.Scope.Role, ProjectID: result.Scope.ProjectID,
+		Environment: result.Scope.Environment, CreatedAt: result.Identity.CreatedAt,
 		Tokens: []identityTokenBody{{
 			ID: result.Record.ID, Prefix: result.Record.Prefix, CreatedAt: result.Record.CreatedAt,
 			ExpiresAt: result.Record.ExpiresAt,
