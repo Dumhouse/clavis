@@ -50,6 +50,12 @@ type createSyncInput struct {
 		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
 		VercelProject     string `json:"vercel_project,omitempty" maxLength:"500"`
 		VercelTeamID      string `json:"vercel_team_id,omitempty" maxLength:"200"`
+		AWSRegion         string `json:"aws_region,omitempty" maxLength:"60"`
+		AWSAccessKey      string `json:"aws_access_key,omitempty" maxLength:"200"`
+		AWSSecretKey      string `json:"aws_secret_key,omitempty" maxLength:"500"`
+		AWSSessionToken   string `json:"aws_session_token,omitempty" maxLength:"2000"`
+		AWSService        string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
+		AWSPrefix         string `json:"aws_prefix,omitempty" maxLength:"500"`
 	}
 }
 
@@ -139,6 +145,9 @@ func (s *Server) registerSyncRoutes() error {
 			GitHubRepo: in.Body.GitHubRepo, GitHubEnvironment: in.Body.GitHubEnvironment,
 			GitHubScope:   in.Body.GitHubScope,
 			VercelProject: in.Body.VercelProject, VercelTeamID: in.Body.VercelTeamID,
+			AWSRegion: in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
+			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
+			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

@@ -296,7 +296,9 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
 `--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`,
 `--github-repo`, `--github-scope`, `--github-environment`, `--github-token`,
-`--vercel-project`, `--vercel-team`, `--vercel-token`.
+`--vercel-project`, `--vercel-team`, `--vercel-token`, `--aws-region`,
+`--aws-access-key`, `--aws-secret-key`, `--aws-session-token`, `--aws-service`,
+`--aws-prefix`.
 
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
@@ -308,6 +310,14 @@ clavis syncs create dev --provider github --github-repo acme/repo \
 clavis syncs create prod --provider github --github-scope environment \
   --github-repo acme/repo --github-environment production \
   --github-token "$GITHUB_TOKEN"
+```
+
+AWS syncs write SSM parameters or Secrets Manager secrets with SigV4:
+
+```sh
+clavis syncs create dev --provider aws --aws-region eu-central-1 \
+  --aws-access-key "$AWS_ACCESS_KEY_ID" --aws-secret-key "$AWS_SECRET_ACCESS_KEY" \
+  --aws-service ssm
 ```
 
 Vercel syncs create or update project environment variables:

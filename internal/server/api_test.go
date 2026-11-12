@@ -1863,6 +1863,74 @@ func TestVercelSync(t *testing.T) {
 	}
 }
 
+func TestAWSSync(t *testing.T) {
+	type putParameter struct {
+		target string
+		auth   string
+		name   string
+		value  string
+		kind   string
+	}
+	calls := make(chan putParameter, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var payload struct {
+			Name  string `json:"Name"`
+			Value string `json:"Value"`
+			Type  string `json:"Type"`
+		}
+		_ = json.Unmarshal(body, &payload)
+		calls <- putParameter{
+			target: r.Header.Get("X-Amz-Target"), auth: r.Header.Get("Authorization"),
+			name: payload.Name, value: payload.Value, kind: payload.Type,
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "aws", "base_url": srv.URL,
+		"aws_region": "eu-central-1", "aws_access_key": "AKID", "aws_secret_key": "SECRET",
+		"aws_service": "ssm",
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create aws sync = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	owner.request(http.MethodPost, dev, map[string]any{"key": "AWS_SECRET", "value": "secret-value"})
+	owner.request(http.MethodPost, dev, map[string]any{"key": "AWS_VAR", "value": "plain-value", "kind": "variable"})
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	got := map[string]putParameter{}
+	for i := 0; i < 2; i++ {
+		select {
+		case call := <-calls:
+			got[call.name] = call
+		case <-time.After(8 * time.Second):
+			t.Fatal("aws parameters not delivered")
+		}
+	}
+	secret := got["clavis/web-app/dev/AWS_SECRET"]
+	if secret.target != "AmazonSSM.PutParameter" || secret.value != "secret-value" || secret.kind != "SecureString" ||
+		!strings.HasPrefix(secret.auth, "AWS4-HMAC-SHA256 Credential=AKID/") {
+		t.Fatalf("secret call = %+v", secret)
+	}
+	variable := got["clavis/web-app/dev/AWS_VAR"]
+	if variable.value != "plain-value" || variable.kind != "String" {
+		t.Fatalf("variable call = %+v", variable)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

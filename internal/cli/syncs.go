@@ -103,6 +103,7 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
 	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
+	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -127,6 +128,9 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"github_repo": githubRepo, "github_environment": githubEnvironment,
 				"github_scope":   githubScope,
 				"vercel_project": vercelProject, "vercel_team_id": vercelTeamID,
+				"aws_region": awsRegion, "aws_access_key": awsAccessKey,
+				"aws_secret_key": awsSecretKey, "aws_session_token": awsSessionToken,
+				"aws_service": awsService, "aws_prefix": awsPrefix,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -154,6 +158,12 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&token, "vercel-token", "", "Vercel access token")
 	cmd.Flags().StringVar(&vercelProject, "vercel-project", "", "Vercel project ID or name")
 	cmd.Flags().StringVar(&vercelTeamID, "vercel-team", "", "Vercel team ID")
+	cmd.Flags().StringVar(&awsRegion, "aws-region", "", "AWS region")
+	cmd.Flags().StringVar(&awsAccessKey, "aws-access-key", "", "AWS access key ID")
+	cmd.Flags().StringVar(&awsSecretKey, "aws-secret-key", "", "AWS secret access key")
+	cmd.Flags().StringVar(&awsSessionToken, "aws-session-token", "", "AWS session token")
+	cmd.Flags().StringVar(&awsService, "aws-service", "ssm", "AWS service: ssm or secretsmanager")
+	cmd.Flags().StringVar(&awsPrefix, "aws-prefix", "", "AWS parameter/secret name prefix")
 	return cmd
 }
 

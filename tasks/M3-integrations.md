@@ -29,7 +29,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [ ] **M3-16** Sync framework: provider interface, job-based execution, retries, status, error messages with fix hints, drift detection, respects freezes (L)
 - [x] **M3-17** GitHub (Actions secrets/variables, environments, org-level) (M)
 - [x] **M3-18** Vercel (M)
-- [ ] **M3-19** AWS Secrets Manager + SSM Parameter Store (M)
+- [x] **M3-19** AWS Secrets Manager + SSM Parameter Store (M)
 - [ ] **M3-20** GCP Secret Manager (S)
 - [ ] **M3-21** Cloudflare Workers/Pages, Netlify (M)
 - [ ] **M3-22** Integrations gallery UI (by category, connected filter) + per-sync page: drift card with Overwrite / Import (change request) / Stop managing, failure card with fix steps, mapping, run history, behavior toggles; `clavis syncs ls|run [--dry-run]|logs` (M)

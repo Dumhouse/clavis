@@ -30,18 +30,24 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint      string `json:"endpoint,omitempty"`
-	Secret        []byte `json:"secret,omitempty"`
-	BaseURL       string `json:"base_url,omitempty"`
-	Project       string `json:"project,omitempty"`
-	Token         []byte `json:"token,omitempty"`
-	Protected     bool   `json:"protected,omitempty"`
-	Masked        bool   `json:"masked,omitempty"`
-	GitHubRepo    string `json:"github_repo,omitempty"`
-	GitHubEnv     string `json:"github_environment,omitempty"`
-	GitHubScope   string `json:"github_scope,omitempty"`
-	VercelProject string `json:"vercel_project,omitempty"`
-	VercelTeamID  string `json:"vercel_team_id,omitempty"`
+	Endpoint        string `json:"endpoint,omitempty"`
+	Secret          []byte `json:"secret,omitempty"`
+	BaseURL         string `json:"base_url,omitempty"`
+	Project         string `json:"project,omitempty"`
+	Token           []byte `json:"token,omitempty"`
+	Protected       bool   `json:"protected,omitempty"`
+	Masked          bool   `json:"masked,omitempty"`
+	GitHubRepo      string `json:"github_repo,omitempty"`
+	GitHubEnv       string `json:"github_environment,omitempty"`
+	GitHubScope     string `json:"github_scope,omitempty"`
+	VercelProject   string `json:"vercel_project,omitempty"`
+	VercelTeamID    string `json:"vercel_team_id,omitempty"`
+	AWSRegion       string `json:"aws_region,omitempty"`
+	AWSAccessKey    string `json:"aws_access_key,omitempty"`
+	AWSSecret       []byte `json:"aws_secret,omitempty"`
+	AWSService      string `json:"aws_service,omitempty"`
+	AWSPrefix       string `json:"aws_prefix,omitempty"`
+	AWSSessionToken string `json:"aws_session_token,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -60,6 +66,12 @@ type SyncInput struct {
 	GitHubScope       string
 	VercelProject     string
 	VercelTeamID      string
+	AWSRegion         string
+	AWSAccessKey      string
+	AWSSecretKey      string
+	AWSSessionToken   string
+	AWSService        string
+	AWSPrefix         string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -101,8 +113,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" {
-		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, or vercel", ErrValidation)
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" {
+		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, vercel, or aws", ErrValidation)
 	}
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
@@ -119,6 +131,27 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "aws" {
+		config.AWSRegion = strings.TrimSpace(in.AWSRegion)
+		config.AWSService = strings.ToLower(strings.TrimSpace(in.AWSService))
+		config.AWSPrefix = strings.Trim(strings.TrimSpace(in.AWSPrefix), "/")
+		config.AWSAccessKey = strings.TrimSpace(in.AWSAccessKey)
+		if config.AWSRegion == "" || config.AWSAccessKey == "" || in.AWSSecretKey == "" {
+			return nil, fmt.Errorf("%w: AWS region, access key, and secret key are required", ErrValidation)
+		}
+		if config.AWSService == "" {
+			config.AWSService = "ssm"
+		}
+		if config.AWSService != "ssm" && config.AWSService != "secretsmanager" {
+			return nil, fmt.Errorf("%w: AWS service must be ssm or secretsmanager", ErrValidation)
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "aws_secret", in.AWSSecretKey)
+		if err != nil {
+			return nil, err
+		}
+		config.AWSSecret = ciphertext
+		config.AWSSessionToken = strings.TrimSpace(in.AWSSessionToken)
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	} else if provider == "vercel" {
 		config.VercelProject = strings.TrimSpace(in.VercelProject)
 		if config.VercelProject == "" {
@@ -309,6 +342,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "vercel" {
 		destination = config.BaseURL + " project:" + config.VercelProject
 	}
+	if sync.Provider == "aws" {
+		destination = fmt.Sprintf("aws:%s %s/%s", config.AWSService, config.AWSRegion, config.AWSPrefix)
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -344,6 +380,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postGitHub(ctx, org, sync, config, values, kinds)
 	} else if sync.Provider == "vercel" {
 		err2 = s.postVercel(ctx, org, sync, config, env, values, kinds)
+	} else if sync.Provider == "aws" {
+		err2 = s.postAWS(ctx, org, sync, config, project, env, values, kinds)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -868,4 +906,133 @@ func vercelStatusError(operation string, status int, body []byte) error {
 	default:
 		return fmt.Errorf("vercel: %s returned %d: %s", operation, status, detail)
 	}
+}
+
+func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values, kinds map[string]string) error {
+	secretKey, err := s.decryptOrgSecret(org, sync.ID, "aws_secret", config.AWSSecret)
+	if err != nil {
+		return err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	endpoint := config.BaseURL
+	if endpoint == "" {
+		endpoint = "https://" + config.AWSService + "." + config.AWSRegion + ".amazonaws.com"
+	}
+	prefix := strings.Trim(config.AWSPrefix, "/")
+	if prefix == "" {
+		prefix = "clavis/" + project.Slug + "/" + env.Slug
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		name := prefix + "/" + key
+		if config.AWSService == "ssm" {
+			parameterType := "SecureString"
+			if kinds[key] == "variable" {
+				parameterType = "String"
+			}
+			body, _ := json.Marshal(map[string]any{
+				"Name": name, "Value": values[key], "Type": parameterType, "Overwrite": true,
+			})
+			if err := s.awsJSONCall(ctx, client, endpoint, "AmazonSSM.PutParameter", "ssm",
+				config, secretKey, body); err != nil {
+				return err
+			}
+			continue
+		}
+		body, _ := json.Marshal(map[string]any{"Name": name, "SecretString": values[key]})
+		err := s.awsJSONCall(ctx, client, endpoint, "secretsmanager.CreateSecret", "secretsmanager",
+			config, secretKey, body)
+		if err == nil {
+			continue
+		}
+		if !strings.Contains(err.Error(), "ResourceExistsException") {
+			return err
+		}
+		body, _ = json.Marshal(map[string]any{"SecretId": name, "SecretString": values[key]})
+		if err := s.awsJSONCall(ctx, client, endpoint, "secretsmanager.PutSecretValue", "secretsmanager",
+			config, secretKey, body); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) awsJSONCall(ctx context.Context, client *http.Client, endpoint, target, service string, config syncConfig, secretKey string, payload []byte) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	request.Header.Set("X-Amz-Target", target)
+	signAWSJSON(request, payload, service, config, secretKey)
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("aws: request failed: %v; check the region, endpoint, and network policy", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode >= 200 && response.StatusCode < 300 {
+		return nil
+	}
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch response.StatusCode {
+	case http.StatusForbidden, http.StatusUnauthorized:
+		return fmt.Errorf("aws: credentials rejected; check the access key, secret, and IAM permissions")
+	case http.StatusBadRequest:
+		return fmt.Errorf("aws: %s: %s", target, detail)
+	default:
+		return fmt.Errorf("aws: %s returned %d: %s", target, response.StatusCode, detail)
+	}
+}
+
+func signAWSJSON(req *http.Request, payload []byte, service string, config syncConfig, secretKey string) {
+	now := time.Now().UTC()
+	amzDate := now.Format("20060102T150405Z")
+	date := now.Format("20060102")
+	payloadHash := sha256.Sum256(payload)
+	hashHex := hex.EncodeToString(payloadHash[:])
+	req.Header.Set("X-Amz-Date", amzDate)
+	req.Header.Set("X-Amz-Content-Sha256", hashHex)
+	headers := []string{"content-type", "host", "x-amz-content-sha256", "x-amz-date", "x-amz-target"}
+	canonical := "content-type:" + req.Header.Get("Content-Type") + "\n" +
+		"host:" + req.URL.Host + "\n" +
+		"x-amz-content-sha256:" + hashHex + "\n" +
+		"x-amz-date:" + amzDate + "\n" +
+		"x-amz-target:" + req.Header.Get("X-Amz-Target") + "\n"
+	if config.AWSSessionToken != "" {
+		req.Header.Set("X-Amz-Security-Token", config.AWSSessionToken)
+		headers = append(headers, "x-amz-security-token")
+		canonical += "x-amz-security-token:" + config.AWSSessionToken + "\n"
+	}
+	sort.Strings(headers)
+	signedHeaders := strings.Join(headers, ";")
+	canonicalRequest := strings.Join([]string{
+		http.MethodPost, req.URL.EscapedPath(), "", canonical, signedHeaders, hashHex,
+	}, "\n")
+	scope := date + "/" + config.AWSRegion + "/" + service + "/aws4_request"
+	requestHash := sha256.Sum256([]byte(canonicalRequest))
+	stringToSign := "AWS4-HMAC-SHA256\n" + amzDate + "\n" + scope + "\n" + hex.EncodeToString(requestHash[:])
+	key := hmacSHA256Bytes([]byte("AWS4"+secretKey), date)
+	key = hmacSHA256Bytes(key, config.AWSRegion)
+	key = hmacSHA256Bytes(key, service)
+	key = hmacSHA256Bytes(key, "aws4_request")
+	signature := hex.EncodeToString(hmacSHA256Bytes(key, stringToSign))
+	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential="+config.AWSAccessKey+"/"+scope+
+		", SignedHeaders="+signedHeaders+", Signature="+signature)
+}
+
+func hmacSHA256Bytes(key []byte, value string) []byte {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(value))
+	return mac.Sum(nil)
 }
