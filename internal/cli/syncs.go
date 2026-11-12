@@ -106,6 +106,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var gcpProject, gcpServiceAccount, gcpPrefix string
+	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
 	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -141,7 +142,10 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"aws_secret_key": awsSecretKey, "aws_session_token": awsSessionToken,
 				"aws_service": awsService, "aws_prefix": awsPrefix,
 				"gcp_project": gcpProject, "gcp_service_account": gcpServiceAccount,
-				"gcp_prefix": gcpPrefix,
+				"gcp_prefix":      gcpPrefix,
+				"netlify_account": netlifyAccount, "netlify_site": netlifySite,
+				"cloudflare_account": cfAccount, "cloudflare_project": cfProject,
+				"cloudflare_script": cfScript, "cloudflare_mode": cfMode,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -178,6 +182,14 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&gcpProject, "gcp-project", "", "GCP project ID")
 	cmd.Flags().StringVar(&gcpServiceAccount, "gcp-service-account-json", "", "GCP service account JSON or @file")
 	cmd.Flags().StringVar(&gcpPrefix, "gcp-prefix", "", "GCP secret name prefix")
+	cmd.Flags().StringVar(&netlifyAccount, "netlify-account", "", "Netlify account slug")
+	cmd.Flags().StringVar(&netlifySite, "netlify-site", "", "Netlify site ID")
+	cmd.Flags().StringVar(&token, "netlify-token", "", "Netlify personal access token")
+	cmd.Flags().StringVar(&cfAccount, "cloudflare-account", "", "Cloudflare account ID")
+	cmd.Flags().StringVar(&cfMode, "cloudflare-mode", "workers", "Cloudflare mode: workers or pages")
+	cmd.Flags().StringVar(&cfProject, "cloudflare-project", "", "Cloudflare Pages project")
+	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
+	cmd.Flags().StringVar(&token, "cloudflare-token", "", "Cloudflare API token")
 	return cmd
 }
 

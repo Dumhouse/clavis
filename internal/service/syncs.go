@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"sort"
@@ -55,6 +56,12 @@ type syncConfig struct {
 	GCPProject        string `json:"gcp_project,omitempty"`
 	GCPServiceAccount []byte `json:"gcp_service_account,omitempty"`
 	GCPPrefix         string `json:"gcp_prefix,omitempty"`
+	NetlifyAccount    string `json:"netlify_account,omitempty"`
+	NetlifySite       string `json:"netlify_site,omitempty"`
+	CFAccount         string `json:"cf_account,omitempty"`
+	CFProject         string `json:"cf_project,omitempty"`
+	CFScript          string `json:"cf_script,omitempty"`
+	CFMode            string `json:"cf_mode,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -82,6 +89,12 @@ type SyncInput struct {
 	GCPProject        string
 	GCPServiceAccount string
 	GCPPrefix         string
+	NetlifyAccount    string
+	NetlifySite       string
+	CloudflareAccount string
+	CloudflareProject string
+	CloudflareScript  string
+	CloudflareMode    string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -123,8 +136,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" {
-		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, vercel, aws, or gcp", ErrValidation)
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" {
+		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
@@ -141,6 +154,50 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "netlify" {
+		config.NetlifyAccount = strings.TrimSpace(in.NetlifyAccount)
+		config.NetlifySite = strings.TrimSpace(in.NetlifySite)
+		if config.NetlifyAccount == "" || in.Token == "" {
+			return nil, fmt.Errorf("%w: Netlify account slug and token are required", ErrValidation)
+		}
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		if config.BaseURL == "" {
+			config.BaseURL = "https://api.netlify.com"
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
+	} else if provider == "cloudflare" {
+		config.CFAccount = strings.TrimSpace(in.CloudflareAccount)
+		config.CFProject = strings.TrimSpace(in.CloudflareProject)
+		config.CFScript = strings.TrimSpace(in.CloudflareScript)
+		config.CFMode = strings.ToLower(strings.TrimSpace(in.CloudflareMode))
+		if config.CFMode == "" {
+			config.CFMode = "workers"
+		}
+		if config.CFAccount == "" || in.Token == "" {
+			return nil, fmt.Errorf("%w: Cloudflare account ID and token are required", ErrValidation)
+		}
+		if config.CFMode == "workers" && config.CFScript == "" {
+			return nil, fmt.Errorf("%w: Cloudflare Workers mode needs a script name", ErrValidation)
+		}
+		if config.CFMode == "pages" && config.CFProject == "" {
+			return nil, fmt.Errorf("%w: Cloudflare Pages mode needs a project name", ErrValidation)
+		}
+		if config.CFMode != "workers" && config.CFMode != "pages" {
+			return nil, fmt.Errorf("%w: Cloudflare mode must be workers or pages", ErrValidation)
+		}
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		if config.BaseURL == "" {
+			config.BaseURL = "https://api.cloudflare.com"
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
 	} else if provider == "gcp" {
 		config.GCPProject = strings.TrimSpace(in.GCPProject)
 		config.GCPPrefix = strings.Trim(strings.TrimSpace(in.GCPPrefix), "-")
@@ -370,6 +427,12 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "gcp" {
 		destination = "gcp:" + config.GCPProject
 	}
+	if sync.Provider == "netlify" {
+		destination = "netlify:" + config.NetlifyAccount + "/" + config.NetlifySite
+	}
+	if sync.Provider == "cloudflare" {
+		destination = "cloudflare:" + config.CFMode + " " + config.CFAccount
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -409,6 +472,10 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postAWS(ctx, org, sync, config, project, env, values, kinds)
 	} else if sync.Provider == "gcp" {
 		err2 = s.postGCP(ctx, org, sync, config, project, env, values)
+	} else if sync.Provider == "netlify" {
+		err2 = s.postNetlify(ctx, org, sync, config, env, values, kinds)
+	} else if sync.Provider == "cloudflare" {
+		err2 = s.postCloudflare(ctx, org, sync, config, env, values, kinds)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -1249,4 +1316,213 @@ func sanitizeGCPName(key string) string {
 		return "value"
 	}
 	return name
+}
+
+func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	query := ""
+	if config.NetlifySite != "" {
+		query = "?site_id=" + url.QueryEscape(config.NetlifySite)
+	}
+	envURL := base + "/api/v1/accounts/" + url.PathEscape(config.NetlifyAccount) + "/env"
+	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, envURL+query, token, nil)
+	if err != nil {
+		return fmt.Errorf("netlify: could not list variables: %v; check the API URL and network policy", err)
+	}
+	existing := map[string]bool{}
+	if status == http.StatusOK {
+		var listing []struct {
+			Key string `json:"key"`
+		}
+		if json.Unmarshal(body, &listing) == nil {
+			for _, item := range listing {
+				existing[item.Key] = true
+			}
+		}
+	} else {
+		return netlifyStatusError("list variables", status, body)
+	}
+	contextName := "deploy-preview"
+	switch env.Type {
+	case "production":
+		contextName = "production"
+	case "development":
+		contextName = "dev"
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		payload, _ := json.Marshal(map[string]any{
+			"key":       key,
+			"scopes":    []string{"builds", "functions", "runtime"},
+			"values":    []map[string]string{{"value": values[key], "context": contextName}},
+			"is_secret": kinds[key] != "variable",
+		})
+		method := http.MethodPost
+		endpoint := envURL + query
+		if existing[key] {
+			method = http.MethodPut
+			endpoint = envURL + "/" + url.PathEscape(key) + query
+		}
+		status, body, err := githubLikeRequest(ctx, client, method, endpoint, token, payload)
+		if err != nil {
+			return fmt.Errorf("netlify: request failed: %v; check the API URL and network policy", err)
+		}
+		if status < 200 || status >= 300 {
+			return netlifyStatusError("set "+key, status, body)
+		}
+	}
+	return nil
+}
+
+func netlifyStatusError(operation string, status int, body []byte) error {
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("netlify: token rejected; check the personal access token")
+	case http.StatusForbidden:
+		return fmt.Errorf("netlify: permission denied for %s; check account/site access", operation)
+	case http.StatusNotFound:
+		return fmt.Errorf("netlify: %s not found; check the account slug and site ID", operation)
+	default:
+		return fmt.Errorf("netlify: %s returned %d: %s", operation, status, detail)
+	}
+}
+
+func (s *Service) postCloudflare(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	accountURL := base + "/client/v4/accounts/" + url.PathEscape(config.CFAccount)
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	if config.CFMode == "workers" {
+		endpoint := accountURL + "/workers/scripts/" + url.PathEscape(config.CFScript) + "/secrets"
+		for _, key := range keys {
+			var buffer bytes.Buffer
+			writer := multipart.NewWriter(&buffer)
+			_ = writer.WriteField("name", key)
+			_ = writer.WriteField("text", values[key])
+			_ = writer.WriteField("type", "secret_text")
+			_ = writer.Close()
+			request, err := http.NewRequestWithContext(ctx, http.MethodPut, endpoint, &buffer)
+			if err != nil {
+				return err
+			}
+			request.Header.Set("Authorization", "Bearer "+token)
+			request.Header.Set("Content-Type", writer.FormDataContentType())
+			response, err := client.Do(request)
+			if err != nil {
+				return fmt.Errorf("cloudflare: request failed: %v; check the API URL and network policy", err)
+			}
+			body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+			_ = response.Body.Close()
+			if response.StatusCode < 200 || response.StatusCode >= 300 {
+				return cloudflareStatusError("set "+key, response.StatusCode, body)
+			}
+			var result struct {
+				Success bool `json:"success"`
+			}
+			if json.Unmarshal(body, &result) == nil && !result.Success {
+				return fmt.Errorf("cloudflare: set %s was rejected: %s", key, strings.TrimSpace(string(body)))
+			}
+		}
+		return nil
+	}
+
+	projectURL := accountURL + "/pages/projects/" + url.PathEscape(config.CFProject)
+	status, body, err := githubLikeRequest(ctx, client, http.MethodGet, projectURL, token, nil)
+	if err != nil {
+		return fmt.Errorf("cloudflare: could not read Pages project: %v", err)
+	}
+	if status < 200 || status >= 300 {
+		return cloudflareStatusError("read Pages project", status, body)
+	}
+	var project struct {
+		Result struct {
+			DeploymentConfigs map[string]struct {
+				EnvVars map[string]struct {
+					Value string `json:"value"`
+					Type  string `json:"type"`
+				} `json:"env_vars"`
+			} `json:"deployment_configs"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &project); err != nil {
+		return fmt.Errorf("cloudflare: invalid Pages project response")
+	}
+	target := "preview"
+	if env.Type == "production" {
+		target = "production"
+	}
+	targetConfig := project.Result.DeploymentConfigs[target]
+	if targetConfig.EnvVars == nil {
+		targetConfig.EnvVars = map[string]struct {
+			Value string `json:"value"`
+			Type  string `json:"type"`
+		}{}
+	}
+	for _, key := range keys {
+		valueType := "secret_text"
+		if kinds[key] == "variable" {
+			valueType = "plain_text"
+		}
+		targetConfig.EnvVars[key] = struct {
+			Value string `json:"value"`
+			Type  string `json:"type"`
+		}{Value: values[key], Type: valueType}
+	}
+	patch, _ := json.Marshal(map[string]any{
+		"deployment_configs": map[string]any{
+			target: map[string]any{"env_vars": targetConfig.EnvVars},
+		},
+	})
+	status, body, err = githubLikeRequest(ctx, client, http.MethodPatch, projectURL, token, patch)
+	if err != nil {
+		return fmt.Errorf("cloudflare: Pages update failed: %v", err)
+	}
+	if status < 200 || status >= 300 {
+		return cloudflareStatusError("update Pages project", status, body)
+	}
+	return nil
+}
+
+func cloudflareStatusError(operation string, status int, body []byte) error {
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("cloudflare: token rejected; check the API token")
+	case http.StatusForbidden:
+		return fmt.Errorf("cloudflare: permission denied for %s; check account and Workers/Pages permissions", operation)
+	case http.StatusNotFound:
+		return fmt.Errorf("cloudflare: %s not found; check the account ID, script, or Pages project", operation)
+	default:
+		return fmt.Errorf("cloudflare: %s returned %d: %s", operation, status, detail)
+	}
 }

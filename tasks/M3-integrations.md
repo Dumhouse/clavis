@@ -31,7 +31,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [x] **M3-18** Vercel (M)
 - [x] **M3-19** AWS Secrets Manager + SSM Parameter Store (M)
 - [x] **M3-20** GCP Secret Manager (S)
-- [ ] **M3-21** Cloudflare Workers/Pages, Netlify (M)
+- [x] **M3-21** Cloudflare Workers/Pages, Netlify (M)
 - [ ] **M3-22** Integrations gallery UI (by category, connected filter) + per-sync page: drift card with Overwrite / Import (change request) / Stop managing, failure card with fix steps, mapping, run history, behavior toggles; `clavis syncs ls|run [--dry-run]|logs` (M)
 - [ ] **M3-30** Clavis GitHub App (secrets write, PR events for preview environments; replaces PAT-based GitHub sync) (M)
 - [x] **M3-31** GitLab CI/CD variables sync (project + group, protected/masked flags) (S)

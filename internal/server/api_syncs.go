@@ -59,6 +59,12 @@ type createSyncInput struct {
 		GCPProject        string `json:"gcp_project,omitempty" maxLength:"200"`
 		GCPServiceAccount string `json:"gcp_service_account,omitempty" maxLength:"20000"`
 		GCPPrefix         string `json:"gcp_prefix,omitempty" maxLength:"200"`
+		NetlifyAccount    string `json:"netlify_account,omitempty" maxLength:"200"`
+		NetlifySite       string `json:"netlify_site,omitempty" maxLength:"200"`
+		CloudflareAccount string `json:"cloudflare_account,omitempty" maxLength:"200"`
+		CloudflareProject string `json:"cloudflare_project,omitempty" maxLength:"200"`
+		CloudflareScript  string `json:"cloudflare_script,omitempty" maxLength:"200"`
+		CloudflareMode    string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
 	}
 }
 
@@ -152,7 +158,10 @@ func (s *Server) registerSyncRoutes() error {
 			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
 			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
 			GCPProject: in.Body.GCPProject, GCPServiceAccount: in.Body.GCPServiceAccount,
-			GCPPrefix: in.Body.GCPPrefix,
+			GCPPrefix:      in.Body.GCPPrefix,
+			NetlifyAccount: in.Body.NetlifyAccount, NetlifySite: in.Body.NetlifySite,
+			CloudflareAccount: in.Body.CloudflareAccount, CloudflareProject: in.Body.CloudflareProject,
+			CloudflareScript: in.Body.CloudflareScript, CloudflareMode: in.Body.CloudflareMode,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

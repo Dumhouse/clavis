@@ -299,7 +299,9 @@ Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
 `--vercel-project`, `--vercel-team`, `--vercel-token`, `--aws-region`,
 `--aws-access-key`, `--aws-secret-key`, `--aws-session-token`, `--aws-service`,
 `--aws-prefix`, `--gcp-project`, `--gcp-service-account-json`,
-`--gcp-prefix`.
+`--gcp-prefix`, `--netlify-account`, `--netlify-site`, `--netlify-token`,
+`--cloudflare-account`, `--cloudflare-mode`, `--cloudflare-project`,
+`--cloudflare-script`, `--cloudflare-token`.
 
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
@@ -311,6 +313,17 @@ clavis syncs create dev --provider github --github-repo acme/repo \
 clavis syncs create prod --provider github --github-scope environment \
   --github-repo acme/repo --github-environment production \
   --github-token "$GITHUB_TOKEN"
+```
+
+Netlify and Cloudflare syncs push environment variables and Worker/Pages
+secrets:
+
+```sh
+clavis syncs create dev --provider netlify --netlify-account acme \
+  --netlify-token "$NETLIFY_TOKEN"
+
+clavis syncs create dev --provider cloudflare --cloudflare-account "$CF_ACCOUNT" \
+  --cloudflare-mode workers --cloudflare-script my-worker --cloudflare-token "$CF_TOKEN"
 ```
 
 GCP syncs create Secret Manager secrets and add versions using a service

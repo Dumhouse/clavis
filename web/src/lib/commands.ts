@@ -186,6 +186,8 @@ export const commandGroups: CommandGroup[] = [
           'clavis syncs create dev --provider vercel --vercel-project prj_123 --vercel-token "$VERCEL_TOKEN"',
           'clavis syncs create dev --provider aws --aws-region eu-central-1 --aws-service ssm',
           'clavis syncs create dev --provider gcp --gcp-project my-project --gcp-service-account-json @service-account.json',
+          'clavis syncs create dev --provider netlify --netlify-account acme --netlify-token "$NETLIFY_TOKEN"',
+          'clavis syncs create dev --provider cloudflare --cloudflare-account "$CF_ACCOUNT" --cloudflare-script my-worker --cloudflare-token "$CF_TOKEN"',
         ],
       },
       {
