@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories: ["/", "/csi", "/operator"]
+    schedule: { interval: weekly }
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directories: ["/web", "/docs"]
+    schedule: { interval: weekly }
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly }
