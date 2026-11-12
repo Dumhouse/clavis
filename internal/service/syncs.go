@@ -70,6 +70,9 @@ type syncConfig struct {
 	CFProject          string `json:"cf_project,omitempty"`
 	CFScript           string `json:"cf_script,omitempty"`
 	CFMode             string `json:"cf_mode,omitempty"`
+	VaultMount         string `json:"vault_mount,omitempty"`
+	VaultPath          string `json:"vault_path,omitempty"`
+	VaultVersion       int    `json:"vault_version,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -106,6 +109,9 @@ type SyncInput struct {
 	CloudflareProject  string
 	CloudflareScript   string
 	CloudflareMode     string
+	VaultMount         string
+	VaultPath          string
+	VaultVersion       int
 	DeleteMissing      bool
 }
 
@@ -148,7 +154,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" {
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" {
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	id := uuid.NewString()
@@ -204,6 +210,28 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.cloudflare.com"
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
+	} else if provider == "vault" {
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		config.VaultMount = strings.Trim(strings.TrimSpace(in.VaultMount), "/")
+		config.VaultPath = strings.Trim(strings.TrimSpace(in.VaultPath), "/")
+		config.VaultVersion = in.VaultVersion
+		if config.VaultVersion == 0 {
+			config.VaultVersion = 2
+		}
+		if config.VaultVersion != 1 && config.VaultVersion != 2 {
+			return nil, fmt.Errorf("%w: Vault KV version must be 1 or 2", ErrValidation)
+		}
+		if config.VaultMount == "" {
+			config.VaultMount = "secret"
+		}
+		if config.BaseURL == "" || in.Token == "" {
+			return nil, fmt.Errorf("%w: Vault address and token are required", ErrValidation)
 		}
 		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
 		if err != nil {
@@ -456,6 +484,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "cloudflare" {
 		destination = "cloudflare:" + config.CFMode + " " + config.CFAccount
 	}
+	if sync.Provider == "vault" {
+		destination = "vault:" + config.BaseURL + "/" + config.VaultMount + "/" + config.VaultPath
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -502,6 +533,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postNetlify(ctx, org, sync, config, env, values, kinds)
 	} else if sync.Provider == "cloudflare" {
 		err2 = s.postCloudflare(ctx, org, sync, config, env, values, kinds)
+	} else if sync.Provider == "vault" {
+		err2 = s.postVault(ctx, org, sync, config, values)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -1113,6 +1146,51 @@ func vercelStatusError(operation string, status int, body []byte) error {
 	default:
 		return fmt.Errorf("vercel: %s returned %d: %s", operation, status, detail)
 	}
+}
+
+func (s *Service) postVault(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.ssoHTTPClient()
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		target := strings.Trim(config.VaultPath, "/")
+		if target != "" {
+			target += "/"
+		}
+		target += key
+		endpoint := strings.TrimRight(config.BaseURL, "/") + "/v1/" + config.VaultMount
+		if config.VaultVersion == 2 {
+			endpoint += "/data"
+		}
+		endpoint += "/" + target
+		payload, err := json.Marshal(map[string]any{"data": map[string]string{"value": values[key]}})
+		if err != nil {
+			return err
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+		if err != nil {
+			return err
+		}
+		request.Header.Set("X-Vault-Token", token)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := client.Do(request)
+		if err != nil {
+			return fmt.Errorf("vault: request failed: %w", err)
+		}
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		response.Body.Close()
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return fmt.Errorf("vault: %s returned %d: %s", target, response.StatusCode, strings.TrimSpace(string(body)))
+		}
+	}
+	return nil
 }
 
 func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values, kinds map[string]string) error {

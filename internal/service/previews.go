@@ -156,7 +156,7 @@ func (s *Service) expirePreviews(ctx context.Context, org *store.Org, project *s
 	now := s.Now().UTC()
 	for i := range envs {
 		env := &envs[i]
-		if env.Type != "preview" || env.PreviewSource != "github" || env.ExpiresAt == nil {
+		if env.Type != "preview" || (env.PreviewSource != "github" && env.PreviewSource != "branch") || env.ExpiresAt == nil {
 			continue
 		}
 		if now.Before(*env.ExpiresAt) {

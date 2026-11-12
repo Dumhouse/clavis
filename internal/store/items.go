@@ -186,10 +186,11 @@ func (s *Store) UpdateItem(ctx context.Context, item *Item, changeMessage, actor
 
 	res, err := tx.ExecContext(ctx, `UPDATE items
 		SET kind = ?, value_ciphertext = ?, comment_ciphertext = ?, tags = ?, folder_id = ?,
-		    notes_ciphertext = ?, provider_url = ?, version = ?, updated_at = ?
+		    notes_ciphertext = ?, provider_url = ?, expires_at = ?, version = ?, updated_at = ?
 		WHERE id = ? AND deleted_at IS NULL`,
 		item.Kind, item.ValueCiphertext, item.CommentCiphertext, item.Tags, item.FolderID,
-		item.NotesCiphertext, item.ProviderURL, item.Version, formatTime(now), item.ID)
+		item.NotesCiphertext, item.ProviderURL, nullableTime(item.ExpiresAt), item.Version,
+		formatTime(now), item.ID)
 	if err != nil {
 		return fmt.Errorf("store: update item: %w", err)
 	}
@@ -275,4 +276,21 @@ func (s *Store) InsertRevealEvent(ctx context.Context, id, userID, itemID, chann
 		return fmt.Errorf("store: insert reveal event: %w", err)
 	}
 	return nil
+}
+
+// LastRevealAt returns the most recent reveal time for an item.
+func (s *Store) LastRevealAt(ctx context.Context, itemID string) (*time.Time, error) {
+	var raw sql.NullString
+	err := s.db.QueryRowContext(ctx, `SELECT MAX(created_at) FROM reveal_events WHERE item_id = ?`, itemID).Scan(&raw)
+	if err != nil {
+		return nil, err
+	}
+	if !raw.Valid {
+		return nil, nil
+	}
+	parsed, err := parseTime(raw.String)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
 }

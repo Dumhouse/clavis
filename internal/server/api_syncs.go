@@ -73,6 +73,9 @@ type createSyncInput struct {
 		CloudflareProject  string `json:"cloudflare_project,omitempty" maxLength:"200"`
 		CloudflareScript   string `json:"cloudflare_script,omitempty" maxLength:"200"`
 		CloudflareMode     string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
+		VaultMount         string `json:"vault_mount,omitempty" maxLength:"100"`
+		VaultPath          string `json:"vault_path,omitempty" maxLength:"500"`
+		VaultVersion       int    `json:"vault_version,omitempty" enum:"1,2"`
 	}
 }
 
@@ -182,6 +185,7 @@ func (s *Server) registerSyncRoutes() error {
 			NetlifyAccount: in.Body.NetlifyAccount, NetlifySite: in.Body.NetlifySite,
 			CloudflareAccount: in.Body.CloudflareAccount, CloudflareProject: in.Body.CloudflareProject,
 			CloudflareScript: in.Body.CloudflareScript, CloudflareMode: in.Body.CloudflareMode,
+			VaultMount: in.Body.VaultMount, VaultPath: in.Body.VaultPath, VaultVersion: in.Body.VaultVersion,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

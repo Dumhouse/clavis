@@ -110,6 +110,8 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var gcpProject, gcpServiceAccount, gcpPrefix string
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
+	var vaultMount, vaultPath string
+	var vaultVersion int
 	var protected, masked, deleteMissing bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -156,6 +158,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"netlify_account": netlifyAccount, "netlify_site": netlifySite,
 				"cloudflare_account": cfAccount, "cloudflare_project": cfProject,
 				"cloudflare_script": cfScript, "cloudflare_mode": cfMode,
+				"vault_mount": vaultMount, "vault_path": vaultPath, "vault_version": vaultVersion,
 				"delete_missing": deleteMissing,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
@@ -171,7 +174,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&endpoint, "endpoint", "", "receiver URL for generic HTTP")
 	cmd.Flags().StringVar(&secret, "secret", "", "HMAC signing secret for generic HTTP")
-	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http or gitlab")
+	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http, gitlab, github, vercel, aws, gcp, netlify, cloudflare, or vault")
 	cmd.Flags().StringVar(&baseURL, "gitlab-url", "https://gitlab.com", "GitLab base URL")
 	cmd.Flags().StringVar(&gitlabProject, "gitlab-project", "", "GitLab project path or ID")
 	cmd.Flags().StringVar(&token, "gitlab-token", "", "GitLab access token with api scope")
@@ -201,6 +204,11 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&token, "netlify-token", "", "Netlify personal access token")
 	cmd.Flags().StringVar(&cfAccount, "cloudflare-account", "", "Cloudflare account ID")
 	cmd.Flags().StringVar(&cfMode, "cloudflare-mode", "workers", "Cloudflare mode: workers or pages")
+	cmd.Flags().StringVar(&vaultMount, "vault-mount", "secret", "Vault KV mount")
+	cmd.Flags().StringVar(&vaultPath, "vault-path", "", "Vault path prefix (one secret per key)")
+	cmd.Flags().IntVar(&vaultVersion, "vault-version", 2, "Vault KV version: 1 or 2")
+	cmd.Flags().StringVar(&baseURL, "vault-url", "", "Vault/OpenBao address")
+	cmd.Flags().StringVar(&token, "vault-token", "", "Vault/OpenBao token")
 	cmd.Flags().StringVar(&cfProject, "cloudflare-project", "", "Cloudflare Pages project")
 	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
 	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
