@@ -879,9 +879,10 @@ Create a generic HTTP sync. The receiver gets a signed JSON POST.
 clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --secret "$SYNC_SECRET"
 ```
 
-Flags: `--endpoint`, `--secret`, `--provider http|gitlab|github|vercel|aws|gcp|netlify|cloudflare`,
+Flags: `--endpoint`, `--secret`, `--provider http|gitlab|github|forgejo|vercel|aws|gcp|netlify|cloudflare|vault`,
 `--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`,
 `--github-repo`, `--github-scope`, `--github-environment`, `--github-token`,
+`--forgejo-url`, `--forgejo-repo`, `--forgejo-scope`, `--forgejo-token`,
 `--vercel-project`, `--vercel-team`, `--vercel-token`, `--aws-region`,
 `--aws-access-key`, `--aws-secret-key`, `--aws-session-token`, `--aws-service`,
 `--aws-prefix`, `--gcp-project`, `--gcp-service-account-json`,
@@ -907,6 +908,20 @@ clavis syncs create dev --provider github --github-repo acme/repo \
 clavis syncs create prod --provider github --github-scope environment \
   --github-repo acme/repo --github-environment production \
   --github-token "$GITHUB_TOKEN"
+```
+
+Forgejo syncs (Codeberg, self-hosted Forgejo, or Gitea) write Actions secrets
+and variables for a repository or organization. The token needs
+`write:repository`, or `write:organization` for `--forgejo-scope org`. Secret
+values are write-only on Forgejo, so drift checks compare variables and only
+confirm that secrets exist.
+
+```sh
+clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com \
+  --forgejo-repo team/web --forgejo-token "$FORGEJO_TOKEN"
+
+clavis syncs create prod --provider forgejo --forgejo-scope org \
+  --forgejo-repo team --forgejo-token "$FORGEJO_TOKEN"
 ```
 
 Netlify and Cloudflare syncs push environment variables and Worker/Pages

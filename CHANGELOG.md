@@ -13,6 +13,11 @@
   freezes, and access reviews.
 - AI agent identities, server-side command allowlists, `clavis mcp`, and the
   Identities activity view.
+- Forgejo Actions sync (Codeberg, self-hosted Forgejo, and Gitea) for
+  repository and organization secrets and variables, with drift checks.
+- `clavis mcp --agent NAME`: a one-hour agent session started with your own
+  login and kept in memory, so MCP configs hold no token. Logging out or
+  revoking the parent token ends it.
 - Client-side encrypted share links, offline encrypted cache, scan, export,
   importers for Infisical/Doppler/Vault/1Password/AWS/GCP.
 - Kubernetes operator, Helm chart, External Secrets webhook integration, and

@@ -4806,3 +4806,255 @@ func TestPasswordPolicy(t *testing.T) {
 }
 
 var _ = authn.MinPasswordLength
+
+func TestUpdateSecretKeepValue(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	base := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, base, map[string]any{
+		"key": "KEEP_ME", "value": "original-value",
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	// Metadata-only edit: the value must survive without being sent.
+	rec := owner.request(http.MethodPut, base+"/KEEP_ME", map[string]any{
+		"value": "", "keep_value": true, "comment": "now documented", "kind": "secret",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update keep_value = %d body=%s", rec.Code, rec.Body)
+	}
+	got := decode[struct {
+		Value   string `json:"value"`
+		Comment string `json:"comment"`
+		Version int    `json:"version"`
+	}](t, owner.request(http.MethodGet, base+"/KEEP_ME?reveal=true&reason=test", nil))
+	if got.Value != "original-value" || got.Comment != "now documented" || got.Version != 2 {
+		t.Fatalf("after keep_value = %+v", got)
+	}
+	// Without keep_value the value is replaced as before.
+	if rec := owner.request(http.MethodPut, base+"/KEEP_ME", map[string]any{
+		"value": "new-value", "kind": "secret",
+	}); rec.Code != http.StatusOK {
+		t.Fatalf("replace = %d body=%s", rec.Code, rec.Body)
+	}
+	got = decode[struct {
+		Value   string `json:"value"`
+		Comment string `json:"comment"`
+		Version int    `json:"version"`
+	}](t, owner.request(http.MethodGet, base+"/KEEP_ME?reveal=true&reason=test", nil))
+	if got.Value != "new-value" {
+		t.Fatalf("after replace = %+v", got)
+	}
+}
+
+func TestAuditLabelsAndKeySearch(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	base := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, base, map[string]any{
+		"key": "STRIPE_SECRET_KEY", "value": "sk_test_123",
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodGet, base+"/STRIPE_SECRET_KEY?reveal=true&reason=debugging", nil); rec.Code != http.StatusOK {
+		t.Fatalf("reveal = %d body=%s", rec.Code, rec.Body)
+	}
+	events := decode[struct {
+		Events []struct {
+			Action   string `json:"action"`
+			Resource struct {
+				Key         string `json:"key"`
+				Project     string `json:"project"`
+				Environment string `json:"environment"`
+			} `json:"resource"`
+		} `json:"events"`
+	}](t, owner.request(http.MethodGet, "/api/v1/orgs/acme/audit-events?limit=200", nil))
+	var labeled bool
+	for _, event := range events.Events {
+		if event.Action == "secret.reveal" {
+			labeled = event.Resource.Key == "STRIPE_SECRET_KEY" && event.Resource.Project == "web-app" && event.Resource.Environment == "dev"
+		}
+	}
+	if !labeled {
+		t.Fatalf("reveal event not labeled with key/project/env: %+v", events.Events)
+	}
+
+	found := decode[struct {
+		Keys []struct {
+			Key          string   `json:"key"`
+			Project      string   `json:"project"`
+			Environments []string `json:"environments"`
+		} `json:"keys"`
+	}](t, owner.request(http.MethodGet, "/api/v1/orgs/acme/search?q=stripe", nil))
+	if len(found.Keys) != 1 || found.Keys[0].Key != "STRIPE_SECRET_KEY" || found.Keys[0].Project != "web-app" ||
+		len(found.Keys[0].Environments) != 1 || found.Keys[0].Environments[0] != "dev" {
+		t.Fatalf("search = %+v", found.Keys)
+	}
+	if body := owner.request(http.MethodGet, "/api/v1/orgs/acme/search?q=stripe", nil).Body.String(); strings.Contains(body, "sk_test_123") {
+		t.Fatal("search response leaked a value")
+	}
+	if rec := owner.request(http.MethodGet, "/api/v1/orgs/acme/search?q=s", nil); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("one-character search = %d, want 422", rec.Code)
+	}
+}
+
+func TestRateLimitSkipsStaticAssets(t *testing.T) {
+	cfgLimited := newRateLimitedFixture(t, 2)
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
+		rec := httptest.NewRecorder()
+		cfgLimited.srv.Handler().ServeHTTP(rec, req)
+		if rec.Code == http.StatusTooManyRequests {
+			t.Fatalf("static request %d was rate limited", i)
+		}
+	}
+	limited := false
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/setup/status", nil)
+		rec := httptest.NewRecorder()
+		cfgLimited.srv.Handler().ServeHTTP(rec, req)
+		if rec.Code == http.StatusTooManyRequests {
+			limited = true
+		}
+	}
+	if !limited {
+		t.Fatal("API requests were not rate limited")
+	}
+}
+
+func TestForgejoSync(t *testing.T) {
+	var mu sync.Mutex
+	secrets := map[string]string{"OLD_SECRET": "x"}
+	variables := map[string]string{"VAR_KEY": "old-value", "STALE_VAR": "gone"}
+	var badAuth bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if r.Header.Get("Authorization") != "token fj-test" {
+			badAuth = true
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		const prefix = "/api/v1/repos/team/app/actions/"
+		if !strings.HasPrefix(r.URL.Path, prefix) {
+			http.NotFound(w, r)
+			return
+		}
+		rest := strings.TrimPrefix(r.URL.Path, prefix)
+		var body struct {
+			Data  string `json:"data"`
+			Name  string `json:"name"`
+			Value string `json:"value"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		list := func(values map[string]string, withData bool) {
+			entries := []map[string]string{}
+			if r.URL.Query().Get("page") == "1" {
+				for name, data := range values {
+					entry := map[string]string{"name": name}
+					if withData {
+						entry["data"] = data
+					}
+					entries = append(entries, entry)
+				}
+			}
+			_ = json.NewEncoder(w).Encode(entries)
+		}
+		switch {
+		case r.Method == http.MethodGet && rest == "secrets":
+			list(secrets, false)
+		case r.Method == http.MethodGet && rest == "variables":
+			list(variables, true)
+		case r.Method == http.MethodPut && strings.HasPrefix(rest, "secrets/"):
+			secrets[strings.ToUpper(strings.TrimPrefix(rest, "secrets/"))] = body.Data
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodDelete && strings.HasPrefix(rest, "secrets/"):
+			delete(secrets, strings.TrimPrefix(rest, "secrets/"))
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodPost && strings.HasPrefix(rest, "variables/"):
+			name := strings.ToUpper(strings.TrimPrefix(rest, "variables/"))
+			if _, exists := variables[name]; exists {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			variables[name] = body.Value
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodPut && strings.HasPrefix(rest, "variables/"):
+			variables[strings.ToUpper(strings.TrimPrefix(rest, "variables/"))] = body.Value
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodDelete && strings.HasPrefix(rest, "variables/"):
+			delete(variables, strings.TrimPrefix(rest, "variables/"))
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	bad := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "forgejo", "base_url": srv.URL,
+		"forgejo_repo": "no-slash", "token": "fj-test",
+	})
+	if bad.Code != http.StatusUnprocessableEntity && bad.Code != http.StatusBadRequest {
+		t.Fatalf("invalid forgejo repo = %d body=%s", bad.Code, bad.Body)
+	}
+	created := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "forgejo", "base_url": srv.URL + "/api/v1",
+		"forgejo_repo": "team/app", "forgejo_scope": "repo", "token": "fj-test",
+		"delete_missing": true,
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create forgejo sync = %d body=%s", created.Code, created.Body)
+	}
+	if strings.Contains(created.Body.String(), "fj-test") {
+		t.Fatal("sync response leaked the Forgejo token")
+	}
+	syncBody := decode[struct {
+		ID string `json:"id"`
+	}](t, created)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "SECRET_KEY", "value": "super-secret"}); rec.Code != http.StatusCreated {
+		t.Fatalf("secret = %d", rec.Code)
+	}
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "VAR_KEY", "value": "config-value", "kind": "variable"}); rec.Code != http.StatusCreated {
+		t.Fatalf("variable = %d", rec.Code)
+	}
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "NEW_VAR", "value": "fresh", "kind": "variable"}); rec.Code != http.StatusCreated {
+		t.Fatalf("variable = %d", rec.Code)
+	}
+
+	drift := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/drift", nil)
+	if drift.Code != http.StatusOK || !strings.Contains(drift.Body.String(), `"supported":true`) ||
+		!strings.Contains(drift.Body.String(), "SECRET_KEY") || !strings.Contains(drift.Body.String(), "VAR_KEY") {
+		t.Fatalf("drift before run = %d body=%s", drift.Code, drift.Body)
+	}
+
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	mu.Lock()
+	if badAuth {
+		t.Error("request without the Forgejo token header")
+	}
+	if secrets["SECRET_KEY"] != "super-secret" {
+		t.Errorf("secret = %q", secrets["SECRET_KEY"])
+	}
+	if variables["VAR_KEY"] != "config-value" || variables["NEW_VAR"] != "fresh" {
+		t.Errorf("variables = %v", variables)
+	}
+	if _, ok := variables["STALE_VAR"]; ok {
+		t.Error("delete_missing kept STALE_VAR")
+	}
+	if _, ok := secrets["OLD_SECRET"]; ok {
+		t.Error("delete_missing kept OLD_SECRET")
+	}
+	mu.Unlock()
+
+	drift = owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/drift", nil)
+	if drift.Code != http.StatusOK || !strings.Contains(drift.Body.String(), `"keys":[]`) {
+		t.Fatalf("drift after run = %d body=%s", drift.Code, drift.Body)
+	}
+}

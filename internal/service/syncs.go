@@ -73,6 +73,8 @@ type syncConfig struct {
 	VaultMount         string `json:"vault_mount,omitempty"`
 	VaultPath          string `json:"vault_path,omitempty"`
 	VaultVersion       int    `json:"vault_version,omitempty"`
+	ForgejoRepo        string `json:"forgejo_repo,omitempty"`
+	ForgejoScope       string `json:"forgejo_scope,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -112,6 +114,8 @@ type SyncInput struct {
 	VaultMount         string
 	VaultPath          string
 	VaultVersion       int
+	ForgejoRepo        string
+	ForgejoScope       string
 	DeleteMissing      bool
 }
 
@@ -154,7 +158,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" {
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" && provider != "forgejo" {
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	id := uuid.NewString()
@@ -172,6 +176,15 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "forgejo" {
+		if err := validateForgejoConfig(&config, in); err != nil {
+			return nil, err
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
 	} else if provider == "netlify" {
 		config.NetlifyAccount = strings.TrimSpace(in.NetlifyAccount)
 		config.NetlifySite = strings.TrimSpace(in.NetlifySite)
@@ -484,6 +497,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "cloudflare" {
 		destination = "cloudflare:" + config.CFMode + " " + config.CFAccount
 	}
+	if sync.Provider == "forgejo" {
+		destination = forgejoDestination(config)
+	}
 	if sync.Provider == "vault" {
 		destination = "vault:" + config.BaseURL + "/" + config.VaultMount + "/" + config.VaultPath
 	}
@@ -535,6 +551,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postCloudflare(ctx, org, sync, config, env, values, kinds)
 	} else if sync.Provider == "vault" {
 		err2 = s.postVault(ctx, org, sync, config, values)
+	} else if sync.Provider == "forgejo" {
+		err2 = s.postForgejo(ctx, org, sync, config, values, kinds)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -1797,6 +1815,9 @@ func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug
 	case "github":
 		keys, err = s.driftGitHub(ctx, org, sync, config, values, kinds)
 		result.Detail = "GitHub variables compared; secrets checked for presence"
+	case "forgejo":
+		keys, err = s.driftForgejo(ctx, org, sync, config, values, kinds)
+		result.Detail = "Forgejo variables compared; secrets checked for presence"
 	case "cloudflare":
 		if config.CFMode == "pages" {
 			keys, err = s.driftCloudflare(ctx, org, sync, config, env, values)
