@@ -73,6 +73,39 @@ jobs:
       - run: go build ./...
         working-directory: operator
 
+  csi:
+    name: CSI driver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: csi/go.mod
+          cache: true
+          cache-dependency-path: csi/go.sum
+      - run: go test ./...
+        working-directory: csi
+      - run: go build ./...
+        working-directory: csi
+
+  docs:
+    name: Docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: docs-site
+      - run: pnpm build
+        working-directory: docs-site
+
   web:
     name: Web
     runs-on: ubuntu-latest

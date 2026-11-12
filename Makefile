@@ -10,7 +10,7 @@ LDFLAGS     := -s -w \
 	-X $(MODULE)/internal/version.Commit=$(COMMIT) \
 	-X $(MODULE)/internal/version.Date=$(BUILD_DATE)
 
-.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools operator
+.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools operator csi docs-site
 
 all: build
 
@@ -37,10 +37,19 @@ dev:
 server: build
 	./$(BIN) server
 
+## csi: build the Secrets Store CSI driver
+csi:
+	@mkdir -p bin
+	cd csi && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-csi .
+
 ## operator: build the Kubernetes operator
 operator:
 	@mkdir -p bin
 	cd operator && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-operator .
+
+## docs-site: build the VitePress documentation site
+docs-site:
+	cd docs-site && pnpm install --frozen-lockfile && pnpm build
 
 ## test: unit and integration tests against SQLite
 test:

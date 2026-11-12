@@ -23,6 +23,19 @@ jobs:
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: govulncheck ./...
 
+  fuzz:
+    name: Fuzz smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -run=^$ -fuzz=FuzzParseToken -fuzztime=15s ./internal/authn
+      - run: go test -run=^$ -fuzz=FuzzParseDotenv -fuzztime=15s ./internal/cli
+      - run: go test -run=^$ -fuzz=FuzzResolveSecretReferences -fuzztime=15s ./internal/service
+
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
