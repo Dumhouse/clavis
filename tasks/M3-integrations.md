@@ -34,7 +34,7 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 - [ ] **M3-21** Cloudflare Workers/Pages, Netlify (M)
 - [ ] **M3-22** Integrations gallery UI (by category, connected filter) + per-sync page: drift card with Overwrite / Import (change request) / Stop managing, failure card with fix steps, mapping, run history, behavior toggles; `clavis syncs ls|run [--dry-run]|logs` (M)
 - [ ] **M3-30** Clavis GitHub App (secrets write, PR events for preview environments; replaces PAT-based GitHub sync) (M)
-- [ ] **M3-31** GitLab CI/CD variables sync (project + group, protected/masked flags) (S)
+- [x] **M3-31** GitLab CI/CD variables sync (project + group, protected/masked flags) (S)
 - [x] **M3-32** Generic HTTP sync: signed POST (HMAC) of the resolved set to a user endpoint, SSRF-safe client (S)
 - [x] **M3-33** First-run preview: every new sync shows the diff and requires confirmation before its first push; "delete keys not in Clavis" off by default (S)
 

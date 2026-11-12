@@ -101,7 +101,8 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 }
 
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
-	var endpoint, secret, provider string
+	var endpoint, secret, provider, baseURL, gitlabProject, token string
+	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
 		Short: "Create a generic HTTP sync",
@@ -117,9 +118,11 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			var created syncJSON
-			body := map[string]string{
+			body := map[string]any{
 				"environment": args[0], "provider": provider,
 				"endpoint": endpoint, "secret": secret,
+				"base_url": baseURL, "gitlab_project": gitlabProject, "token": token,
+				"protected": protected, "masked": masked,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -132,10 +135,14 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&endpoint, "endpoint", "", "receiver URL (required)")
-	cmd.Flags().StringVar(&secret, "secret", "", "HMAC signing secret")
-	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider")
-	_ = cmd.MarkFlagRequired("endpoint")
+	cmd.Flags().StringVar(&endpoint, "endpoint", "", "receiver URL for generic HTTP")
+	cmd.Flags().StringVar(&secret, "secret", "", "HMAC signing secret for generic HTTP")
+	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http or gitlab")
+	cmd.Flags().StringVar(&baseURL, "gitlab-url", "https://gitlab.com", "GitLab base URL")
+	cmd.Flags().StringVar(&gitlabProject, "gitlab-project", "", "GitLab project path or ID")
+	cmd.Flags().StringVar(&token, "gitlab-token", "", "GitLab access token with api scope")
+	cmd.Flags().BoolVar(&protected, "protected", false, "mark GitLab variables protected")
+	cmd.Flags().BoolVar(&masked, "masked", true, "mask GitLab variables when possible")
 	return cmd
 }
 

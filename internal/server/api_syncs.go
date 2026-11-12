@@ -36,10 +36,15 @@ type createSyncInput struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	Body    struct {
-		Environment string `json:"environment" minLength:"1" maxLength:"60"`
-		Provider    string `json:"provider,omitempty"`
-		Endpoint    string `json:"endpoint" minLength:"1" maxLength:"2048"`
-		Secret      string `json:"secret,omitempty" maxLength:"500"`
+		Environment   string `json:"environment" minLength:"1" maxLength:"60"`
+		Provider      string `json:"provider,omitempty"`
+		Endpoint      string `json:"endpoint,omitempty" maxLength:"2048"`
+		Secret        string `json:"secret,omitempty" maxLength:"500"`
+		BaseURL       string `json:"base_url,omitempty" maxLength:"500"`
+		GitLabProject string `json:"gitlab_project,omitempty" maxLength:"500"`
+		Token         string `json:"token,omitempty" maxLength:"1000"`
+		Protected     bool   `json:"protected,omitempty"`
+		Masked        bool   `json:"masked,omitempty"`
 	}
 }
 
@@ -124,6 +129,8 @@ func (s *Server) registerSyncRoutes() error {
 		view, err := s.svc.CreateSync(ctx, actor, in.Org, in.Project, service.SyncInput{
 			EnvironmentSlug: in.Body.Environment, Provider: in.Body.Provider,
 			Endpoint: in.Body.Endpoint, Secret: in.Body.Secret,
+			BaseURL: in.Body.BaseURL, GitLabProject: in.Body.GitLabProject,
+			Token: in.Body.Token, Protected: in.Body.Protected, Masked: in.Body.Masked,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

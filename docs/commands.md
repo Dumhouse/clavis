@@ -293,7 +293,15 @@ Create a generic HTTP sync. The receiver gets a signed JSON POST.
 clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --secret "$SYNC_SECRET"
 ```
 
-Flags: `--endpoint`, `--secret`, `--provider http`.
+Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
+`--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`.
+
+GitLab syncs upsert project CI/CD variables:
+
+```sh
+clavis syncs create dev --provider gitlab --gitlab-project group/project \
+  --gitlab-token "$GITLAB_TOKEN" --masked
+```
 
 ### `clavis syncs run ID`
 

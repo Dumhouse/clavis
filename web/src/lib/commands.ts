@@ -170,8 +170,19 @@ export const commandGroups: CommandGroup[] = [
         name: 'syncs create',
         usage: 'clavis syncs create ENVIRONMENT --endpoint URL',
         description: 'Create a signed generic HTTP sync.',
-        flags: ['--endpoint URL', '--secret VALUE', '--provider http'],
-        examples: ['clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis'],
+        flags: [
+          '--endpoint URL',
+          '--secret VALUE',
+          '--provider http|gitlab',
+          '--gitlab-project PATH',
+          '--gitlab-token TOKEN',
+          '--protected',
+          '--masked',
+        ],
+        examples: [
+          'clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis',
+          'clavis syncs create dev --provider gitlab --gitlab-project group/project --gitlab-token "$GITLAB_TOKEN"',
+        ],
       },
       {
         name: 'syncs run',
