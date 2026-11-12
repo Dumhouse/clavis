@@ -115,6 +115,9 @@ func runServer(cmd *cobra.Command, opts *Options, configPath, role string) error
 func rootKeyProvider(cfg *config.Config) (crypto.Provider, error) {
 	switch cfg.Keys.Provider {
 	case "file":
+		if _, err := os.Stat(cfg.Keys.RootKeyFile + ".sealed"); err == nil {
+			return nil, fmt.Errorf("root key is sealed; run `clavis admin unseal` before starting the server")
+		}
 		return crypto.NewFileProvider(cfg.Keys.RootKeyFile, true), nil
 	case "env":
 		return crypto.NewEnvProvider(cfg.Keys.RootKeyEnv), nil

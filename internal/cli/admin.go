@@ -29,6 +29,10 @@ func newAdminCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(auditCmd)
 	cmd.AddCommand(newRotateRootKeyCommand(opts))
 	cmd.AddCommand(newMigrateDBCommand(opts))
+	cmd.AddCommand(newAdminBackupCommand(opts))
+	cmd.AddCommand(newAdminRestoreCommand(opts))
+	cmd.AddCommand(newAdminShamirCommand(opts))
+	cmd.AddCommand(newAdminUnsealCommand(opts))
 	return cmd
 }
 
