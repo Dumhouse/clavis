@@ -85,10 +85,10 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 	defer cleanup()
 	env := append(os.Environ(), entries...)
 	if len(values) == 0 {
-		fmt.Fprintln(opts.output().Err, "warning: no secrets found; running with the current environment")
+		_, _ = fmt.Fprintln(opts.output().Err, "warning: no secrets found; running with the current environment")
 	}
 
-	child := exec.CommandContext(ctx, args[0], args[1:]...)
+	child := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // G204: running the user-supplied command is the purpose of `clavis run`
 	child.Env = env
 	child.Stdin = os.Stdin
 	stdoutPipe, err := child.StdoutPipe()
@@ -238,7 +238,7 @@ func prepareSecretEnv(secrets []secretJSON, mount bool) ([]string, []string, fun
 	if err != nil {
 		return nil, nil, cleanup, fmt.Errorf("create mount directory: %w", err)
 	}
-	if err := os.Chmod(dir, 0o700); err != nil {
+	if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // G302: directories need the execute bit; 0700 is owner-only
 		_ = os.RemoveAll(dir)
 		return nil, nil, cleanup, err
 	}

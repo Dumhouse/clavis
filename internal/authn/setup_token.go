@@ -64,7 +64,7 @@ func (s *SetupToken) Ensure() (token string, created bool, err error) {
 		}
 		return "", false, fmt.Errorf("authn: create setup token: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := f.Chmod(0o600); err != nil {
 		return "", false, fmt.Errorf("authn: chmod setup token: %w", err)
 	}
@@ -73,6 +73,9 @@ func (s *SetupToken) Ensure() (token string, created bool, err error) {
 	}
 	if err := f.Sync(); err != nil {
 		return "", false, fmt.Errorf("authn: sync setup token: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", false, fmt.Errorf("authn: close setup token: %w", err)
 	}
 	return token, true, nil
 }

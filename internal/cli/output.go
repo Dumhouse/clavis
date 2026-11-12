@@ -107,22 +107,22 @@ func (o *Output) PrintJSON(v any) error {
 
 // Success writes a green check line.
 func (o *Output) Success(format string, args ...any) {
-	fmt.Fprintf(o.Out, "%s %s\n", o.style("✓", "10b981"), fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(o.Out, "%s %s\n", o.style("✓", "10b981"), fmt.Sprintf(format, args...))
 }
 
 // Info writes a muted line.
 func (o *Output) Info(format string, args ...any) {
-	fmt.Fprintf(o.Out, "%s\n", fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(o.Out, "%s\n", fmt.Sprintf(format, args...))
 }
 
 // Errorf writes a red line to stderr.
 func (o *Output) Errorf(format string, args ...any) {
-	fmt.Fprintf(o.Err, "%s %s\n", o.style("✗", "f87171"), fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(o.Err, "%s %s\n", o.style("✗", "f87171"), fmt.Sprintf(format, args...))
 }
 
 // Warn writes an amber line.
 func (o *Output) Warn(format string, args ...any) {
-	fmt.Fprintf(o.Err, "%s %s\n", o.style("!", "f59e0b"), fmt.Sprintf(format, args...))
+	_, _ = fmt.Fprintf(o.Err, "%s %s\n", o.style("!", "f59e0b"), fmt.Sprintf(format, args...))
 }
 
 func (o *Output) style(s, color string) string {
@@ -158,23 +158,23 @@ func (o *Output) Table(headers []string, rows [][]string) {
 	tw := tabwriter.NewWriter(o.Out, 0, 4, 2, ' ', 0)
 	for i, h := range headers {
 		if i > 0 {
-			fmt.Fprint(tw, "\t")
+			_, _ = fmt.Fprint(tw, "\t")
 		}
 		if o.Color {
-			fmt.Fprint(tw, o.renderer.NewStyle().Bold(true).Render(h))
+			_, _ = fmt.Fprint(tw, o.renderer.NewStyle().Bold(true).Render(h))
 		} else {
-			fmt.Fprint(tw, h)
+			_, _ = fmt.Fprint(tw, h)
 		}
 	}
-	fmt.Fprintln(tw)
+	_, _ = fmt.Fprintln(tw)
 	for _, row := range rows {
 		for i, cell := range row {
 			if i > 0 {
-				fmt.Fprint(tw, "\t")
+				_, _ = fmt.Fprint(tw, "\t")
 			}
-			fmt.Fprint(tw, cell)
+			_, _ = fmt.Fprint(tw, cell)
 		}
-		fmt.Fprintln(tw)
+		_, _ = fmt.Fprintln(tw)
 	}
 	_ = tw.Flush()
 }

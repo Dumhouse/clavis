@@ -48,8 +48,8 @@ func WithLease(d time.Duration) Option { return func(q *Queue) { q.lease = d } }
 func WithPollInterval(d time.Duration) Option { return func(q *Queue) { q.pollInterval = d } }
 
 // WithBackoff sets the base and maximum retry delay.
-func WithBackoff(base, max time.Duration) Option {
-	return func(q *Queue) { q.baseBackoff = base; q.maxBackoff = max }
+func WithBackoff(base, maxDelay time.Duration) Option {
+	return func(q *Queue) { q.baseBackoff = base; q.maxBackoff = maxDelay }
 }
 
 // New returns a queue with sane defaults.
@@ -182,23 +182,23 @@ func (q *Queue) Run(ctx context.Context) error {
 }
 
 // Backoff returns the deterministic exponential delay for an attempt (1-based)
-// capped at max. Attempts beyond 62 saturate to max.
-func Backoff(attempt int, base, max time.Duration) time.Duration {
+// capped at maxDelay. Attempts beyond 62 saturate to maxDelay.
+func Backoff(attempt int, base, maxDelay time.Duration) time.Duration {
 	if attempt < 1 {
 		attempt = 1
 	}
 	if base <= 0 {
 		base = time.Second
 	}
-	if max <= 0 {
-		max = 10 * time.Minute
+	if maxDelay <= 0 {
+		maxDelay = 10 * time.Minute
 	}
 	if attempt > 62 {
-		return max
+		return maxDelay
 	}
 	delay := base << (attempt - 1)
-	if delay <= 0 || delay > max {
-		return max
+	if delay <= 0 || delay > maxDelay {
+		return maxDelay
 	}
 	return delay
 }
@@ -208,5 +208,5 @@ func jitter(d time.Duration) time.Duration {
 	if d <= 0 {
 		return d
 	}
-	return d + time.Duration(rand.Int64N(int64(d)/5+1))
+	return d + time.Duration(rand.Int64N(int64(d)/5+1)) //nolint:gosec // G404: retry jitter does not need a CSPRNG
 }

@@ -2,7 +2,7 @@ package breach
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // G505: mirrors the HIBP SHA-1 range API
 	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +12,7 @@ import (
 
 func TestBreachedKAnonymity(t *testing.T) {
 	password := "correct horse battery staple"
-	sum := sha1.Sum([]byte(password))
+	sum := sha1.Sum([]byte(password)) //nolint:gosec // G401: mirrors the HIBP SHA-1 range API
 	hash := strings.ToUpper(hex.EncodeToString(sum[:]))
 	var sawPrefix string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func TestBreachedKAnonymity(t *testing.T) {
 
 func TestNotBreachedAndZeroCount(t *testing.T) {
 	password := "a unique phrase that is not in the corpus"
-	sum := sha1.Sum([]byte(password))
+	sum := sha1.Sum([]byte(password)) //nolint:gosec // G401: mirrors the HIBP SHA-1 range API
 	hash := strings.ToUpper(hex.EncodeToString(sum[:]))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(hash[5:] + ":0\r\n"))

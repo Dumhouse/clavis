@@ -39,7 +39,7 @@ func (s *Store) ListFolders(ctx context.Context, envID string) ([]Folder, error)
 	if err != nil {
 		return nil, fmt.Errorf("store: list folders: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Folder
 	for rows.Next() {
 		var folder Folder

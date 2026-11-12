@@ -32,7 +32,7 @@ func spaHandler(cfg *config.Config, dist fs.FS) http.Handler {
 			target = "http://127.0.0.1:5173"
 		}
 		if u, err := url.Parse(target); err == nil && u.Host != "" {
-			devProxy = httputil.NewSingleHostReverseProxy(u)
+			devProxy = httputil.NewSingleHostReverseProxy(u) //nolint:gosec // G704: dev-only proxy to the operator-configured Vite server
 		}
 	}
 

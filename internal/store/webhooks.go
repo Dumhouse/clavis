@@ -74,7 +74,7 @@ func (s *Store) ListWebhookDeliveries(ctx context.Context, orgID string, limit i
 	if err != nil {
 		return nil, fmt.Errorf("store: list webhook deliveries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []WebhookDelivery
 	for rows.Next() {
 		var delivery WebhookDelivery

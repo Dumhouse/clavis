@@ -88,7 +88,7 @@ func (s *Service) CloneEnvironment(ctx context.Context, actor authz.Actor, orgSl
 			return nil, err
 		}
 		itemID := uuid.NewString()
-		keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(key),
+		keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(key),
 			crypto.BindAAD(org.ID, project.ID, target.ID, itemID, "key", 1))
 		if err != nil {
 			return nil, err
@@ -99,7 +99,7 @@ func (s *Service) CloneEnvironment(ctx context.Context, actor authz.Actor, orgSl
 			if err != nil {
 				return nil, err
 			}
-			valueCT, err = valueKey.Encrypt(uint32(project.KeyVersion), value,
+			valueCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), value,
 				crypto.BindAAD(org.ID, project.ID, target.ID, itemID, "value", 1))
 			value.Zero()
 			if err != nil {
@@ -112,7 +112,7 @@ func (s *Service) CloneEnvironment(ctx context.Context, actor authz.Actor, orgSl
 			if err != nil {
 				return nil, err
 			}
-			commentCT, err = valueKey.Encrypt(uint32(project.KeyVersion), comment,
+			commentCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), comment,
 				crypto.BindAAD(org.ID, project.ID, target.ID, itemID, "comment", 1))
 			comment.Zero()
 			if err != nil {
@@ -136,7 +136,7 @@ func (s *Service) CloneEnvironment(ctx context.Context, actor authz.Actor, orgSl
 			if err != nil {
 				return nil, err
 			}
-			notesCT, err = valueKey.Encrypt(uint32(project.KeyVersion), notes,
+			notesCT, err = valueKey.Encrypt(keyVersion(project.KeyVersion), notes,
 				crypto.BindAAD(org.ID, project.ID, target.ID, itemID, "notes", 1))
 			notes.Zero()
 			if err != nil {

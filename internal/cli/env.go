@@ -183,9 +183,9 @@ func newEnvDiffCommand(opts *Options) *cobra.Command {
 }
 
 func fetchSecrets(cmd *cobra.Command, c apiClient, r *resolvedContext, env string, reveal bool) (map[string]string, error) {
-	copy := *r
-	copy.Env = env
-	path := secretsBase(&copy)
+	scoped := *r
+	scoped.Env = env
+	path := secretsBase(&scoped)
 	if reveal {
 		path += "?reveal=true&channel=cli"
 	}

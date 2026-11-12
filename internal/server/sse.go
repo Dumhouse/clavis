@@ -39,7 +39,9 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, ": connected\n\n")
+	if _, err := fmt.Fprint(w, ": connected\n\n"); err != nil {
+		return
+	}
 	flusher.Flush()
 
 	events, cancel := s.bus.Subscribe(org.ID)

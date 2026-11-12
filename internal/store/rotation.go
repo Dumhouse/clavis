@@ -26,7 +26,7 @@ func (s *Store) ListAllOrgs(ctx context.Context) ([]Org, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list all orgs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Org
 	for rows.Next() {
 		var org Org
@@ -55,7 +55,7 @@ func (s *Store) ListUsersWithMFA(ctx context.Context) ([]User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list users with MFA: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []User
 	for rows.Next() {
 		user, err := scanUser(rows)

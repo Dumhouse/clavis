@@ -15,10 +15,10 @@ concurrency:
 jobs:
   go:
     name: Go tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -27,9 +27,9 @@ jobs:
       - run: go test -race -shuffle=on -coverprofile=coverage.out ./...
       - run: go tool cover -func=coverage.out | tail -1
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.15.0
 
   postgres:
     name: Go tests (Postgres)
@@ -108,13 +108,13 @@ jobs:
 
   web:
     name: Web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 12
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: web/.nvmrc
           cache: pnpm
@@ -129,17 +129,17 @@ jobs:
   build:
     name: Build binary
     needs: [go, web]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 12
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: web/.nvmrc
           cache: pnpm
@@ -152,17 +152,17 @@ jobs:
   e2e:
     name: E2E (Playwright)
     needs: [go, web]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 12
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: web/.nvmrc
           cache: pnpm
@@ -170,7 +170,7 @@ jobs:
       - run: pnpm --dir web install --frozen-lockfile
       - run: pnpm --dir web exec playwright install --with-deps chromium
       - run: pnpm --dir web e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report

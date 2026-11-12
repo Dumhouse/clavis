@@ -249,7 +249,7 @@ func (s *Server) registerSharedSetRoutes() error {
 	return nil
 }
 
-func sharedSetFromView(view service.SharedSetView, reveal bool) sharedSetBody {
+func sharedSetFromView(view service.SharedSetView, _ bool) sharedSetBody {
 	body := sharedSetBody{
 		ID: view.Set.ID, Slug: view.Set.Slug, Name: view.Set.Name, CreatedAt: view.Set.CreatedAt,
 		Items: []sharedSetItemBody{}, Imports: []sharedSetImportBody{},

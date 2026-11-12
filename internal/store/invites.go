@@ -98,7 +98,7 @@ func (s *Store) ListPendingInvites(ctx context.Context, orgID string) ([]Invite,
 	if err != nil {
 		return nil, fmt.Errorf("store: list invites: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Invite
 	for rows.Next() {
 		invite, err := scanInvite(rows)
@@ -219,7 +219,7 @@ func (s *Store) ListMembers(ctx context.Context, orgID string) ([]Member, error)
 	if err != nil {
 		return nil, fmt.Errorf("store: list members: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Member
 	for rows.Next() {
 		var (

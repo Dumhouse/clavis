@@ -105,7 +105,7 @@ func (s *Store) ListSharedSets(ctx context.Context, orgID string) ([]SharedSet, 
 	if err != nil {
 		return nil, fmt.Errorf("store: list shared sets: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SharedSet
 	for rows.Next() {
 		set, err := scanSharedSet(rows)
@@ -163,7 +163,7 @@ func (s *Store) ListSharedSetItems(ctx context.Context, setID string) ([]SharedS
 	if err != nil {
 		return nil, fmt.Errorf("store: list shared set items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SharedSetItem
 	for rows.Next() {
 		item, err := scanSharedSetItem(rows)
@@ -272,6 +272,7 @@ func (s *Store) ListEnvironmentSharedSets(ctx context.Context, envID string) ([]
 }
 
 func (s *Store) querySharedSetImports(ctx context.Context, where string, arg any) ([]SharedSetImport, error) {
+	//nolint:gosec // G202: where is a constant clause from callers; values are bound args
 	rows, err := s.db.QueryContext(ctx, `SELECT i.id, i.set_id, i.environment_id, i.priority, i.created_at,
 			s.slug, s.name, p.slug, e.slug
 		FROM shared_set_imports i
@@ -281,7 +282,7 @@ func (s *Store) querySharedSetImports(ctx context.Context, where string, arg any
 	if err != nil {
 		return nil, fmt.Errorf("store: list shared set imports: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SharedSetImport
 	for rows.Next() {
 		var item SharedSetImport

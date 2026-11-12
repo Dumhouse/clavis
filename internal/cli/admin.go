@@ -176,7 +176,7 @@ func rotateRootKey(ctx context.Context, out *Output, cfg *config.Config, path st
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	if err := st.Migrate(ctx); err != nil {
 		return err
 	}
@@ -248,16 +248,19 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer from.Close()
+	defer func() { _ = from.Close() }()
 	to, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
-	defer to.Close()
+	defer func() { _ = to.Close() }()
 	if _, err := io.Copy(to, from); err != nil {
 		return err
 	}
 	if err := to.Sync(); err != nil {
+		return err
+	}
+	if err := to.Close(); err != nil {
 		return err
 	}
 	return os.Chmod(dst, 0o600)

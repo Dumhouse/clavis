@@ -15,7 +15,7 @@ import (
 	"github.com/dumhouse/clavis/internal/store"
 )
 
-const scimTokenPrefix = "clv_scim_"
+const scimTokenPrefix = "clv_scim_" //nolint:gosec // G101: token prefix, not a credential
 
 // ScimTokenResult returns the one-time plaintext SCIM token.
 type ScimTokenResult struct {

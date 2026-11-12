@@ -129,7 +129,7 @@ func (s *Store) ListIdentities(ctx context.Context, orgID string) ([]Identity, e
 	if err != nil {
 		return nil, fmt.Errorf("store: list identities: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Identity
 	for rows.Next() {
 		identity, err := scanIdentity(rows)
@@ -167,6 +167,7 @@ func (s *Store) CreateAccessToken(ctx context.Context, token *AccessToken) error
 	return nil
 }
 
+//nolint:gosec // G101: SQL column list, not a credential
 const tokenColumns = `id, org_id, COALESCE(identity_id, ''), COALESCE(user_id, ''), token_hash,
 	prefix, scopes, expires_at, last_used_at, COALESCE(last_used_ip, ''), created_at`
 
@@ -221,7 +222,7 @@ func (s *Store) ListTokensForIdentity(ctx context.Context, identityID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("store: list tokens: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []AccessToken
 	for rows.Next() {
 		token, err := scanAccessToken(rows)

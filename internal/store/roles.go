@@ -14,7 +14,7 @@ func (s *Store) ListRoles(ctx context.Context, orgID string) ([]Role, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list roles: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Role
 	for rows.Next() {
 		var role Role

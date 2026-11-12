@@ -172,10 +172,7 @@ func (c *apiClient) reauth(password string) string {
 	if rec.Code != http.StatusOK {
 		c.t.Fatalf("reauthenticate = %d body=%s", rec.Code, rec.Body)
 	}
-	var out struct {
-		Token string `json:"reauth_token"`
-	}
-	out = decode[struct {
+	out := decode[struct {
 		Token string `json:"reauth_token"`
 	}](c.t, rec)
 	return out.Token
@@ -261,8 +258,7 @@ func (f *fixture) setup(t *testing.T) (*apiClient, setupResponse) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("setup status = %d body=%s", rec.Code, rec.Body)
 	}
-	var body setupResponse
-	body = decode[setupResponse](t, rec)
+	body := decode[setupResponse](t, rec)
 	if body.User.Email != "owner@example.com" || len(body.Orgs) != 1 || body.Orgs[0].Role != "Owner" {
 		t.Fatalf("setup body = %+v", body)
 	}
@@ -305,10 +301,7 @@ func TestSetupLoginAndSecretsFlow(t *testing.T) {
 	if projects.Code != http.StatusOK {
 		t.Fatalf("projects status = %d body=%s", projects.Code, projects.Body)
 	}
-	var projectList struct {
-		Projects []projectResponse `json:"projects"`
-	}
-	projectList = decode[struct {
+	projectList := decode[struct {
 		Projects []projectResponse `json:"projects"`
 	}](t, projects)
 	if len(projectList.Projects) != 1 || len(projectList.Projects[0].Environments) != 3 {
@@ -503,13 +496,7 @@ func TestLoginAndSessionRevocation(t *testing.T) {
 	if sessions.Code != http.StatusOK {
 		t.Fatalf("sessions status = %d", sessions.Code)
 	}
-	var sessionList struct {
-		Sessions []struct {
-			ID      string `json:"id"`
-			Current bool   `json:"current"`
-		} `json:"sessions"`
-	}
-	sessionList = decode[struct {
+	sessionList := decode[struct {
 		Sessions []struct {
 			ID      string `json:"id"`
 			Current bool   `json:"current"`
@@ -562,14 +549,7 @@ func TestDeviceLoginFlow(t *testing.T) {
 	if codeRec.Code != http.StatusOK {
 		t.Fatalf("device code status = %d body=%s", codeRec.Code, codeRec.Body)
 	}
-	var code struct {
-		DeviceCode      string `json:"device_code"`
-		UserCode        string `json:"user_code"`
-		VerificationURI string `json:"verification_uri"`
-		ExpiresIn       int    `json:"expires_in"`
-		Interval        int    `json:"interval"`
-	}
-	code = decode[struct {
+	code := decode[struct {
 		DeviceCode      string `json:"device_code"`
 		UserCode        string `json:"user_code"`
 		VerificationURI string `json:"verification_uri"`
@@ -581,10 +561,7 @@ func TestDeviceLoginFlow(t *testing.T) {
 	}
 
 	pending := anon.request(http.MethodPost, "/api/v1/auth/device/token", map[string]string{"device_code": code.DeviceCode})
-	var pendingBody struct {
-		Status string `json:"status"`
-	}
-	pendingBody = decode[struct {
+	pendingBody := decode[struct {
 		Status string `json:"status"`
 	}](t, pending)
 	if pending.Code != http.StatusOK || pendingBody.Status != "pending" {
@@ -597,14 +574,7 @@ func TestDeviceLoginFlow(t *testing.T) {
 	}
 
 	exchanged := anon.request(http.MethodPost, "/api/v1/auth/device/token", map[string]string{"device_code": code.DeviceCode})
-	var tokenBody struct {
-		Status string `json:"status"`
-		Token  string `json:"token"`
-		User   struct {
-			Email string `json:"email"`
-		} `json:"user"`
-	}
-	tokenBody = decode[struct {
+	tokenBody := decode[struct {
 		Status string `json:"status"`
 		Token  string `json:"token"`
 		User   struct {
@@ -641,12 +611,7 @@ func TestInvitesAndMembers(t *testing.T) {
 	if create.Code != http.StatusCreated {
 		t.Fatalf("invite status = %d body=%s", create.Code, create.Body)
 	}
-	var inv struct {
-		ID   string `json:"id"`
-		Role string `json:"role"`
-		URL  string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		ID   string `json:"id"`
 		Role string `json:"role"`
 		URL  string `json:"url"`
@@ -668,8 +633,7 @@ func TestInvitesAndMembers(t *testing.T) {
 	if accept.Code != http.StatusOK {
 		t.Fatalf("accept status = %d body=%s", accept.Code, accept.Body)
 	}
-	var accepted setupResponse
-	accepted = decode[setupResponse](t, accept)
+	accepted := decode[setupResponse](t, accept)
 	if accepted.User.Email != "new@example.com" || len(accepted.Orgs) != 1 {
 		t.Fatalf("accepted = %+v", accepted)
 	}
@@ -690,14 +654,7 @@ func TestInvitesAndMembers(t *testing.T) {
 	if members.Code != http.StatusOK {
 		t.Fatalf("members status = %d body=%s", members.Code, members.Body)
 	}
-	var list struct {
-		Members []struct {
-			UserID string `json:"user_id"`
-			Email  string `json:"email"`
-			Role   string `json:"role"`
-		} `json:"members"`
-	}
-	list = decode[struct {
+	list := decode[struct {
 		Members []struct {
 			UserID string `json:"user_id"`
 			Email  string `json:"email"`
@@ -748,10 +705,7 @@ func TestInviteEmailRestrictionAndLastOwner(t *testing.T) {
 	if create.Code != http.StatusCreated {
 		t.Fatalf("invite status = %d body=%s", create.Code, create.Body)
 	}
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, create)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -781,10 +735,7 @@ func TestReauthenticationRequired(t *testing.T) {
 	f := newFixture(t)
 	owner, _ := f.setup(t)
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -812,10 +763,7 @@ func TestReauthenticationRequired(t *testing.T) {
 	if reauth.Code != http.StatusOK {
 		t.Fatalf("reauth = %d body=%s", reauth.Code, reauth.Body)
 	}
-	var result struct {
-		Token string `json:"reauth_token"`
-	}
-	result = decode[struct {
+	result := decode[struct {
 		Token string `json:"reauth_token"`
 	}](t, reauth)
 	removed := owner.requestHeaders(http.MethodDelete, path, nil, map[string]string{
@@ -859,14 +807,7 @@ func TestEnvironmentTemplates(t *testing.T) {
 	if create.Code != http.StatusCreated {
 		t.Fatalf("create project = %d body=%s", create.Code, create.Body)
 	}
-	var project struct {
-		Environments []struct {
-			Slug      string `json:"slug"`
-			Type      string `json:"type"`
-			Protected bool   `json:"protected"`
-		} `json:"environments"`
-	}
-	project = decode[struct {
+	project := decode[struct {
 		Environments []struct {
 			Slug      string `json:"slug"`
 			Type      string `json:"type"`
@@ -957,10 +898,7 @@ func TestEnvironmentSnapshots(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("snapshot = %d body=%s", created.Code, created.Body)
 	}
-	var snapshot struct {
-		ID string `json:"id"`
-	}
-	snapshot = decode[struct {
+	snapshot := decode[struct {
 		ID string `json:"id"`
 	}](t, created)
 
@@ -1014,10 +952,7 @@ func TestPersonalOverrides(t *testing.T) {
 	}
 	// Other users still see the shared value.
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Developer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -1102,11 +1037,7 @@ func TestPasskeyCeremoniesStart(t *testing.T) {
 	if begin.Code != http.StatusOK {
 		t.Fatalf("begin registration = %d body=%s", begin.Code, begin.Body)
 	}
-	var options struct {
-		ChallengeID string          `json:"challenge_id"`
-		Options     json.RawMessage `json:"options"`
-	}
-	options = decode[struct {
+	options := decode[struct {
 		ChallengeID string          `json:"challenge_id"`
 		Options     json.RawMessage `json:"options"`
 	}](t, begin)
@@ -1140,10 +1071,7 @@ func TestScimProvisioning(t *testing.T) {
 	if tokenResponse.Code != http.StatusCreated {
 		t.Fatalf("scim token = %d body=%s", tokenResponse.Code, tokenResponse.Body)
 	}
-	var tokenBody struct {
-		Token string `json:"token"`
-	}
-	tokenBody = decode[struct {
+	tokenBody := decode[struct {
 		Token string `json:"token"`
 	}](t, tokenResponse)
 	if !strings.HasPrefix(tokenBody.Token, "clv_scim_") {
@@ -1189,10 +1117,7 @@ func TestScimProvisioning(t *testing.T) {
 	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"userName":"scim@example.com"`) {
 		t.Fatalf("create user = %d body=%s", created.Code, created.Body)
 	}
-	var userBody struct {
-		ID string `json:"id"`
-	}
-	userBody = decode[struct {
+	userBody := decode[struct {
 		ID string `json:"id"`
 	}](t, created)
 	if userBody.ID == "" {
@@ -1206,10 +1131,7 @@ func TestScimProvisioning(t *testing.T) {
 	if group.Code != http.StatusCreated {
 		t.Fatalf("create group = %d body=%s", group.Code, group.Body)
 	}
-	var groupBody struct {
-		ID string `json:"id"`
-	}
-	groupBody = decode[struct {
+	groupBody := decode[struct {
 		ID string `json:"id"`
 	}](t, group)
 	patch := scim(http.MethodPatch, "/scim/v2/Groups/"+groupBody.ID, map[string]any{
@@ -1581,10 +1503,7 @@ func TestOIDCWorkloadIdentity(t *testing.T) {
 	if ok.Code != http.StatusOK {
 		t.Fatalf("exchange = %d body=%s", ok.Code, ok.Body)
 	}
-	var exchanged struct {
-		Token string `json:"token"`
-	}
-	exchanged = decode[struct {
+	exchanged := decode[struct {
 		Token string `json:"token"`
 	}](t, ok)
 	if !strings.HasPrefix(exchanged.Token, "clv_mt_") {
@@ -1628,10 +1547,7 @@ func TestGenericHTTPSync(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create sync = %d body=%s", created.Code, created.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, created)
 
@@ -1713,10 +1629,7 @@ func TestGitLabSync(t *testing.T) {
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create gitlab sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -1792,10 +1705,7 @@ func TestGitHubSync(t *testing.T) {
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create github sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -1856,17 +1766,14 @@ func TestVercelSync(t *testing.T) {
 
 	f := newFixture(t)
 	owner, _ := f.setup(t)
-	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{ //nolint:gosec // G101: test fixture, not a real credential
 		"environment": "dev", "provider": "vercel", "base_url": srv.URL,
 		"vercel_project": "proj", "token": "vercel-test",
 	})
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create vercel sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -1902,6 +1809,7 @@ func TestAWSSync(t *testing.T) {
 		name   string
 		value  string
 		kind   string
+		token  string
 	}
 	calls := make(chan putParameter, 4)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1915,6 +1823,7 @@ func TestAWSSync(t *testing.T) {
 		calls <- putParameter{
 			target: r.Header.Get("X-Amz-Target"), auth: r.Header.Get("Authorization"),
 			name: payload.Name, value: payload.Value, kind: payload.Type,
+			token: r.Header.Get("X-Amz-Security-Token"),
 		}
 		_, _ = w.Write([]byte(`{}`))
 	}))
@@ -1925,15 +1834,12 @@ func TestAWSSync(t *testing.T) {
 	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
 		"environment": "dev", "provider": "aws", "base_url": srv.URL,
 		"aws_region": "eu-central-1", "aws_access_key": "AKID", "aws_secret_key": "SECRET",
-		"aws_service": "ssm",
+		"aws_service": "ssm", "aws_session_token": "SESSION-TOKEN",
 	})
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create aws sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -1956,6 +1862,9 @@ func TestAWSSync(t *testing.T) {
 	if secret.target != "AmazonSSM.PutParameter" || secret.value != "secret-value" || secret.kind != "SecureString" ||
 		!strings.HasPrefix(secret.auth, "AWS4-HMAC-SHA256 Credential=AKID/") {
 		t.Fatalf("secret call = %+v", secret)
+	}
+	if secret.token != "SESSION-TOKEN" {
+		t.Fatalf("session token header = %q, want decrypted token", secret.token)
 	}
 	variable := got["clavis/web-app/dev/AWS_VAR"]
 	if variable.value != "plain-value" || variable.kind != "String" {
@@ -2016,10 +1925,7 @@ func TestGCPSync(t *testing.T) {
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create gcp sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -2068,17 +1974,14 @@ func TestNetlifySync(t *testing.T) {
 	defer srv.Close()
 	f := newFixture(t)
 	owner, _ := f.setup(t)
-	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{ //nolint:gosec // G101: test fixture, not a real credential
 		"environment": "dev", "provider": "netlify", "base_url": srv.URL,
 		"netlify_account": "acme", "token": "netlify-token",
 	})
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create netlify sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -2111,7 +2014,7 @@ func TestCloudflareWorkersSync(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
+		if err := r.ParseMultipartForm(1 << 20); err != nil { //nolint:gosec // G120: test server handler
 			t.Errorf("multipart: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -2133,10 +2036,7 @@ func TestCloudflareWorkersSync(t *testing.T) {
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create cloudflare sync = %d body=%s", sync.Code, sync.Body)
 	}
-	var syncBody struct {
-		ID string `json:"id"`
-	}
-	syncBody = decode[struct {
+	syncBody := decode[struct {
 		ID string `json:"id"`
 	}](t, sync)
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -2641,15 +2541,7 @@ func TestMachineIdentityTokens(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create identity status = %d body=%s", created.Code, created.Body)
 	}
-	var identity struct {
-		Identity struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-			Type string `json:"type"`
-		} `json:"identity"`
-		Token string `json:"token"`
-	}
-	identity = decode[struct {
+	identity := decode[struct {
 		Identity struct {
 			ID   string `json:"id"`
 			Name string `json:"name"`
@@ -2709,10 +2601,7 @@ func TestMachineIdentityTokens(t *testing.T) {
 	if rotate.Code != http.StatusCreated {
 		t.Fatalf("rotate status = %d body=%s", rotate.Code, rotate.Body)
 	}
-	var rotated struct {
-		Token string `json:"token"`
-	}
-	rotated = decode[struct {
+	rotated := decode[struct {
 		Token string `json:"token"`
 	}](t, rotate)
 	if rotated.Token == "" || rotated.Token == identity.Token {
@@ -2833,10 +2722,7 @@ func TestProjectScopedAccessGrants(t *testing.T) {
 	if invite.Code != http.StatusCreated {
 		t.Fatalf("invite = %d body=%s", invite.Code, invite.Body)
 	}
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -2862,10 +2748,7 @@ func TestProjectScopedAccessGrants(t *testing.T) {
 	if grant.Code != http.StatusCreated {
 		t.Fatalf("grant = %d body=%s", grant.Code, grant.Body)
 	}
-	var grantBody struct {
-		ID string `json:"id"`
-	}
-	grantBody = decode[struct {
+	grantBody := decode[struct {
 		ID string `json:"id"`
 	}](t, grant)
 
@@ -2896,10 +2779,7 @@ func TestGroupsAndGroupAccess(t *testing.T) {
 	owner, _ := f.setup(t)
 
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -2916,10 +2796,7 @@ func TestGroupsAndGroupAccess(t *testing.T) {
 	if group.Code != http.StatusCreated {
 		t.Fatalf("create group = %d body=%s", group.Code, group.Body)
 	}
-	var groupBody struct {
-		ID string `json:"id"`
-	}
-	groupBody = decode[struct {
+	groupBody := decode[struct {
 		ID string `json:"id"`
 	}](t, group)
 
@@ -3002,13 +2879,7 @@ func TestCustomRoles(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create role = %d body=%s", created.Code, created.Body)
 	}
-	var role struct {
-		ID          string   `json:"id"`
-		Name        string   `json:"name"`
-		Builtin     bool     `json:"builtin"`
-		Permissions []string `json:"permissions"`
-	}
-	role = decode[struct {
+	role := decode[struct {
 		ID          string   `json:"id"`
 		Name        string   `json:"name"`
 		Builtin     bool     `json:"builtin"`
@@ -3025,10 +2896,7 @@ func TestCustomRoles(t *testing.T) {
 	}
 
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -3073,14 +2941,7 @@ func TestCustomRoles(t *testing.T) {
 		t.Fatalf("list roles = %d %s", list.Code, list.Body)
 	}
 	var builtinID string
-	var listed struct {
-		Roles []struct {
-			ID      string `json:"id"`
-			Name    string `json:"name"`
-			Builtin bool   `json:"builtin"`
-		} `json:"roles"`
-	}
-	listed = decode[struct {
+	listed := decode[struct {
 		Roles []struct {
 			ID      string `json:"id"`
 			Name    string `json:"name"`
@@ -3121,10 +2982,7 @@ func TestCustomRoleEscalation(t *testing.T) {
 	f := newFixture(t)
 	owner, _ := f.setup(t)
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Admin"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -3151,10 +3009,7 @@ func TestSecretOwnerGroup(t *testing.T) {
 	owner, _ := f.setup(t)
 
 	group := owner.request(http.MethodPost, "/api/v1/orgs/acme/groups", map[string]any{"name": "Payments"})
-	var groupBody struct {
-		ID string `json:"id"`
-	}
-	groupBody = decode[struct {
+	groupBody := decode[struct {
 		ID string `json:"id"`
 	}](t, group)
 
@@ -3194,10 +3049,7 @@ func TestEmailVerification(t *testing.T) {
 
 	// Invite without an email restriction produces an unverified account.
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -3252,10 +3104,7 @@ func TestOrgAppearanceDefault(t *testing.T) {
 	}
 
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -3317,13 +3166,7 @@ func TestBatchSecretsWithETag(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("batch = %d body=%s", rec.Code, rec.Body)
 	}
-	var result struct {
-		Created int    `json:"created"`
-		Updated int    `json:"updated"`
-		Deleted int    `json:"deleted"`
-		ETag    string `json:"etag"`
-	}
-	result = decode[struct {
+	result := decode[struct {
 		Created int    `json:"created"`
 		Updated int    `json:"updated"`
 		Deleted int    `json:"deleted"`
@@ -3393,10 +3236,7 @@ func TestMultiEnvironmentBatch(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("multi batch = %d body=%s", rec.Code, rec.Body)
 	}
-	var result struct {
-		Created int `json:"created"`
-	}
-	result = decode[struct {
+	result := decode[struct {
 		Created int `json:"created"`
 	}](t, rec)
 	if result.Created != 2 {
@@ -3482,11 +3322,7 @@ func TestTOTPMFAFlow(t *testing.T) {
 	if enroll.Code != http.StatusOK {
 		t.Fatalf("enroll = %d body=%s", enroll.Code, enroll.Body)
 	}
-	var enrollment struct {
-		Secret string `json:"secret"`
-		URL    string `json:"url"`
-	}
-	enrollment = decode[struct {
+	enrollment := decode[struct {
 		Secret string `json:"secret"`
 		URL    string `json:"url"`
 	}](t, enroll)
@@ -3503,10 +3339,7 @@ func TestTOTPMFAFlow(t *testing.T) {
 	if activate.Code != http.StatusOK {
 		t.Fatalf("activate = %d body=%s", activate.Code, activate.Body)
 	}
-	var recovery struct {
-		RecoveryCodes []string `json:"recovery_codes"`
-	}
-	recovery = decode[struct {
+	recovery := decode[struct {
 		RecoveryCodes []string `json:"recovery_codes"`
 	}](t, activate)
 	if len(recovery.RecoveryCodes) != authn.RecoveryCodeCount {
@@ -3522,11 +3355,7 @@ func TestTOTPMFAFlow(t *testing.T) {
 	login := anon.request(http.MethodPost, "/api/v1/auth/login", map[string]string{
 		"email": "owner@example.com", "password": "correct horse battery staple",
 	})
-	var challenge struct {
-		MFARequired bool   `json:"mfa_required"`
-		Challenge   string `json:"challenge"`
-	}
-	challenge = decode[struct {
+	challenge := decode[struct {
 		MFARequired bool   `json:"mfa_required"`
 		Challenge   string `json:"challenge"`
 	}](t, login)
@@ -3554,10 +3383,7 @@ func TestTOTPMFAFlow(t *testing.T) {
 	loginAgain := (&apiClient{t: t, h: f.srv.Handler()}).request(http.MethodPost, "/api/v1/auth/login", map[string]string{
 		"email": "owner@example.com", "password": "correct horse battery staple",
 	})
-	var second struct {
-		Challenge string `json:"challenge"`
-	}
-	second = decode[struct {
+	second := decode[struct {
 		Challenge string `json:"challenge"`
 	}](t, loginAgain)
 	recoveryClient := &apiClient{t: t, h: f.srv.Handler()}
@@ -3588,10 +3414,7 @@ func TestOrgRequireMFA(t *testing.T) {
 	owner, _ := f.setup(t)
 
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -3612,10 +3435,7 @@ func TestOrgRequireMFA(t *testing.T) {
 	}
 
 	enroll := viewer.request(http.MethodPost, "/api/v1/auth/mfa/totp/enroll", nil)
-	var enrollment struct {
-		Secret string `json:"secret"`
-	}
-	enrollment = decode[struct {
+	enrollment := decode[struct {
 		Secret string `json:"secret"`
 	}](t, enroll)
 	secret, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(enrollment.Secret)
@@ -3678,10 +3498,7 @@ func TestProtectedEnvironmentPolicy(t *testing.T) {
 
 	// Invite a Developer.
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Developer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -4401,10 +4218,7 @@ func TestVariablesAreNotSecrets(t *testing.T) {
 	owner, _ := f.setup(t)
 
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
@@ -4607,11 +4421,7 @@ func TestSignedAuditCheckpoints(t *testing.T) {
 	if checkpoint.Code != http.StatusCreated {
 		t.Fatalf("checkpoint = %d body=%s", checkpoint.Code, checkpoint.Body)
 	}
-	var body struct {
-		Seq       int64  `json:"seq"`
-		PublicKey string `json:"public_key"`
-	}
-	body = decode[struct {
+	body := decode[struct {
 		Seq       int64  `json:"seq"`
 		PublicKey string `json:"public_key"`
 	}](t, checkpoint)
@@ -4648,14 +4458,7 @@ func TestPersonalAccessTokens(t *testing.T) {
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create token = %d body=%s", created.Code, created.Body)
 	}
-	var result struct {
-		Token     string `json:"token"`
-		TokenInfo struct {
-			ID     string `json:"id"`
-			Prefix string `json:"prefix"`
-		} `json:"token_info"`
-	}
-	result = decode[struct {
+	result := decode[struct {
 		Token     string `json:"token"`
 		TokenInfo struct {
 			ID     string `json:"id"`
@@ -4706,13 +4509,7 @@ func TestPersonalAccessTokens(t *testing.T) {
 	second := owner.request(http.MethodPost, "/api/v1/orgs/acme/tokens", map[string]any{
 		"permissions": []string{"secrets:read-names"},
 	})
-	var secondResult struct {
-		Token     string `json:"token"`
-		TokenInfo struct {
-			ID string `json:"id"`
-		} `json:"token_info"`
-	}
-	secondResult = decode[struct {
+	secondResult := decode[struct {
 		Token     string `json:"token"`
 		TokenInfo struct {
 			ID string `json:"id"`
@@ -4735,10 +4532,7 @@ func TestPersonalTokenCannotEscalate(t *testing.T) {
 	f := newFixture(t)
 	owner, _ := f.setup(t)
 	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Viewer"})
-	var inv struct {
-		URL string `json:"url"`
-	}
-	inv = decode[struct {
+	inv := decode[struct {
 		URL string `json:"url"`
 	}](t, invite)
 	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]

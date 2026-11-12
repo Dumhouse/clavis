@@ -253,7 +253,7 @@ func (s *Service) encryptOrgSecret(org *store.Org, itemID, field, secret string)
 	}
 	defer orgKey.Zero()
 	aad := crypto.BindAAD(org.ID, "", "", itemID, field, 1)
-	return orgKey.Encrypt(uint32(org.KeyVersion), crypto.Secret(secret), aad)
+	return orgKey.Encrypt(keyVersion(org.KeyVersion), crypto.Secret(secret), aad)
 }
 
 func (s *Service) decryptOrgSecret(org *store.Org, itemID, field string, ciphertext []byte) (string, error) {

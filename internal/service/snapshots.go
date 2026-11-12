@@ -78,7 +78,7 @@ func (s *Service) CreateSnapshot(ctx context.Context, actor authz.Actor, orgSlug
 	}
 	// The ID is needed for AAD, so generate it before encrypting.
 	snapshot.ID = uuid.NewString()
-	ciphertext, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(raw),
+	ciphertext, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(raw),
 		crypto.BindAAD(org.ID, project.ID, env.ID, snapshot.ID, "snapshot", 1))
 	if err != nil {
 		return nil, err

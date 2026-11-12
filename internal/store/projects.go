@@ -106,7 +106,7 @@ func (s *Store) ListProjects(ctx context.Context, orgID string) ([]Project, erro
 	if err != nil {
 		return nil, fmt.Errorf("store: list projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Project
 	for rows.Next() {
 		p, err := scanProject(rows)
@@ -197,7 +197,7 @@ func (s *Store) ListEnvironments(ctx context.Context, projectID string) ([]Envir
 	if err != nil {
 		return nil, fmt.Errorf("store: list environments: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Environment
 	for rows.Next() {
 		e, err := scanEnvironment(rows)

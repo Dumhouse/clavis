@@ -84,7 +84,7 @@ func (p *FileProvider) generateKey() (Key, error) {
 		}
 		return Key{}, fmt.Errorf("crypto: create root key: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Enforce 0600 even if the process umask would have widened it.
 	if err := f.Chmod(0o600); err != nil {
@@ -95,6 +95,9 @@ func (p *FileProvider) generateKey() (Key, error) {
 	}
 	if err := f.Sync(); err != nil {
 		return Key{}, fmt.Errorf("crypto: sync root key: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return Key{}, fmt.Errorf("crypto: close root key: %w", err)
 	}
 	return key, nil
 }
@@ -113,7 +116,7 @@ func (p *FileProvider) Save(ctx context.Context, key Key) error {
 		return fmt.Errorf("crypto: create temporary root key: %w", err)
 	}
 	tempName := temp.Name()
-	defer os.Remove(tempName)
+	defer func() { _ = os.Remove(tempName) }()
 	if err := temp.Chmod(0o600); err != nil {
 		_ = temp.Close()
 		return fmt.Errorf("crypto: chmod temporary root key: %w", err)

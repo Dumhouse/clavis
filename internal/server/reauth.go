@@ -40,7 +40,7 @@ func (s *Server) registerReauthRoutes() error {
 	}, func(ctx context.Context, in *reauthInput) (*reauthOutput, error) {
 		actor, ok := actorFrom(ctx)
 		if !ok {
-			return nil, withRequestID(problem.New(http.StatusUnauthorized, "unauthenticated", "Not signed in", "Sign in first."), ctx)
+			return nil, withRequestID(ctx, problem.New(http.StatusUnauthorized, "unauthenticated", "Not signed in", "Sign in first."))
 		}
 		if err := s.svc.VerifyActorPassword(ctx, actor, in.Body.Password); err != nil {
 			return nil, s.apiError(ctx, err)
@@ -97,10 +97,10 @@ func (s *Server) requireReauth(ctx context.Context, token string) error {
 }
 
 func reauthRequired(ctx context.Context) error {
-	return withRequestID(problem.New(http.StatusForbidden, "reauth_required",
-		"Re-authentication required", "Confirm your password to continue."), ctx)
+	return withRequestID(ctx, problem.New(http.StatusForbidden, "reauth_required",
+		"Re-authentication required", "Confirm your password to continue."))
 }
 
 func unauthenticated(ctx context.Context) error {
-	return withRequestID(problem.New(http.StatusUnauthorized, "unauthenticated", "Not signed in", "Sign in first."), ctx)
+	return withRequestID(ctx, problem.New(http.StatusUnauthorized, "unauthenticated", "Not signed in", "Sign in first."))
 }

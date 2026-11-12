@@ -211,19 +211,19 @@ func (s *Service) SetSharedSetItem(ctx context.Context, actor authz.Actor, orgSl
 		itemID = existing.ID
 		version = existing.Version + 1
 	}
-	keyCT, err := valueKey.Encrypt(uint32(set.KeyVersion), crypto.Secret(key),
+	keyCT, err := valueKey.Encrypt(keyVersion(set.KeyVersion), crypto.Secret(key),
 		crypto.BindAAD(org.ID, set.ID, "", itemID, "key", 1))
 	if err != nil {
 		return err
 	}
-	valueCT, err := valueKey.Encrypt(uint32(set.KeyVersion), crypto.Secret(in.Value),
+	valueCT, err := valueKey.Encrypt(keyVersion(set.KeyVersion), crypto.Secret(in.Value),
 		crypto.BindAAD(org.ID, set.ID, "", itemID, "value", version))
 	if err != nil {
 		return err
 	}
 	var commentCT []byte
 	if in.Comment != "" {
-		commentCT, err = valueKey.Encrypt(uint32(set.KeyVersion), crypto.Secret(in.Comment),
+		commentCT, err = valueKey.Encrypt(keyVersion(set.KeyVersion), crypto.Secret(in.Comment),
 			crypto.BindAAD(org.ID, set.ID, "", itemID, "comment", version))
 		if err != nil {
 			return err

@@ -203,7 +203,11 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 	}
 
 	s.router.Use(middleware.RequestID)
-	s.router.Use(middleware.RealIP)
+	clientIPs, err := newClientIPResolver(cfg.Server.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
+	s.router.Use(clientIPs.middleware)
 	s.router.Use(middleware.GetHead)
 	s.router.Use(withRequestInfo)
 	s.router.Use(s.observe)

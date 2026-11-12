@@ -71,7 +71,7 @@ func (s *Store) ListOverlayItems(ctx context.Context, overlayID string) ([]Item,
 	if err != nil {
 		return nil, fmt.Errorf("store: list overlay items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Item
 	for rows.Next() {
 		item, err := scanItem(rows)

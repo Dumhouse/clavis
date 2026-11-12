@@ -14,7 +14,7 @@ func (s *Store) ListPersonalTokens(ctx context.Context, userID, orgID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("store: list personal tokens: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []AccessToken
 	for rows.Next() {
 		token, err := scanAccessToken(rows)

@@ -187,6 +187,7 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_BACKUP_DIR` | `<data>/backups` | Backup output directory |
 | `CLAVIS_BACKUP_INTERVAL` | `24h` | Time between scheduled backups |
 | `CLAVIS_BACKUP_KEEP` | `7` | Number of backup files to retain |
+| `CLAVIS_TRUSTED_PROXIES` | — | Comma-separated IPs/CIDRs of reverse proxies whose `X-Forwarded-For`/`X-Real-IP` are trusted. Unset: those headers are ignored and the socket peer is the client IP (rate limits, audit log). Set it when running behind a proxy. |
 
 See [deploy/clavis.example.yaml](https://github.com/dumhouse/clavis/blob/main/deploy/clavis.example.yaml).
 

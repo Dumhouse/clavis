@@ -710,7 +710,7 @@ func (s *Service) record(ctx context.Context, actor audit.Actor, orgID, action s
 
 // ProjectKeys unwraps the org and project keys and derives the value and blind
 // index keys. Callers must Zero the returned keys.
-func (s *Service) ProjectKeys(ctx context.Context, org *store.Org, project *store.Project) (valueKey, indexKey crypto.Key, err error) {
+func (s *Service) ProjectKeys(_ context.Context, org *store.Org, project *store.Project) (valueKey, indexKey crypto.Key, err error) {
 	orgKey, err := s.Keyring.UnwrapOrgKey(org.ID, org.WrappedOrgKey)
 	if err != nil {
 		return valueKey, indexKey, fmt.Errorf("service: unwrap org key: %w", err)
@@ -1177,3 +1177,9 @@ func (s *Service) UpdateOrgSettings(ctx context.Context, actor authz.Actor, orgS
 
 // IPv4/6 checks for the allowlist live in the server so machine tokens and
 // browser sessions share one implementation.
+
+// keyVersion converts a stored key version to the uint32 carried in envelope
+// headers. Versions start at 1 and grow by one per rotation, so they always fit.
+func keyVersion(v int) uint32 {
+	return uint32(v) //nolint:gosec // G115: key versions are small positive counters
+}
