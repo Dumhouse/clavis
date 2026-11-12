@@ -1,0 +1,13 @@
+{
+  "name": "Clavis",
+  "description": "Open-source secrets manager with typed config, dynamic credentials, JIT access, audit, and agent-safe MCP.",
+  "homepage_url": "https://github.com/dumhouse/clavis",
+  "repo_url": "https://github.com/dumhouse/clavis",
+  "logo": "clavis.svg",
+  "crunchbase": "",
+  "twitter": "",
+  "category": "Security & Compliance",
+  "subcategory": "Secrets Management",
+  "license": "Apache-2.0",
+  "organization": "Dumhouse"
+}
