@@ -224,7 +224,7 @@ func importProviderOptions(provider string, flags importProviderFlags) (importer
 		options.GCPProject = firstNonEmpty(options.GCPProject, os.Getenv("GCP_PROJECT"), os.Getenv("GOOGLE_CLOUD_PROJECT"))
 		accountFile := firstNonEmpty(flags.GCPServiceAccountFile, os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 		if accountFile != "" {
-			raw, err := os.ReadFile(accountFile)
+			raw, err := os.ReadFile(accountFile) //nolint:gosec // G703: service-account path is chosen by the operator
 			if err != nil {
 				return options, fmt.Errorf("read GCP service account: %w", err)
 			}
@@ -308,12 +308,6 @@ func importAction(entry importEntry, current map[string]string, revealed bool) s
 		return "unchanged"
 	}
 	return "changed"
-}
-
-func readAll(r *os.File) ([]byte, error) {
-	var buf bytes.Buffer
-	_, err := buf.ReadFrom(r)
-	return buf.Bytes(), err
 }
 
 // ParseImportFile selects a parser by extension, defaulting to dotenv.

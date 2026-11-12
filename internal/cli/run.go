@@ -43,7 +43,7 @@ func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput
 		if err != nil || !restart {
 			return err
 		}
-		fmt.Fprintln(opts.output().Err, "Secrets changed; restarting…")
+		_, _ = fmt.Fprintln(opts.output().Err, "Secrets changed; restarting…")
 	}
 }
 
@@ -71,10 +71,10 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			return false, err
 		}
 		result.Secrets = cached
-		fmt.Fprintln(opts.output().Err, "warning: server unavailable; using the encrypted offline cache")
+		_, _ = fmt.Fprintln(opts.output().Err, "warning: server unavailable; using the encrypted offline cache")
 	} else if resolved.Cache {
 		if cacheErr := saveSecretCache(resolved, result.Secrets); cacheErr != nil {
-			fmt.Fprintf(opts.output().Err, "warning: could not write the offline cache: %v\n", cacheErr)
+			_, _ = fmt.Fprintf(opts.output().Err, "warning: could not write the offline cache: %v\n", cacheErr)
 		}
 	}
 
@@ -189,7 +189,7 @@ func watchForSecretChange(ctx context.Context, resolved *resolvedContext) bool {
 	if err != nil {
 		return false
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return false
 	}

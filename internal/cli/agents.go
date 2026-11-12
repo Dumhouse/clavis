@@ -99,25 +99,25 @@ func newAgentsAllowCommand(opts *Options) *cobra.Command {
 }
 
 func newAgentsRevokeCommand(opts *Options) *cobra.Command {
-	var clear bool
+	var clearAll bool
 	cmd := &cobra.Command{
 		Use:   "revoke IDENTITY [COMMAND...]",
 		Short: "Remove command patterns from an agent allowlist",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			remove := args[1:]
-			if clear {
+			if clearAll {
 				if len(remove) > 0 {
-					return fmt.Errorf("pass either command patterns or --clear, not both")
+					return fmt.Errorf("pass either command patterns or --clearAll, not both")
 				}
 				remove = nil
 			} else if len(remove) == 0 {
-				return fmt.Errorf("pass at least one command pattern, or --clear to deny all")
+				return fmt.Errorf("pass at least one command pattern, or --clearAll to deny all")
 			}
 			return updateAgentAllowlist(opts, cmd, args[0], remove, true)
 		},
 	}
-	cmd.Flags().BoolVar(&clear, "clear", false, "remove every command pattern (deny all)")
+	cmd.Flags().BoolVar(&clearAll, "clear", false, "remove every command pattern (deny all)")
 	return cmd
 }
 

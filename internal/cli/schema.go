@@ -116,10 +116,10 @@ func newSchemaPullCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			if outPath == "-" {
-				fmt.Fprint(out.Out, string(content))
-				return nil
+				_, err := fmt.Fprint(out.Out, string(content))
+				return err
 			}
-			if err := os.WriteFile(outPath, content, 0o644); err != nil {
+			if err := os.WriteFile(outPath, content, 0o644); err != nil { //nolint:gosec // G306: generated schema file is meant to be committed
 				return fmt.Errorf("could not write %s: %w", outPath, err)
 			}
 			out.Success("Wrote %d schema entries to %s.", len(schema.Schema), outPath)
@@ -165,8 +165,8 @@ func newSchemaPushCommand(opts *Options) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				fmt.Fprint(out.Out, string(content))
-				return nil
+				_, err = fmt.Fprint(out.Out, string(content))
+				return err
 			}
 			c, err := resolved.newClient()
 			if err != nil {
@@ -224,10 +224,10 @@ func newSchemaInferCommand(opts *Options) *cobra.Command {
 				return nil
 			}
 			if outPath == "" || outPath == "-" {
-				fmt.Fprint(out.Out, string(content))
-				return nil
+				_, err := fmt.Fprint(out.Out, string(content))
+				return err
 			}
-			if err := os.WriteFile(outPath, content, 0o644); err != nil {
+			if err := os.WriteFile(outPath, content, 0o644); err != nil { //nolint:gosec // G306: generated schema file is meant to be committed
 				return fmt.Errorf("could not write %s: %w", outPath, err)
 			}
 			out.Success("Wrote %d inferred schema entries to %s.", len(suggestions), outPath)

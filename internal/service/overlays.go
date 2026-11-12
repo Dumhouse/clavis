@@ -183,7 +183,7 @@ func (s *Service) SetOverlaySecret(ctx context.Context, actor authz.Actor, orgSl
 	}
 	if existing != nil {
 		next := existing.Version + 1
-		valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+		valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 			crypto.BindAAD(org.ID, project.ID, env.ID, existing.ID, "value", next))
 		if err != nil {
 			return err
@@ -196,12 +196,12 @@ func (s *Service) SetOverlaySecret(ctx context.Context, actor authz.Actor, orgSl
 		}
 	} else {
 		itemID := uuid.NewString()
-		keyCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Key),
+		keyCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Key),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "key", 1))
 		if err != nil {
 			return err
 		}
-		valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+		valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(in.Value),
 			crypto.BindAAD(org.ID, project.ID, env.ID, itemID, "value", 1))
 		if err != nil {
 			return err
@@ -248,7 +248,7 @@ func (s *Service) DeleteOverlaySecret(ctx context.Context, actor authz.Actor, or
 }
 
 // ApplyOverlay merges overlay values over a resolved secret list.
-func (s *Service) ApplyOverlay(ctx context.Context, actor authz.Actor, org *store.Org, project *store.Project, env *store.Environment, secrets []Secret, overlaySlug string, reveal bool) ([]Secret, error) {
+func (s *Service) ApplyOverlay(ctx context.Context, _ authz.Actor, org *store.Org, project *store.Project, env *store.Environment, secrets []Secret, overlaySlug string, reveal bool) ([]Secret, error) {
 	if overlaySlug == "" {
 		return secrets, nil
 	}

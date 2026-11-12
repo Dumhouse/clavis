@@ -65,10 +65,10 @@ func TestGenerateGoCompiles(t *testing.T) {
 		}
 	}
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module generated\n\ngo 1.21\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module generated\n\ngo 1.21\n"), 0o644); err != nil { //nolint:gosec // G306: test fixture
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "config.go"), []byte(code), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "config.go"), []byte(code), 0o644); err != nil { //nolint:gosec // G306: test fixture
 		t.Fatal(err)
 	}
 	cmd := exec.Command("go", "test", "./...")
@@ -87,8 +87,8 @@ func TestGenerateGoStringOnlyHasNoUnusedImports(t *testing.T) {
 		t.Fatalf("string-only schema imported fmt:\n%s", code)
 	}
 	dir := t.TempDir()
-	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module generated\n\ngo 1.21\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "config.go"), []byte(code), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module generated\n\ngo 1.21\n"), 0o644) //nolint:gosec // G306: test fixture
+	_ = os.WriteFile(filepath.Join(dir, "config.go"), []byte(code), 0o644)                         //nolint:gosec // G306: test fixture
 	cmd := exec.Command("go", "test", "./...")
 	cmd.Dir = dir
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -116,7 +116,7 @@ func TestGeneratePython(t *testing.T) {
 	if python, err := exec.LookPath("python3"); err == nil {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.py")
-		if err := os.WriteFile(path, []byte(code), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(code), 0o644); err != nil { //nolint:gosec // G306: test fixture
 			t.Fatal(err)
 		}
 		if output, err := exec.Command(python, "-m", "py_compile", path).CombinedOutput(); err != nil {

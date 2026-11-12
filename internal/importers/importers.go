@@ -99,7 +99,7 @@ func getJSON(ctx context.Context, opts Options, endpoint, token string, target a
 	if err != nil {
 		return fmt.Errorf("request %s: %w", endpoint, err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 16<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("%s returned %d: %s", endpoint, response.StatusCode, strings.TrimSpace(string(body)))
@@ -122,16 +122,6 @@ func normalizeBase(raw, fallback string) (string, error) {
 		return "", fmt.Errorf("base URL must use http or https")
 	}
 	return parsed.String(), nil
-}
-
-func authHeader(token string) string {
-	if token == "" {
-		return ""
-	}
-	if strings.HasPrefix(strings.ToLower(token), "bearer ") {
-		return token
-	}
-	return "Bearer " + token
 }
 
 func keyValue(value string) (map[string]string, bool) {

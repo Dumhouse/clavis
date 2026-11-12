@@ -11,7 +11,7 @@ import (
 
 func loadVault(ctx context.Context, opts Options) ([]Entry, error) {
 	if strings.TrimSpace(opts.Token) == "" {
-		return nil, fmt.Errorf("Vault token is required (--token, VAULT_TOKEN, or OPENBAO_TOKEN)")
+		return nil, fmt.Errorf("a Vault token is required (--token, VAULT_TOKEN, or OPENBAO_TOKEN)")
 	}
 	base, err := normalizeBase(opts.BaseURL, "http://127.0.0.1:8200")
 	if err != nil {
@@ -43,10 +43,10 @@ func loadVault(ctx context.Context, opts Options) ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request Vault: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 16<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("Vault %s returned %d: %s", endpoint, response.StatusCode, strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("vault %s returned %d: %s", endpoint, response.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var payload struct {
 		Data map[string]any `json:"data"`
@@ -58,7 +58,7 @@ func loadVault(ctx context.Context, opts Options) ([]Entry, error) {
 	if version == 2 {
 		nested, ok := payload.Data["data"].(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("Vault response has no data.data map; check the KV mount version and path")
+			return nil, fmt.Errorf("the Vault response has no data.data map; check the KV mount version and path")
 		}
 		values = nested
 	}

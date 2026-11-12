@@ -50,7 +50,7 @@ func (s *Store) ListUserRevealedItems(ctx context.Context, orgID, userID string)
 	if err != nil {
 		return nil, fmt.Errorf("store: list user reveals: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []OffboardingItem
 	for rows.Next() {
 		var item OffboardingItem
@@ -84,7 +84,7 @@ func (s *Store) ListOffboardingTasks(ctx context.Context, orgID, userID string) 
 	if err != nil {
 		return nil, fmt.Errorf("store: list offboarding tasks: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []OffboardingTask
 	for rows.Next() {
 		var task OffboardingTask

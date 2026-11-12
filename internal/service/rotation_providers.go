@@ -167,8 +167,8 @@ func (s *Service) setPostgresPassword(ctx context.Context, config rotationPostgr
 	if err != nil {
 		return err
 	}
-	defer db.Close()
-	statement := `ALTER ROLE "` + strings.ReplaceAll(config.Role, `"`, `""`) +
+	defer func() { _ = db.Close() }()
+	statement := `ALTER ROLE "` + strings.ReplaceAll(config.Role, `"`, `""`) + //nolint:gosec // G202: Postgres cannot bind identifiers; they are quoted with embedded quotes doubled
 		`" WITH PASSWORD '` + strings.ReplaceAll(password, "'", "''") + `'`
 	_, err = db.ExecContext(ctx, statement)
 	return err
@@ -193,7 +193,7 @@ func (s *Service) rotationWebhook(ctx context.Context, config rotationWebhookCon
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", fmt.Errorf("rotation webhook returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))
@@ -258,7 +258,7 @@ func (s *Service) iamCall(ctx context.Context, config rotationAWSConfig, form ur
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("IAM returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))

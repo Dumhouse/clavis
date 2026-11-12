@@ -67,7 +67,7 @@ func (s *Server) runScheduledBackup(ctx context.Context) {
 	}
 
 	dest := filepath.Join(dir, backup.FileName(time.Now().UTC()))
-	if err := os.WriteFile(dest, encrypted, 0o600); err != nil {
+	if err := os.WriteFile(dest, encrypted, 0o600); err != nil { //nolint:gosec // G703: backup directory is operator configuration
 		s.logger.Error("scheduled backup: write", "path", dest, "error", err)
 		return
 	}

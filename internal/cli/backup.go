@@ -40,7 +40,7 @@ func newAdminBackupCommand(opts *Options) *cobra.Command {
 			}
 			tempPath := temp.Name()
 			_ = temp.Close()
-			defer os.Remove(tempPath)
+			defer func() { _ = os.Remove(tempPath) }()
 			if cfg.Database.Driver == "postgres" {
 				if err := backup.SnapshotPostgres(cmd.Context(), cfg.Database.DSN, tempPath); err != nil {
 					return err
@@ -64,7 +64,7 @@ func newAdminBackupCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.WriteFile(outPath, encrypted, 0o600); err != nil {
+			if err := os.WriteFile(outPath, encrypted, 0o600); err != nil { //nolint:gosec // G703: output path is chosen by the operator on the command line
 				return err
 			}
 			out.Success("Wrote encrypted backup to %s.", outPath)
@@ -111,7 +111,7 @@ func newAdminRestoreCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			tempPath := temp.Name()
-			defer os.Remove(tempPath)
+			defer func() { _ = os.Remove(tempPath) }()
 			if _, err := temp.Write(plaintext); err != nil {
 				_ = temp.Close()
 				return err
@@ -126,7 +126,7 @@ func newAdminRestoreCommand(opts *Options) *cobra.Command {
 				if err := os.Rename(cfg.Database.Path, backupPath); err != nil && !os.IsNotExist(err) {
 					return err
 				}
-				if err := os.WriteFile(cfg.Database.Path, plaintext, 0o600); err != nil {
+				if err := os.WriteFile(cfg.Database.Path, plaintext, 0o600); err != nil { //nolint:gosec // G703: restore target is the configured database path
 					return err
 				}
 				out.Info("Previous database moved to %s", backupPath)

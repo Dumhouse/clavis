@@ -63,7 +63,7 @@ func (s *Store) ListFreezeWindows(ctx context.Context, envID string, at time.Tim
 	if err != nil {
 		return nil, fmt.Errorf("store: list freezes: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []FreezeWindow
 	for rows.Next() {
 		var freeze FreezeWindow

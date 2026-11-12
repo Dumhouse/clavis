@@ -108,9 +108,9 @@ func newMCPCommand(opts *Options) *cobra.Command {
 				if _, err := server.session.client(cmd.Context()); err != nil {
 					return err
 				}
-				fmt.Fprintf(stderr, "clavis mcp: agent %s, session held in memory and renewed hourly\n", agent)
+				_, _ = fmt.Fprintf(stderr, "clavis mcp: agent %s, session held in memory and renewed hourly\n", agent)
 			case strings.HasPrefix(resolved.Token, "clv_at_"):
-				fmt.Fprintln(stderr, "clavis mcp: warning: using a static agent token from CLAVIS_TOKEN. "+
+				_, _ = fmt.Fprintln(stderr, "clavis mcp: warning: using a static agent token from CLAVIS_TOKEN. "+
 					"An agent that can read its MCP config can read this token. Prefer `clavis mcp --agent <name>`.")
 				c, err := resolved.newClient()
 				if err != nil {
@@ -396,7 +396,7 @@ func (s *mcpServer) runWithSecrets(ctx context.Context, raw json.RawMessage) (*t
 	defer cleanup()
 	childCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
-	child := exec.CommandContext(childCtx, args.Command, args.Args...)
+	child := exec.CommandContext(childCtx, args.Command, args.Args...) //nolint:gosec // G204: the MCP agent command is checked against its allowlist before this point
 	child.Env = append(os.Environ(), entries...)
 	child.Stdin = nil
 	output, err := child.CombinedOutput()

@@ -107,7 +107,7 @@ func awsCall(ctx context.Context, opts Options, endpoint, target string, payload
 	if err != nil {
 		return nil, fmt.Errorf("AWS request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 8<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("AWS %s returned %d: %s", target, response.StatusCode, strings.TrimSpace(string(body)))

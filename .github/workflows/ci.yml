@@ -33,7 +33,7 @@ jobs:
 
   postgres:
     name: Go tests (Postgres)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     services:
       postgres:
         image: postgres:17
@@ -51,8 +51,8 @@ jobs:
     env:
       CLAVIS_TEST_POSTGRES: postgres://clavis:clavis@localhost:5432/clavis_test?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -60,10 +60,10 @@ jobs:
 
   operator:
     name: Kubernetes operator
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: operator/go.mod
           cache: true
@@ -75,10 +75,10 @@ jobs:
 
   csi:
     name: CSI driver
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: csi/go.mod
           cache: true
@@ -90,13 +90,13 @@ jobs:
 
   docs:
     name: Docs site
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: 12
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: web/.nvmrc
           cache: pnpm

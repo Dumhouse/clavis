@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
 
 	"github.com/dumhouse/clavis/internal/audit"
 	"github.com/dumhouse/clavis/internal/authz"
@@ -208,7 +208,7 @@ func (s *Service) CreateLease(ctx context.Context, actor authz.Actor, orgSlug, p
 		return nil, err
 	}
 	defer valueKey.Zero()
-	ciphertext, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(raw),
+	ciphertext, err := valueKey.Encrypt(keyVersion(project.KeyVersion), crypto.Secret(raw),
 		crypto.BindAAD(org.ID, project.ID, config.ID, leaseID, "lease", 1))
 	if err != nil {
 		return nil, err
@@ -249,12 +249,12 @@ func (s *Service) createPostgresCredentials(ctx context.Context, leaseID string,
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := db.ExecContext(ctx, statement); err != nil {
 		return nil, fmt.Errorf("dynamic postgres: create role: %w", err)
 	}
 	if config.GrantRole != "" {
-		grant := `GRANT "` + strings.ReplaceAll(config.GrantRole, `"`, `""`) + `" TO "` + name + `"`
+		grant := `GRANT "` + strings.ReplaceAll(config.GrantRole, `"`, `""`) + `" TO "` + name + `"` //nolint:gosec // G202: Postgres cannot bind identifiers; they are quoted with embedded quotes doubled
 		if _, err := db.ExecContext(ctx, grant); err != nil {
 			_, _ = db.ExecContext(context.Background(), `DROP ROLE IF EXISTS "`+name+`"`)
 			return nil, fmt.Errorf("dynamic postgres: grant role: %w", err)
@@ -286,7 +286,7 @@ func (s *Service) postgresAdminClient(config *postgresDynamicConfig) (*sql.DB, e
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("dynamic postgres: connect: %w", err)
 	}
 	return db, nil
@@ -308,7 +308,7 @@ func (s *Service) decryptDynamicConfig(org *store.Org, config *store.DynamicSecr
 }
 
 // RenewLease extends a lease up to its config max TTL.
-func (s *Service) RenewLease(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, leaseID string, ttlSeconds int, meta AuditMeta) (*LeaseView, error) {
+func (s *Service) RenewLease(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, leaseID string, ttlSeconds int, _ AuditMeta) (*LeaseView, error) {
 	org, project, err := s.projectForWrite(ctx, actor, orgSlug, projectSlug, authz.SecretsUse)
 	if err != nil {
 		return nil, err
@@ -354,14 +354,14 @@ func (s *Service) RenewLease(ctx context.Context, actor authz.Actor, orgSlug, pr
 		return nil, err
 	}
 	if settings.Host != "" {
-		statement := `ALTER ROLE "` + strings.ReplaceAll(data["username"], `"`, `""`) +
+		statement := `ALTER ROLE "` + strings.ReplaceAll(data["username"], `"`, `""`) + //nolint:gosec // G202: Postgres cannot bind identifiers; they are quoted with embedded quotes doubled
 			`" VALID UNTIL '` + expires.Format(time.RFC3339) + `'`
 		db, err := s.postgresAdminClient(settings)
 		if err != nil {
 			return nil, err
 		}
 		_, execErr := db.ExecContext(ctx, statement)
-		db.Close()
+		_ = db.Close()
 		if execErr != nil {
 			return nil, execErr
 		}
@@ -434,7 +434,7 @@ func (s *Service) revokeLease(ctx context.Context, org *store.Org, project *stor
 		db, err := s.postgresAdminClient(settings)
 		if err == nil {
 			_, _ = db.ExecContext(ctx, statement)
-			db.Close()
+			_ = db.Close()
 		}
 	}
 	if err := s.Store.RevokeLease(ctx, lease.ID, s.Now().UTC()); err != nil {

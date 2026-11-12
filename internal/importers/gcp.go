@@ -101,7 +101,7 @@ func loadGCP(ctx context.Context, opts Options) ([]Entry, error) {
 func gcpAccessToken(ctx context.Context, opts Options, account gcpServiceAccount) (string, error) {
 	tokenURI := account.TokenURI
 	if tokenURI == "" {
-		tokenURI = "https://oauth2.googleapis.com/token"
+		tokenURI = "https://oauth2.googleapis.com/token" //nolint:gosec // G101: public Google OAuth token endpoint
 	}
 	now := time.Now().Unix()
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
@@ -143,7 +143,7 @@ func gcpAccessToken(ctx context.Context, opts Options, account gcpServiceAccount
 	if err != nil {
 		return "", fmt.Errorf("request GCP token: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", fmt.Errorf("GCP token endpoint returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))

@@ -173,7 +173,7 @@ func (p *KMSProvider) awsKMS(ctx context.Context, operation string, input []byte
 	if err != nil {
 		return nil, fmt.Errorf("crypto: AWS KMS request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("crypto: AWS KMS %s returned %d: %s", operation, response.StatusCode, strings.TrimSpace(string(body)))
@@ -242,7 +242,7 @@ func (p *KMSProvider) gcpKMS(ctx context.Context, operation string, input []byte
 	if err != nil {
 		return nil, fmt.Errorf("crypto: GCP KMS request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("crypto: GCP KMS %s returned %d: %s", operation, response.StatusCode, strings.TrimSpace(string(body)))
@@ -313,7 +313,7 @@ func gcpToken(ctx context.Context, client *http.Client, account gcpServiceAccoun
 	if err != nil {
 		return "", fmt.Errorf("crypto: GCP token exchange failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", fmt.Errorf("crypto: GCP token exchange returned %d", response.StatusCode)

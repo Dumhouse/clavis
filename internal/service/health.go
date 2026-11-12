@@ -90,7 +90,7 @@ func (s *Service) Health(ctx context.Context, actor authz.Actor, orgSlug, projec
 						Category: "never-rotated", Level: "warning", Project: project.Slug,
 						Env: env.Slug, Key: secret.Key, Message: "never rotated",
 					})
-					penalty += 1
+					penalty++
 				}
 				if secret.ExpiresAt != nil && secret.ExpiresAt.Before(now.Add(30*24*time.Hour)) {
 					report.Findings = append(report.Findings, HealthFinding{

@@ -48,7 +48,7 @@ func MigrateFromSQLite(ctx context.Context, source, dest *Store, force bool) (*M
 
 	if force {
 		for i := len(ordered) - 1; i >= 0; i-- {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM "`+ordered[i]+`"`); err != nil {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM "`+ordered[i]+`"`); err != nil { //nolint:gosec // G202: table names come from the schema, not from input
 				return nil, fmt.Errorf("store: clear %s: %w", ordered[i], err)
 			}
 		}
@@ -76,7 +76,7 @@ func sqliteTables(ctx context.Context, db *sql.DB) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("store: list sqlite tables: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var tables []string
 	for rows.Next() {
 		var name string
@@ -106,14 +106,14 @@ func orderTablesByForeignKeys(ctx context.Context, db *sql.DB, tables []string) 
 				onUpdate, onDelete, m string
 			)
 			if err := rows.Scan(&id, &seq, &refTable, &from, &to, &onUpdate, &onDelete, &m); err != nil {
-				rows.Close()
+				_ = rows.Close()
 				return nil, err
 			}
 			if refTable != table && known[refTable] {
 				deps[table] = append(deps[table], refTable)
 			}
 		}
-		rows.Close()
+		_ = rows.Close()
 	}
 	ordered := make([]string, 0, len(tables))
 	state := make(map[string]int, len(tables))
@@ -157,12 +157,12 @@ func copyTable(ctx context.Context, source *sql.DB, dest *sql.Tx, dialect, table
 	for i, column := range columns {
 		quoted[i] = `"` + column + `"`
 	}
-	selectSQL := `SELECT ` + strings.Join(quoted, ", ") + ` FROM "` + table + `"`
+	selectSQL := `SELECT ` + strings.Join(quoted, ", ") + ` FROM "` + table + `"` //nolint:gosec // G202: table and column names come from the schema, not from input
 	rows, err := source.QueryContext(ctx, selectSQL)
 	if err != nil {
 		return 0, fmt.Errorf("store: read %s: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	placeholders := make([]string, len(columns))
 	for i := range columns {
@@ -172,7 +172,7 @@ func copyTable(ctx context.Context, source *sql.DB, dest *sql.Tx, dialect, table
 			placeholders[i] = "?"
 		}
 	}
-	insertSQL := `INSERT INTO "` + table + `" (` + strings.Join(quoted, ", ") + `) VALUES (` +
+	insertSQL := `INSERT INTO "` + table + `" (` + strings.Join(quoted, ", ") + `) VALUES (` + //nolint:gosec // G202: table and column names come from the schema, not from input
 		strings.Join(placeholders, ", ") + `)`
 	count := 0
 	for rows.Next() {
@@ -200,7 +200,7 @@ func sqliteColumns(ctx context.Context, db *sql.DB, table string) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("store: columns for %s: %w", table, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var columns []string
 	for rows.Next() {
 		var (

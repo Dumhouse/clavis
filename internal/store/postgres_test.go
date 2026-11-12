@@ -27,7 +27,7 @@ func TestPostgresSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestMigrateSQLiteToPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer source.Close()
+	defer func() { _ = source.Close() }()
 	if err := source.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestMigrateSQLiteToPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer target.Close()
+	defer func() { _ = target.Close() }()
 	if err := target.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestPostgresEventNotify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}

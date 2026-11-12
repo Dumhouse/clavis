@@ -65,8 +65,8 @@ func newUpgradeCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer os.Remove(temp)
-			if err := os.Chmod(temp, 0o755); err != nil {
+			defer func() { _ = os.Remove(temp) }()
+			if err := os.Chmod(temp, 0o755); err != nil { //nolint:gosec // G302: the downloaded binary must be executable
 				return err
 			}
 			if err := os.Rename(temp, current); err != nil {
@@ -100,13 +100,13 @@ func installArtifact(path string) (string, error) {
 			cleanup()
 			return "", err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		gz, err := gzip.NewReader(file)
 		if err != nil {
 			cleanup()
 			return "", err
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 		reader := tar.NewReader(gz)
 		for {
 			header, err := reader.Next()
@@ -119,7 +119,7 @@ func installArtifact(path string) (string, error) {
 			}
 			base := filepath.Base(header.Name)
 			if header.Typeflag == tar.TypeReg && (base == "clavis" || base == "clavis.exe") {
-				if _, err := io.Copy(temp, reader); err != nil {
+				if _, err := io.Copy(temp, io.LimitReader(reader, maxUpgradeBinaryBytes)); err != nil {
 					cleanup()
 					return "", err
 				}
@@ -135,7 +135,7 @@ func installArtifact(path string) (string, error) {
 			cleanup()
 			return "", err
 		}
-		defer archive.Close()
+		defer func() { _ = archive.Close() }()
 		for _, file := range archive.File {
 			base := filepath.Base(file.Name)
 			if base != "clavis" && base != "clavis.exe" {
@@ -146,7 +146,7 @@ func installArtifact(path string) (string, error) {
 				cleanup()
 				return "", err
 			}
-			_, copyErr := io.Copy(temp, reader)
+			_, copyErr := io.Copy(temp, io.LimitReader(reader, maxUpgradeBinaryBytes))
 			_ = reader.Close()
 			if copyErr != nil {
 				cleanup()
@@ -162,10 +162,14 @@ func installArtifact(path string) (string, error) {
 		cleanup()
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if _, err := io.Copy(temp, file); err != nil {
 		cleanup()
 		return "", err
 	}
 	return tempPath, temp.Close()
 }
+
+// maxUpgradeBinaryBytes caps how much a release archive may expand to, so a
+// corrupt or hostile archive cannot fill the disk.
+const maxUpgradeBinaryBytes = 1 << 30

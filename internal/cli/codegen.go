@@ -56,10 +56,10 @@ func newCodegenCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			if outPath == "" || outPath == "-" {
-				fmt.Fprint(out.Out, content)
-				return nil
+				_, err := fmt.Fprint(out.Out, content)
+				return err
 			}
-			if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
+			if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil { //nolint:gosec // G306: generated source is meant to be committed and world-readable
 				return fmt.Errorf("could not write %s: %w", outPath, err)
 			}
 			out.Success("Wrote %s.", outPath)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func (s *Service) ExchangeAWS(ctx context.Context, orgSlug, identityName string,
 	}
 	identity, err := s.Store.GetIdentityByName(ctx, org.ID, strings.TrimSpace(identityName))
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, ErrNotFound
 		}
 		return nil, err
@@ -88,7 +89,7 @@ func (s *Service) ExchangeAWS(ctx context.Context, orgSlug, identityName string,
 	if err != nil {
 		return nil, fmt.Errorf("%w: STS request failed; check the network", ErrSSOUnavailable)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	responseBody, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("%w: AWS rejected the signature", ErrForbidden)

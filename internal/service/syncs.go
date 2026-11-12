@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	stdcrypto "crypto"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -810,7 +809,7 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 			request.Header.Set("PRIVATE-TOKEN", token)
 			response, err := client.Do(request)
 			if err != nil {
-				return fmt.Errorf("gitlab: delete %s failed: %v", remoteKey, err)
+				return fmt.Errorf("gitlab: delete %s failed: %w", remoteKey, err)
 			}
 			_ = response.Body.Close()
 			if response.StatusCode >= 300 && response.StatusCode != http.StatusNotFound {
@@ -950,7 +949,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 			status, body, err := githubRequest(ctx, client, http.MethodDelete,
 				actions+"/variables/"+url.PathEscape(name), token, nil)
 			if err != nil {
-				return fmt.Errorf("github: delete variable %s failed: %v", name, err)
+				return fmt.Errorf("github: delete variable %s failed: %w", name, err)
 			}
 			if status >= 300 && status != http.StatusNotFound {
 				return githubStatusError("delete variable "+name, status, body)
@@ -971,7 +970,7 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 					status, body, err := githubRequest(ctx, client, http.MethodDelete,
 						actions+"/secrets/"+url.PathEscape(remote.Name), token, nil)
 					if err != nil {
-						return fmt.Errorf("github: delete secret %s failed: %v", remote.Name, err)
+						return fmt.Errorf("github: delete secret %s failed: %w", remote.Name, err)
 					}
 					if status >= 300 && status != http.StatusNotFound {
 						return githubStatusError("delete secret "+remote.Name, status, body)
@@ -1120,7 +1119,7 @@ func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sy
 			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
 				base+"/v10/projects/"+project+"/env/"+url.PathEscape(id)+query, token, nil)
 			if err != nil {
-				return fmt.Errorf("vercel: delete %s failed: %v", remoteKey, err)
+				return fmt.Errorf("vercel: delete %s failed: %w", remoteKey, err)
 			}
 			if status >= 300 && status != http.StatusNotFound {
 				return vercelStatusError("delete "+remoteKey, status, body)
@@ -1212,7 +1211,7 @@ func (s *Service) postVault(ctx context.Context, org *store.Org, sync *store.Syn
 			return fmt.Errorf("vault: request failed: %w", err)
 		}
 		body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-		response.Body.Close()
+		_ = response.Body.Close()
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
 			return fmt.Errorf("vault: %s returned %d: %s", target, response.StatusCode, strings.TrimSpace(string(body)))
 		}
@@ -1314,9 +1313,9 @@ func awsJSONResponse(ctx context.Context, client *http.Client, endpoint, target,
 	signAWSJSON(request, payload, service, config, secretKey)
 	response, err := client.Do(request)
 	if err != nil {
-		return 0, nil, fmt.Errorf("aws: request failed: %v; check the region, endpoint, and network policy", err)
+		return 0, nil, fmt.Errorf("aws: request failed: %w; check the region, endpoint, and network policy", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	return response.StatusCode, body, nil
 }
@@ -1623,7 +1622,7 @@ func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.S
 			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
 				envURL+"/"+url.PathEscape(remoteKey)+query, token, nil)
 			if err != nil {
-				return fmt.Errorf("netlify: delete %s failed: %v", remoteKey, err)
+				return fmt.Errorf("netlify: delete %s failed: %w", remoteKey, err)
 			}
 			if status >= 300 && status != http.StatusNotFound {
 				return netlifyStatusError("delete "+remoteKey, status, body)
@@ -1880,9 +1879,9 @@ func (s *Service) driftGitLab(ctx context.Context, org *store.Org, sync *store.S
 	request.Header.Set("PRIVATE-TOKEN", token)
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("gitlab drift: request failed: %v", err)
+		return nil, fmt.Errorf("gitlab drift: request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("gitlab drift: list returned %d", response.StatusCode)
@@ -1927,7 +1926,7 @@ func (s *Service) UpdateSyncBehavior(ctx context.Context, actor authz.Actor, org
 		return nil, err
 	}
 	config.DeleteMissing = deleteMissing
-	encoded, err := json.Marshal(config)
+	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token, AWSSecret and AWSSessionTokenEnc hold org-key ciphertext
 	if err != nil {
 		return nil, err
 	}
@@ -1977,7 +1976,7 @@ func (s *Service) githubSyncToken(ctx context.Context, org *store.Org, sync *sto
 	claims, _ := json.Marshal(map[string]any{"iss": config.GitHubAppID, "iat": now - 60, "exp": now + 540})
 	payload := base64.RawURLEncoding.EncodeToString(claims)
 	digest := sha256.Sum256([]byte(header + "." + payload))
-	signature, err := rsa.SignPKCS1v15(rand.Reader, key, stdcrypto.SHA256, digest[:])
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 	if err != nil {
 		return "", err
 	}
@@ -1996,9 +1995,9 @@ func (s *Service) githubSyncToken(ctx context.Context, org *store.Org, sync *sto
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("github: App token request failed: %v", err)
+		return "", fmt.Errorf("github: App token request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return "", fmt.Errorf("github: App token request returned %d; check the App ID, installation ID, and private key", response.StatusCode)

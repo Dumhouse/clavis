@@ -106,7 +106,7 @@ func (s *Store) ListAccessRequests(ctx context.Context, projectID, status, reque
 	if err != nil {
 		return nil, fmt.Errorf("store: list access requests: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []AccessRequest
 	for rows.Next() {
 		req, err := scanAccessRequest(rows)

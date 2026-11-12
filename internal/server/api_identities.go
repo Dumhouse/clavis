@@ -348,7 +348,7 @@ func (s *Server) registerIdentityRoutes() error {
 		return out, nil
 	})
 
-	agentSecretsPath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:agent"
+	agentSecretsPath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:agent" //nolint:gosec // G101: API route path, not a credential
 	if err := s.registry.Declare(http.MethodGet, agentSecretsPath, authz.SecretsUse, "resolve secrets for an allowed agent command"); err != nil {
 		return err
 	}

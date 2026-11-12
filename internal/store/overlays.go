@@ -111,7 +111,7 @@ func (s *Store) ListEnvironmentOverlays(ctx context.Context, envID string) ([]Ov
 	if err != nil {
 		return nil, fmt.Errorf("store: list environment overlays: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Overlay
 	for rows.Next() {
 		var overlay Overlay

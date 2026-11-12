@@ -36,7 +36,7 @@ func (s *Store) ListExpiringItems(ctx context.Context, cutoff time.Time) ([]Expi
 	if err != nil {
 		return nil, fmt.Errorf("store: list expiring items: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []ExpiringItem
 	for rows.Next() {
 		var item ExpiringItem

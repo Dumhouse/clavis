@@ -226,14 +226,6 @@ func schemaEntryFromStore(row *store.SecretSchema) (SchemaEntry, error) {
 	return entry, nil
 }
 
-func (s *Service) schemaEntry(ctx context.Context, projectID, key string) (*SchemaEntry, error) {
-	entries, err := s.schemaEntries(ctx, projectID)
-	if err != nil {
-		return nil, err
-	}
-	return entries[key], nil
-}
-
 func (s *Service) schemaEntries(ctx context.Context, projectID string) (map[string]*SchemaEntry, error) {
 	rows, err := s.Store.ListSecretSchema(ctx, projectID)
 	if err != nil {

@@ -23,7 +23,7 @@ func TestInfisicalAndDoppler(t *testing.T) {
 			t.Fatalf("query = %s", r.URL.RawQuery)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"secrets": []map[string]string{
-			{"secretKey": "DB_URL", "secretValue": "postgres://db"},
+			{"secretKey": "DB_URL", "secretValue": "postgres://db"}, //nolint:gosec // G101: test fixture
 		}})
 	}))
 	defer infisical.Close()
@@ -35,7 +35,7 @@ func TestInfisicalAndDoppler(t *testing.T) {
 		t.Fatalf("infisical = %#v %v", entries, err)
 	}
 
-	doppler := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	doppler := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"API_KEY": "abc"})
 	}))
 	defer doppler.Close()
@@ -106,7 +106,7 @@ func TestAWSSecretsManager(t *testing.T) {
 		case "secretsmanager.ListSecrets":
 			_ = json.NewEncoder(w).Encode(map[string]any{"SecretList": []map[string]string{{"Name": "app/DB_URL"}}})
 		case "secretsmanager.GetSecretValue":
-			_ = json.NewEncoder(w).Encode(map[string]any{"Name": "app/DB_URL", "SecretString": `{"DB_URL":"postgres://db"}`})
+			_ = json.NewEncoder(w).Encode(map[string]any{"Name": "app/DB_URL", "SecretString": `{"DB_URL":"postgres://db"}`}) //nolint:gosec // G101: test fixture
 		default:
 			http.NotFound(w, r)
 		}

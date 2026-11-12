@@ -43,7 +43,7 @@ func newAdminShamirSplitCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			if cfg.Keys.Provider != "file" {
-				return fmt.Errorf("Shamir unseal requires keys.provider=file")
+				return fmt.Errorf("unsealing with Shamir shares requires keys.provider=file")
 			}
 			if seal && !yes {
 				return fmt.Errorf("--seal deletes the root key file; re-run with --yes after securing the shares")
@@ -116,7 +116,7 @@ func newAdminUnsealCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			if cfg.Keys.Provider != "file" {
-				return fmt.Errorf("Shamir unseal requires keys.provider=file")
+				return fmt.Errorf("unsealing with Shamir shares requires keys.provider=file")
 			}
 			markerPath := cfg.Keys.RootKeyFile + ".sealed"
 			raw, err := os.ReadFile(markerPath)

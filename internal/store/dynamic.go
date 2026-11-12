@@ -52,7 +52,7 @@ func (s *Store) ListDynamicSecretConfigs(ctx context.Context, projectID string) 
 	if err != nil {
 		return nil, fmt.Errorf("store: list dynamic configs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []DynamicSecretConfig
 	for rows.Next() {
 		var config DynamicSecretConfig
@@ -163,7 +163,7 @@ func (s *Store) ListLeases(ctx context.Context, configID string, includeRevoked 
 	if err != nil {
 		return nil, fmt.Errorf("store: list leases: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Lease
 	for rows.Next() {
 		var lease Lease
@@ -198,7 +198,7 @@ func (s *Store) ListExpiredLeases(ctx context.Context, now time.Time) ([]Lease, 
 	if err != nil {
 		return nil, fmt.Errorf("store: list expired leases: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Lease
 	for rows.Next() {
 		var lease Lease
@@ -234,7 +234,7 @@ func (s *Store) ListLeasesByIdentity(ctx context.Context, identityID string) ([]
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Lease
 	for rows.Next() {
 		var lease Lease

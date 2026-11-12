@@ -70,7 +70,7 @@ func TestOpenCreatesOwnerOnlyFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	if err := st.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}

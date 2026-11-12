@@ -28,7 +28,7 @@ func TestSecretCacheRoundTripAndTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw[len(raw)-1] ^= 0xff
-	if err := os.WriteFile(path, raw, 0o600); err != nil {
+	if err := os.WriteFile(path, raw, 0o600); err != nil { //nolint:gosec // G703: test writes under t.TempDir()
 		t.Fatal(err)
 	}
 	if _, err := loadSecretCache(resolved); err == nil {

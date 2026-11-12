@@ -168,7 +168,7 @@ func newRotationCreateCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			config := map[string]any{}
+			var config map[string]any
 			switch provider {
 			case "postgres":
 				config = map[string]any{

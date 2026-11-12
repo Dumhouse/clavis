@@ -9,10 +9,10 @@ import (
 
 func loadInfisical(ctx context.Context, opts Options) ([]Entry, error) {
 	if strings.TrimSpace(opts.Token) == "" {
-		return nil, fmt.Errorf("Infisical token is required (--token or INFISICAL_TOKEN)")
+		return nil, fmt.Errorf("an Infisical token is required (--token or INFISICAL_TOKEN)")
 	}
 	if strings.TrimSpace(opts.RemoteProject) == "" || strings.TrimSpace(opts.RemoteEnv) == "" {
-		return nil, fmt.Errorf("Infisical project and environment are required")
+		return nil, fmt.Errorf("an Infisical project and environment are required")
 	}
 	base, err := normalizeBase(opts.BaseURL, "https://app.infisical.com")
 	if err != nil {
@@ -53,10 +53,10 @@ func loadInfisical(ctx context.Context, opts Options) ([]Entry, error) {
 
 func loadDoppler(ctx context.Context, opts Options) ([]Entry, error) {
 	if strings.TrimSpace(opts.Token) == "" {
-		return nil, fmt.Errorf("Doppler token is required (--token or DOPPLER_TOKEN)")
+		return nil, fmt.Errorf("a Doppler token is required (--token or DOPPLER_TOKEN)")
 	}
 	if strings.TrimSpace(opts.RemoteProject) == "" || strings.TrimSpace(opts.RemoteEnv) == "" {
-		return nil, fmt.Errorf("Doppler project and config are required")
+		return nil, fmt.Errorf("a Doppler project and config are required")
 	}
 	base, err := normalizeBase(opts.BaseURL, "https://api.doppler.com")
 	if err != nil {

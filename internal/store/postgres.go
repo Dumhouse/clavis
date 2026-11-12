@@ -79,7 +79,7 @@ func (c *pgConn) QueryContext(ctx context.Context, query string, args []driver.N
 }
 
 func (c *pgConn) Begin() (driver.Tx, error) {
-	tx, err := c.Conn.Begin()
+	tx, err := c.Conn.Begin() //nolint:staticcheck // SA1019: thin wrapper that must forward the legacy driver.Conn method
 	if err != nil {
 		return nil, err
 	}
@@ -124,11 +124,11 @@ type pgStmt struct {
 }
 
 func (s *pgStmt) Exec(args []driver.Value) (driver.Result, error) {
-	return s.Stmt.Exec(normalizeValues(s.query, args))
+	return s.Stmt.Exec(normalizeValues(s.query, args)) //nolint:staticcheck // SA1019: wrapper forwards the legacy driver.Stmt method
 }
 
 func (s *pgStmt) Query(args []driver.Value) (driver.Rows, error) {
-	return s.Stmt.Query(normalizeValues(s.query, args))
+	return s.Stmt.Query(normalizeValues(s.query, args)) //nolint:staticcheck // SA1019: wrapper forwards the legacy driver.Stmt method
 }
 
 func (s *pgStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {

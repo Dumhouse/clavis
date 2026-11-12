@@ -209,11 +209,11 @@ func installScanHook() error {
 	if existing, err := os.ReadFile(hookPath); err == nil && !bytes.Contains(existing, []byte("clavis scan --staged")) {
 		return fmt.Errorf("%s already exists; merge the clavis scan line manually", hookPath)
 	}
-	if err := os.MkdirAll(filepath.Dir(hookPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(hookPath), 0o755); err != nil { //nolint:gosec // G301: git hook directories must be traversable
 		return err
 	}
 	script := "#!/bin/sh\n# Installed by clavis scan --install-hook\nexec clavis scan --staged\n"
-	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil { //nolint:gosec // G306: git hooks must be executable
 		return err
 	}
 	return nil

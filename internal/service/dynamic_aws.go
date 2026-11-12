@@ -69,7 +69,7 @@ func (s *Service) createAWSCredentials(ctx context.Context, config *awsDynamicCo
 	if err != nil {
 		return nil, fmt.Errorf("dynamic aws: request failed: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 2<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("dynamic aws: STS returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))

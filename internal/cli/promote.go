@@ -163,10 +163,10 @@ func selectPromotionKeys(plan promotionPlanJSON, keysFlag string, all, interacti
 		return defaultPromotionKeys(plan), nil
 	}
 	for index, entry := range plan.Entries {
-		fmt.Fprintf(out.Out, "%3d  %-10s %s\n", index+1, entry.Status, entry.Key)
+		_, _ = fmt.Fprintf(out.Out, "%3d  %-10s %s\n", index+1, entry.Status, entry.Key)
 	}
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Fprint(out.Out, "Select keys (comma/space separated, Enter = added+changed): ")
+	_, _ = fmt.Fprint(out.Out, "Select keys (comma/space separated, Enter = added+changed): ")
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err

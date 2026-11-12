@@ -88,9 +88,11 @@ func (s *Service) CreateRotationPolicy(ctx context.Context, actor authz.Actor, o
 	if err := s.Store.CreateRotationPolicy(ctx, policy); err != nil {
 		return nil, err
 	}
-	s.record(ctx, toAuditActor(actor), org.ID, "rotation.policy.create",
+	if err := s.record(ctx, toAuditActor(actor), org.ID, "rotation.policy.create",
 		audit.Resource{Type: "environment", ID: env.ID, Name: env.Slug, ProjectID: project.ID, EnvID: env.ID},
-		audit.Details{Environment: env.Slug, Reason: provider, Count: 1}, meta)
+		audit.Details{Environment: env.Slug, Reason: provider, Count: 1}, meta); err != nil {
+		s.Logger.Error("audit rotation.policy.create failed", "policy_id", policy.ID, "error", err)
+	}
 	return rotationPolicyView(policy, env.Slug), nil
 }
 
@@ -183,7 +185,7 @@ func (s *Service) RunRotation(ctx context.Context, actor authz.Actor, orgSlug, p
 }
 
 // SetRotationEnabled toggles a policy.
-func (s *Service) SetRotationEnabled(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug, policyID string, enabled bool, meta AuditMeta) error {
+func (s *Service) SetRotationEnabled(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug, policyID string, enabled bool, _ AuditMeta) error {
 	org, project, env, err := s.resolveEnvironment(ctx, actor, orgSlug, projectSlug, envSlug)
 	if err != nil {
 		return err
@@ -217,9 +219,11 @@ func (s *Service) RevokeRotationPolicy(ctx context.Context, actor authz.Actor, o
 		}
 		return err
 	}
-	s.record(ctx, toAuditActor(actor), org.ID, "rotation.policy.delete",
+	if err := s.record(ctx, toAuditActor(actor), org.ID, "rotation.policy.delete",
 		audit.Resource{Type: "environment", ID: env.ID, Name: env.Slug, ProjectID: project.ID, EnvID: env.ID},
-		audit.Details{Environment: env.Slug, Count: 1}, meta)
+		audit.Details{Environment: env.Slug, Count: 1}, meta); err != nil {
+		s.Logger.Error("audit rotation.policy.delete failed", "env_id", env.ID, "error", err)
+	}
 	return nil
 }
 
@@ -269,9 +273,11 @@ func (s *Service) rotatePolicy(ctx context.Context, org *store.Org, project *sto
 		policy.LastStatus, policy.LastError = status, message
 		_ = s.Store.UpdateRotationPolicy(ctx, policy)
 		if status == "failed" {
-			s.record(ctx, actor, org.ID, "rotation.failed",
+			if err := s.record(ctx, actor, org.ID, "rotation.failed",
 				audit.Resource{Type: "environment", ID: env.ID, Name: env.Slug, ProjectID: project.ID, EnvID: env.ID},
-				audit.Details{Environment: env.Slug, Reason: policy.SecretKey, Channel: policy.Provider}, meta)
+				audit.Details{Environment: env.Slug, Reason: policy.SecretKey, Channel: policy.Provider}, meta); err != nil {
+				s.Logger.Error("audit rotation.failed failed", "policy_id", policy.ID, "error", err)
+			}
 		}
 	}
 	current, err := s.GetSecret(ctx, systemActor(org, project, env), org.Slug, project.Slug, env.Slug, policy.SecretKey, true, "rotation", "worker", meta)

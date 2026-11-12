@@ -26,7 +26,7 @@ func (s *Store) ListSecretSchema(ctx context.Context, projectID string) ([]Secre
 	if err != nil {
 		return nil, fmt.Errorf("store: list schema: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []SecretSchema
 	for rows.Next() {
 		var item SecretSchema

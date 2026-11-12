@@ -16,12 +16,6 @@ type memberOffboardingPath struct {
 	User string `path:"user"`
 }
 
-type offboardingTaskPath struct {
-	Org  string `path:"org"`
-	User string `path:"user"`
-	ID   string `path:"id"`
-}
-
 type offboardingTaskBody struct {
 	ID          string    `json:"id"`
 	ProjectSlug string    `json:"project"`

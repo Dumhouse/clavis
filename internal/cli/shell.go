@@ -39,7 +39,7 @@ func newShellCommand(opts *Options) *cobra.Command {
 			if shell == "" {
 				shell = "/bin/sh"
 			}
-			child := exec.CommandContext(cmd.Context(), shell)
+			child := exec.CommandContext(cmd.Context(), shell) //nolint:gosec // G702: starting the user shell is the purpose of this command
 			child.Env = append(os.Environ(), entries...)
 			child.Env = append(child.Env,
 				"CLAVIS_ORG="+resolved.Org,

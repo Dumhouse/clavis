@@ -131,7 +131,7 @@ func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.S
 			}
 			status, body, err := forgejoRequest(ctx, client, method, actions+"/variables/"+url.PathEscape(name), token, payload)
 			if err != nil {
-				return fmt.Errorf("forgejo: variable %s failed: %v; check the Forgejo URL and network policy", name, err)
+				return fmt.Errorf("forgejo: variable %s failed: %w; check the Forgejo URL and network policy", name, err)
 			}
 			if status < 200 || status >= 300 {
 				return forgejoStatusError("variable "+name, status, body)
@@ -141,7 +141,7 @@ func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.S
 		payload, _ := json.Marshal(map[string]string{"data": value})
 		status, body, err := forgejoRequest(ctx, client, http.MethodPut, actions+"/secrets/"+url.PathEscape(name), token, payload)
 		if err != nil {
-			return fmt.Errorf("forgejo: secret %s failed: %v; check the Forgejo URL and network policy", name, err)
+			return fmt.Errorf("forgejo: secret %s failed: %w; check the Forgejo URL and network policy", name, err)
 		}
 		if status < 200 || status >= 300 {
 			return forgejoStatusError("secret "+name, status, body)
@@ -161,7 +161,7 @@ func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.S
 		}
 		status, body, err := forgejoRequest(ctx, client, http.MethodDelete, actions+"/variables/"+url.PathEscape(variable.Name), token, nil)
 		if err != nil {
-			return fmt.Errorf("forgejo: delete variable %s failed: %v", variable.Name, err)
+			return fmt.Errorf("forgejo: delete variable %s failed: %w", variable.Name, err)
 		}
 		if status >= 300 && status != http.StatusNotFound {
 			return forgejoStatusError("delete variable "+variable.Name, status, body)
@@ -177,7 +177,7 @@ func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.S
 		}
 		status, body, err := forgejoRequest(ctx, client, http.MethodDelete, actions+"/secrets/"+url.PathEscape(secret.Name), token, nil)
 		if err != nil {
-			return fmt.Errorf("forgejo: delete secret %s failed: %v", secret.Name, err)
+			return fmt.Errorf("forgejo: delete secret %s failed: %w", secret.Name, err)
 		}
 		if status >= 300 && status != http.StatusNotFound {
 			return forgejoStatusError("delete secret "+secret.Name, status, body)
@@ -234,7 +234,7 @@ func forgejoList(ctx context.Context, client *http.Client, endpoint, token strin
 		status, body, err := forgejoRequest(ctx, client, http.MethodGet,
 			fmt.Sprintf("%s?page=%d&limit=%d", endpoint, page, pageSize), token, nil)
 		if err != nil {
-			return nil, fmt.Errorf("forgejo: list failed: %v; check the Forgejo URL and network policy", err)
+			return nil, fmt.Errorf("forgejo: list failed: %w; check the Forgejo URL and network policy", err)
 		}
 		if status == http.StatusNotFound && page == 1 && strings.HasSuffix(endpoint, "/variables") {
 			// Older Forgejo releases have no variables API; treat as empty.
@@ -270,7 +270,7 @@ func forgejoRequest(ctx context.Context, client *http.Client, method, endpoint, 
 	if err != nil {
 		return 0, nil, err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	return response.StatusCode, body, nil
 }

@@ -720,6 +720,9 @@ func (s *Server) Run(ctx context.Context) error {
 	if s.setupNotice != nil {
 		s.logger.Warn("first-run setup is required", s.setupNotice...)
 	}
+	if s.store.IsPostgres() {
+		go s.listenEvents(ctx)
+	}
 	go s.expiryLoop(ctx)
 	go s.leaseLoop(ctx)
 	go s.rotationLoop(ctx)

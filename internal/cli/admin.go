@@ -71,7 +71,7 @@ func newMigrateDBCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer source.Close()
+			defer func() { _ = source.Close() }()
 			if err := source.Migrate(cmd.Context()); err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func newMigrateDBCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer target.Close()
+			defer func() { _ = target.Close() }()
 			if err := target.Migrate(cmd.Context()); err != nil {
 				return err
 			}

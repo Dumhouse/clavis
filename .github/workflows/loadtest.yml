@@ -15,9 +15,9 @@ permissions:
 
 jobs:
   k6:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: grafana/setup-k6-action@v1
       - run: k6 run project/loadtest/reads.js
         env:

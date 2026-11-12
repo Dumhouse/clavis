@@ -327,7 +327,7 @@ func newLeaseRunCommand(opts *Options) *cobra.Command {
 			if len(commandArgs) == 0 {
 				return fmt.Errorf("pass a command after --")
 			}
-			child := exec.CommandContext(cmd.Context(), commandArgs[0], commandArgs[1:]...)
+			child := exec.CommandContext(cmd.Context(), commandArgs[0], commandArgs[1:]...) //nolint:gosec // G204: running the user-supplied command is the purpose of this command
 			child.Env = append(os.Environ(),
 				"PGHOST="+result.Secrets["host"],
 				"PGPORT="+result.Secrets["port"],

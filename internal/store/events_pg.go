@@ -27,7 +27,7 @@ func (s *Store) ListenEvents(ctx context.Context, handler func(payload string)) 
 	if err != nil {
 		return fmt.Errorf("store: listen events: %w", err)
 	}
-	defer conn.Close(context.Background())
+	defer func() { _ = conn.Close(context.Background()) }()
 	if _, err := conn.Exec(ctx, `LISTEN clavis_events`); err != nil {
 		return fmt.Errorf("store: listen events: %w", err)
 	}

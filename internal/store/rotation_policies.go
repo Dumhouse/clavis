@@ -91,7 +91,7 @@ func (s *Store) ListRotationPolicies(ctx context.Context, projectID, envID strin
 	if err != nil {
 		return nil, fmt.Errorf("store: list rotation policies: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RotationPolicy
 	for rows.Next() {
 		policy, err := scanRotationPolicy(rows)
@@ -144,7 +144,7 @@ func (s *Store) ListDueRotationPolicies(ctx context.Context, now time.Time) ([]R
 	if err != nil {
 		return nil, fmt.Errorf("store: list due rotations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RotationPolicy
 	for rows.Next() {
 		policy, err := scanRotationPolicy(rows)
@@ -186,7 +186,7 @@ func (s *Store) ListRotationRuns(ctx context.Context, policyID string, limit int
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []RotationRun
 	for rows.Next() {
 		var run RotationRun

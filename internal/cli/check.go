@@ -219,7 +219,7 @@ func schemaErrorDetail(err error) string {
 func renderCheckReport(out *Output, report checkReport) {
 	for _, env := range report.Environments {
 		if len(report.Environments) > 1 {
-			fmt.Fprintf(out.Out, "\n%s (%s)\n", env.Environment, env.Type)
+			_, _ = fmt.Fprintf(out.Out, "\n%s (%s)\n", env.Environment, env.Type)
 		}
 		rows := make([][]string, 0, len(env.Checks))
 		for _, item := range env.Checks {

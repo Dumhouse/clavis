@@ -43,7 +43,7 @@ func TestMCPTools(t *testing.T) {
 	}
 	var output bytes.Buffer
 	mcp := &mcpServer{
-		resolved: &resolvedContext{Server: server.URL, Org: "acme", Project: "web-app", Env: "dev", Token: "clv_at_test"},
+		resolved: &resolvedContext{Server: server.URL, Org: "acme", Project: "web-app", Env: "dev", Token: "clv_at_test"}, //nolint:gosec // G101: test fixture, not a real credential
 		client:   c,
 		encoder:  json.NewEncoder(&output),
 	}

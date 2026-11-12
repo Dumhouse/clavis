@@ -108,7 +108,7 @@ func TestProviderImportDryRunAndMapping(t *testing.T) {
 
 	dir := t.TempDir()
 	mapPath := filepath.Join(dir, "map.yaml")
-	if err := os.WriteFile(mapPath, []byte("keys:\n  SOURCE_KEY: TARGET_KEY\n  DROP_KEY: \"\"\nfolders:\n  \"\": /imported\n"), 0o644); err != nil {
+	if err := os.WriteFile(mapPath, []byte("keys:\n  SOURCE_KEY: TARGET_KEY\n  DROP_KEY: \"\"\nfolders:\n  \"\": /imported\n"), 0o644); err != nil { //nolint:gosec // G306: test fixture
 		t.Fatal(err)
 	}
 	var out, errOut bytes.Buffer

@@ -727,7 +727,7 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 		}
 		defer plainValue.Zero()
 	}
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), plainValue,
+	valueCT, err := valueKey.Encrypt(keyVersion(project.KeyVersion), plainValue,
 		crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "value", next))
 	if err != nil {
 		return nil, err
