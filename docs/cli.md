@@ -13,77 +13,10 @@ Single Go binary `clavis` (same binary as the server). Installed via Homebrew, S
 
 ## Commands
 
-```
-clavis login [--server URL]           # device-code browser login; stores token in OS keychain
-clavis logout
-clavis whoami
+See [commands.md](commands.md) for the complete, authoritative list of every
+implemented command, flag, example, environment variable, and exit code.
 
-clavis init                           # pick org/project/env, write .clavis.yaml, offer to import existing .env
-clavis link / unlink                  # change project binding
-
-clavis run [--env E] [--overlay O] [--path P] [--watch] [--mount] [--no-mask] -- <command>
-                                      # inject secrets as env vars; masks output; --watch restarts on change;
-                                      # --mount writes file secrets to a private temp dir, removed on exit
-clavis shell [--env E]                # subshell with secrets loaded (prompt shows env in its type color)
-clavis env ls | create | delete | clone <src> <dst> | diff <a> <b>
-clavis env freeze <env> --until 2026-12-27 --reason "holidays" | unfreeze <env>
-clavis promote <src> <dst> [--keys K1,K2] [--message "..."]   # interactive diff picker on TTY
-clavis sets ls | show <set> | import <set> --env E | detach <set> --env E
-
-clavis secrets ls [--env E] [--reveal]
-clavis secrets get KEY [--plain]
-clavis secrets set KEY [VALUE] [--kind secret|variable|file] [--message "why"] [--expires DATE]
-                                      # prompts with hidden input if VALUE omitted; reads stdin with -
-clavis secrets generate KEY [--type password|apikey|hex|uuid|ed25519|rsa|jwt] [--length N]
-clavis secrets rm KEY
-clavis secrets history KEY
-clavis secrets rollback KEY --version N
-clavis secrets rotate KEY [--env E]   # rotate via the configured rotation provider
-clavis secrets override KEY           # personal override (non-protected envs)
-
-clavis export [--format dotenv|json|yaml|shell|docker|k8s] [--out FILE]
-clavis import FILE|DIR                # .env/json/yaml; a directory imports each file into its folder path
-clavis import --from infisical|doppler|vault|openbao|1password|aws|gcp|dotenv
-
-clavis check [--env E]                # validate against schema; non-zero exit on failure (CI)
-clavis codegen --lang ts|go|python|rust [--out FILE]
-clavis schema ls | edit | pull | push
-
-clavis scan [--staged] [--install-hook]   # leak detection using real values + token formats
-
-clavis share [KEY | --value -] [--views 1] [--expires 24h]   # one-time link
-
-clavis request access --env prod --duration 1h --reason "..."
-clavis request ls | approve ID | deny ID
-
-clavis projects ls                    # projects you can access
-clavis syncs ls                       # integrations/syncs with status (ok, drift, failing)
-clavis syncs run <id> [--dry-run]     # run a sync now; --dry-run prints the diff without pushing
-clavis syncs logs <id>                # recent runs and errors with suggested fixes
-
-clavis audit ls [--project P] [--env E] [--actor A] [--action X] [--since 24h] [--json]
-
-clavis identities ls
-clavis identities create <name> [--oidc github|gitlab|k8s|aws|gcp] [--env E] [--expires 90d]
-clavis identities revoke <name>
-clavis agents allow '<pattern>' --identity <name>    # add a command to an agent's allowlist
-clavis agents revoke '<pattern>' --identity <name>
-
-clavis members ls [--json]            # members and their organization roles
-clavis access explain <user|group> --permission secrets:write [--project P] [--env E] [--path /]
-                                      # why someone has access (same engine as the UI explainer)
-clavis health [--json]                # health report (same checks as the Health page)
-
-clavis lease <dynamic-secret> [--ttl 1h] [-- <command>]   # dynamic creds, auto-revoked after command
-
-clavis mcp                            # start MCP server (stdio) for AI agents (agent-safe mode)
-
-clavis server [--config FILE]         # run the server
-clavis admin  backup | restore | audit verify | rotate-root-key | unseal | offboard <user> | users ...
-
-clavis completion bash|zsh|fish|powershell
-clavis upgrade                        # self-update (verifies signature)
-```
+Run `clavis --help` or `clavis <command> --help` for live help.
 
 ## `.clavis.yaml`
 

@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  BookOpen,
   Bot,
   HeartPulse,
   Inbox,
@@ -42,6 +43,7 @@ const orgNav: NavItem[] = [
   { to: '/access', label: 'Access', icon: ShieldCheck },
   { to: '/members', label: 'Members', icon: Users },
   { to: '/identities', label: 'Identities', icon: Bot },
+  { to: '/docs', label: 'Docs', icon: BookOpen },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

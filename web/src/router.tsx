@@ -4,6 +4,7 @@ import { AppShell } from '@/components/app-shell'
 import { AuditPage } from '@/pages/audit'
 import { ProjectsPage } from '@/pages/projects'
 import { DevicePage } from '@/pages/device'
+import { DocsPage } from '@/pages/docs'
 import { EnvironmentsPage } from '@/pages/environments'
 import { IdentitiesPage } from '@/pages/identities'
 import { MembersPage } from '@/pages/members'
@@ -81,6 +82,12 @@ const membersRoute = createRoute({
   component: MembersPage,
 })
 
+const docsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/docs',
+  component: DocsPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -106,6 +113,7 @@ const routeTree = rootRoute.addChildren([
   membersRoute,
   identitiesRoute,
   auditRoute,
+  docsRoute,
   settingsRoute,
   ...sectionRoutes,
 ])
