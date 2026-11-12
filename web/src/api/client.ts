@@ -14,11 +14,15 @@ export const api = createClient<paths>({
 
 const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
 
-/** Reads the double-submit CSRF cookie (dev and production names). */
+/**
+ * Reads the double-submit CSRF cookie. The production name (__Host-) wins
+ * over the dev name so a stale dev cookie on localhost cannot shadow it.
+ */
 export function csrfToken(): string {
-  const raw = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('clavis_csrf=') || row.startsWith('__Host-clavis_csrf='))
+  const rows = document.cookie.split('; ')
+  const raw =
+    rows.find((row) => row.startsWith('__Host-clavis_csrf=')) ??
+    rows.find((row) => row.startsWith('clavis_csrf='))
   if (!raw) return ''
   return decodeURIComponent(raw.slice(raw.indexOf('=') + 1))
 }

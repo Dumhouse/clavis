@@ -8,6 +8,8 @@ import { createRoot } from 'react-dom/client'
 
 import { App } from '@/app'
 import { ThemeProvider } from '@/components/theme-provider'
+import { DialogHost } from '@/components/ui/dialogs'
+import { ToastHost } from '@/components/ui/toast'
 import { AuthProvider } from '@/lib/auth'
 
 const queryClient = new QueryClient({
@@ -29,6 +31,8 @@ createRoot(root).render(
       <ThemeProvider>
         <AuthProvider>
           <App />
+          <DialogHost />
+          <ToastHost />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
