@@ -1,7 +1,7 @@
 # Roadmap
 
 The detailed milestone list lives in [docs/roadmap.md](docs/roadmap.md) and the
-task checklists in [tasks/](tasks/).
+task checklists in [project/tasks/](project/tasks/).
 
 ## Now
 

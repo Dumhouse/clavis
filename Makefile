@@ -10,7 +10,7 @@ LDFLAGS     := -s -w \
 	-X $(MODULE)/internal/version.Commit=$(COMMIT) \
 	-X $(MODULE)/internal/version.Date=$(BUILD_DATE)
 
-.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools operator csi docs-site
+.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean clean-all tools operator csi docs-site docs-dev
 
 all: build
 
@@ -33,6 +33,10 @@ dev:
 	(cd web && pnpm dev) & \
 	CLAVIS_DEV=true go run ./cmd/clavis server
 
+## doctor: check the local toolchain, ports, and instance state
+doctor:
+	@bash scripts/doctor.sh
+
 ## server: run the built binary
 server: build
 	./$(BIN) server
@@ -47,9 +51,13 @@ operator:
 	@mkdir -p bin
 	cd operator && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-operator .
 
-## docs-site: build the VitePress documentation site
+## docs-site: build the VitePress documentation site and landing page
 docs-site:
-	cd docs-site && pnpm install --frozen-lockfile && pnpm build
+	cd docs && pnpm install --frozen-lockfile && pnpm build
+
+## docs-dev: preview the docs site at http://localhost:5174
+docs-dev:
+	cd docs && pnpm install --frozen-lockfile && pnpm dev
 
 ## test: unit and integration tests against SQLite
 test:
@@ -100,5 +108,8 @@ tools:
 	go install github.com/evilmartians/lefthook@latest
 
 clean:
-	rm -rf bin coverage.out coverage.html
+	rm -rf bin dist/dry-run csi/csi coverage.out coverage.html
 	rm -rf web/dist && mkdir -p web/dist && touch web/dist/.gitkeep
+
+clean-all: clean
+	rm -rf web/node_modules docs/node_modules

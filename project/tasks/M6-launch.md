@@ -31,13 +31,13 @@ Goal: trustworthy, documented, fast, and launched.
 
 ## Launch readiness assets
 
-- External audit scope/RFP: `security/audit-scope.md`
-- Secret-scanning partner packet: `security/secret-scanning-partner.md`
-- Show HN/Product Hunt/Reddit/dev.to drafts: `launch/`
+- External audit scope/RFP: `project/security/audit-scope.md`
+- Secret-scanning partner packet: `project/security/secret-scanning-partner.md`
+- Show HN/Product Hunt/Reddit/dev.to drafts: `project/launch/`
 - Listing submissions: `launch/listings.md`
 - Community/issue templates: `docs/community.md`, `.github/ISSUE_TEMPLATE/`
 - Landing page and reset-enabled demo: `site/`, `deploy/demo/`
-- Docs site: `docs-site/`
+- Docs site: `docs/` (VitePress)
 
 Remaining checklist items require external accounts or third parties:
 external audit, GitHub secret-scanning partner approval, Discussions/Discord/

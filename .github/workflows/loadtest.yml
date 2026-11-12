@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: grafana/setup-k6-action@v1
-      - run: k6 run loadtest/reads.js
+      - run: k6 run project/loadtest/reads.js
         env:
           BASE_URL: ${{ secrets.CLAVIS_LOADTEST_URL }}
           TOKEN: ${{ secrets.CLAVIS_LOADTEST_TOKEN }}

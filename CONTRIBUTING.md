@@ -7,7 +7,7 @@ Apache-2.0 and there is no enterprise edition.
 
 - Read [docs/vision.md](docs/vision.md), [docs/security.md](docs/security.md),
   and [docs/architecture.md](docs/architecture.md).
-- Check the milestone task lists in [tasks/](tasks/). Pick a task or open an
+- Check the milestone task lists in [project/tasks/](project/tasks/). Pick a task or open an
   issue describing what you want to change.
 - Security-sensitive work (crypto, authn, authz, audit) needs two reviewers.
 

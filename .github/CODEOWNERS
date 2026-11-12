@@ -7,4 +7,4 @@
 /internal/authz/ @dumhouse
 /internal/audit/ @dumhouse
 /internal/server/ @dumhouse
-/security/ @dumhouse
+/project/security/ @dumhouse
