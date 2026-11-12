@@ -398,3 +398,48 @@ func TestRotateRootKeyRewrapsOrgsAndMFA(t *testing.T) {
 		t.Fatalf("backups = %v", backups)
 	}
 }
+
+func TestBuildOIDCTrustPresets(t *testing.T) {
+	trust, err := buildOIDCTrust(oidcTrustOptions{
+		Provider: "github", Repo: "acme/repo", Branch: "main", Environment: "prod",
+		Claims: []string{"actor=octocat"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trust["issuer"] != "https://token.actions.githubusercontent.com" || trust["audience"] != "clavis" {
+		t.Fatalf("github trust = %+v", trust)
+	}
+	claims, _ := trust["claims"].(map[string]string)
+	if claims["repository"] != "acme/repo" || claims["ref"] != "refs/heads/main" || claims["environment"] != "prod" || claims["actor"] != "octocat" {
+		t.Fatalf("github claims = %+v", claims)
+	}
+
+	trust, err = buildOIDCTrust(oidcTrustOptions{Provider: "gitlab", Repo: "group/project", Branch: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trust["issuer"] != "https://gitlab.com" {
+		t.Fatalf("gitlab trust = %+v", trust)
+	}
+	claims, _ = trust["claims"].(map[string]string)
+	if claims["project_path"] != "group/project" || claims["ref"] != "refs/heads/main" {
+		t.Fatalf("gitlab claims = %+v", claims)
+	}
+
+	trust, err = buildOIDCTrust(oidcTrustOptions{
+		Provider: "kubernetes", Issuer: "https://kubernetes.default.svc.cluster.local",
+		Audience: "clavis", K8sNamespace: "apps", K8sServiceAccount: "deployer",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, _ = trust["claims"].(map[string]string)
+	if claims["sub"] != "system:serviceaccount:apps:deployer" {
+		t.Fatalf("k8s claims = %+v", claims)
+	}
+
+	if _, err := buildOIDCTrust(oidcTrustOptions{Provider: "unknown"}); err == nil {
+		t.Fatal("unknown provider accepted")
+	}
+}

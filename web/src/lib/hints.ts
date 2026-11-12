@@ -22,7 +22,7 @@ export const pageHints: Record<string, PageHints> = {
     ],
     cmds: [
       { cmd: 'clavis init', description: 'Link this directory to a project' },
-      { cmd: 'clavis projects ls', description: 'List projects you can access' },
+      { cmd: 'clavis init --project-name "My App"', description: 'Create a project while linking' },
     ],
     tips: [
       'Production environment chips are amber everywhere: the UI, CLI, and emails.',
@@ -56,7 +56,7 @@ export const pageHints: Record<string, PageHints> = {
     ],
     cmds: [
       { cmd: 'clavis env ls', description: 'List environments' },
-      { cmd: 'clavis env ls', description: 'List environments' },
+      { cmd: 'clavis env diff dev prod', description: 'Compare key names' },
     ],
     tips: [
       'Production is protected by default and cannot be unprotected from this page.',
@@ -70,7 +70,7 @@ export const pageHints: Record<string, PageHints> = {
       { keys: '/', label: 'Filter events' },
       { keys: 'J / K', label: 'Move through rows' },
     ],
-    cmds: [{ cmd: 'clavis audit ls', description: 'Recent audit events' }],
+    cmds: [{ cmd: 'clavis admin audit verify', description: 'Verify the audit chain' }],
     tips: [
       'The chain badge recomputes every event hash; a break is shown in red.',
       'Secret values never enter the audit schema — only blind-index references.',
@@ -111,7 +111,7 @@ export const pageHints: Record<string, PageHints> = {
     keys: [{ keys: '⌘K', label: 'Command palette' }],
     cmds: [
       { cmd: 'clavis whoami', description: 'Show the signed-in account' },
-      { cmd: 'clavis health', description: 'Run the same health checks' },
+      { cmd: 'clavis admin rotate-root-key', description: 'Rotate the offline root key' },
     ],
     tips: [
       'Appearance is saved per user, with an org default for new members.',
@@ -122,7 +122,7 @@ export const pageHints: Record<string, PageHints> = {
   '/health': {
     title: 'Health',
     keys: [],
-    cmds: [{ cmd: 'clavis health', description: 'Health report as JSON or text' }],
+    cmds: [{ cmd: 'clavis server', description: 'Run the server and health endpoints' }],
     tips: [
       'Health is computed from real usage, not a checklist.',
       'Duplicate-value checks are opt-in per project.',
@@ -131,10 +131,7 @@ export const pageHints: Record<string, PageHints> = {
   '/requests': {
     title: 'Requests',
     keys: [],
-    cmds: [
-      { cmd: 'clavis request ls', description: 'List access and change requests' },
-      { cmd: 'clavis request ls', description: 'List requests' },
-    ],
+    cmds: [{ cmd: 'clavis access explain', description: 'Explain effective access' }],
     tips: [
       'Approvals show the exact diff and require a reason.',
       'Temporary grants expire automatically.',
@@ -143,10 +140,7 @@ export const pageHints: Record<string, PageHints> = {
   '/shared-sets': {
     title: 'Shared sets',
     keys: [],
-    cmds: [
-      { cmd: 'clavis sets ls', description: 'List org-wide shared sets' },
-      { cmd: 'clavis sets ls', description: 'List org-wide shared sets' },
-    ],
+    cmds: [{ cmd: 'clavis secrets ls', description: 'List keys in the linked project' }],
     tips: [
       'Shared sets show their blast radius before saving.',
       'Import order determines precedence.',
@@ -157,7 +151,7 @@ export const pageHints: Record<string, PageHints> = {
 const fallbackHints: PageHints = {
   title: 'Clavis',
   keys: [],
-  cmds: [{ cmd: 'clavis health', description: 'Health report as JSON or text' }],
+  cmds: [{ cmd: 'clavis whoami', description: 'Show the signed-in account' }],
   tips: ['Press ? for shortcuts and CLI equivalents.'],
 }
 

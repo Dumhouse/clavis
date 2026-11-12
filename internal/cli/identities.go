@@ -76,17 +76,19 @@ func newIdentitiesListCommand(opts *Options) *cobra.Command {
 
 func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	var (
-		identityType  string
-		role          string
-		oidc          string
-		issuer        string
-		audience      string
-		repo          string
-		branch        string
-		ghEnvironment string
-		claims        []string
-		project       string
-		environment   string
+		identityType      string
+		role              string
+		oidc              string
+		issuer            string
+		audience          string
+		repo              string
+		branch            string
+		ghEnvironment     string
+		k8sNamespace      string
+		k8sServiceAccount string
+		claims            []string
+		project           string
+		environment       string
 	)
 	cmd := &cobra.Command{
 		Use:   "create NAME",
@@ -109,54 +111,15 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 				"name": args[0], "type": identityType, "role": role,
 				"project": project, "environment": environment,
 			}
-			trust := map[string]any{}
-			if oidc != "" {
-				switch oidc {
-				case "github":
-					if issuer == "" {
-						issuer = "https://token.actions.githubusercontent.com"
-					}
-					if audience == "" {
-						audience = "clavis"
-					}
-					claimMap := map[string]string{}
-					if repo != "" {
-						claimMap["repository"] = repo
-					}
-					if branch != "" {
-						if strings.HasPrefix(branch, "refs/") {
-							claimMap["ref"] = branch
-						} else {
-							claimMap["ref"] = "refs/heads/" + branch
-						}
-					}
-					if ghEnvironment != "" {
-						claimMap["environment"] = ghEnvironment
-					}
-					for _, claim := range claims {
-						parts := strings.SplitN(claim, "=", 2)
-						if len(parts) != 2 {
-							return fmt.Errorf("invalid --claim %q (want key=value)", claim)
-						}
-						claimMap[parts[0]] = parts[1]
-					}
-					trust["claims"] = claimMap
-				case "generic":
-					for _, claim := range claims {
-						parts := strings.SplitN(claim, "=", 2)
-						if len(parts) != 2 {
-							return fmt.Errorf("invalid --claim %q (want key=value)", claim)
-						}
-						if trust["claims"] == nil {
-							trust["claims"] = map[string]string{}
-						}
-						trust["claims"].(map[string]string)[parts[0]] = parts[1]
-					}
-				default:
-					return fmt.Errorf("--oidc must be github or generic")
-				}
-				trust["issuer"] = issuer
-				trust["audience"] = audience
+			trust, err := buildOIDCTrust(oidcTrustOptions{
+				Provider: oidc, Issuer: issuer, Audience: audience, Repo: repo,
+				Branch: branch, Environment: ghEnvironment,
+				K8sNamespace: k8sNamespace, K8sServiceAccount: k8sServiceAccount, Claims: claims,
+			})
+			if err != nil {
+				return err
+			}
+			if trust != nil {
 				body["oidc"] = trust
 			}
 			var result identityCreateResponse
@@ -176,12 +139,14 @@ func newIdentitiesCreateCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&identityType, "type", "machine", "machine or agent")
 	cmd.Flags().StringVar(&role, "role", "Developer", "role granted to the identity")
-	cmd.Flags().StringVar(&oidc, "oidc", "", "oidc provider preset: github or generic")
+	cmd.Flags().StringVar(&oidc, "oidc", "", "oidc provider preset: github, gitlab, kubernetes, or generic")
 	cmd.Flags().StringVar(&issuer, "issuer", "", "OIDC issuer URL")
-	cmd.Flags().StringVar(&audience, "audience", "", "OIDC audience (default clavis for GitHub)")
-	cmd.Flags().StringVar(&repo, "repo", "", "GitHub repository claim (owner/name)")
-	cmd.Flags().StringVar(&branch, "branch", "", "GitHub branch claim")
+	cmd.Flags().StringVar(&audience, "audience", "", "OIDC audience (default clavis for GitHub/GitLab)")
+	cmd.Flags().StringVar(&repo, "repo", "", "repository claim (GitHub owner/name or GitLab project path)")
+	cmd.Flags().StringVar(&branch, "branch", "", "branch claim")
 	cmd.Flags().StringVar(&ghEnvironment, "gh-environment", "", "GitHub environment claim")
+	cmd.Flags().StringVar(&k8sNamespace, "k8s-namespace", "", "Kubernetes namespace for service account auth")
+	cmd.Flags().StringVar(&k8sServiceAccount, "k8s-service-account", "", "Kubernetes service account name")
 	cmd.Flags().StringArrayVar(&claims, "claim", nil, "additional OIDC claim condition key=value")
 	cmd.Flags().StringVar(&project, "project", "", "project slug scope")
 	cmd.Flags().StringVar(&environment, "identity-env", "", "environment glob scope")
@@ -227,4 +192,94 @@ func newIdentitiesRevokeCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+type oidcTrustOptions struct {
+	Provider          string
+	Issuer            string
+	Audience          string
+	Repo              string
+	Branch            string
+	Environment       string
+	K8sNamespace      string
+	K8sServiceAccount string
+	Claims            []string
+}
+
+func buildOIDCTrust(in oidcTrustOptions) (map[string]any, error) {
+	if in.Provider == "" {
+		return nil, nil
+	}
+	trust := map[string]any{}
+	claimMap := map[string]string{}
+	switch in.Provider {
+	case "github":
+		if in.Issuer == "" {
+			in.Issuer = "https://token.actions.githubusercontent.com"
+		}
+		if in.Audience == "" {
+			in.Audience = "clavis"
+		}
+		if in.Repo != "" {
+			claimMap["repository"] = in.Repo
+		}
+		if in.Branch != "" {
+			claimMap["ref"] = normalizeRef(in.Branch)
+		}
+		if in.Environment != "" {
+			claimMap["environment"] = in.Environment
+		}
+	case "gitlab":
+		if in.Issuer == "" {
+			in.Issuer = "https://gitlab.com"
+		}
+		if in.Audience == "" {
+			in.Audience = "clavis"
+		}
+		if in.Repo != "" {
+			claimMap["project_path"] = in.Repo
+		}
+		if in.Branch != "" {
+			claimMap["ref"] = normalizeRef(in.Branch)
+		}
+		if in.Environment != "" {
+			claimMap["environment"] = in.Environment
+		}
+	case "kubernetes":
+		if in.Audience == "" {
+			in.Audience = "clavis"
+		}
+		if in.Issuer == "" {
+			return nil, fmt.Errorf("--issuer is required for Kubernetes service account auth")
+		}
+		if (in.K8sNamespace == "") != (in.K8sServiceAccount == "") {
+			return nil, fmt.Errorf("--k8s-namespace and --k8s-service-account must be used together")
+		}
+		if in.K8sNamespace != "" {
+			claimMap["sub"] = "system:serviceaccount:" + in.K8sNamespace + ":" + in.K8sServiceAccount
+		}
+	case "generic":
+	default:
+		return nil, fmt.Errorf("--oidc must be github, gitlab, kubernetes, or generic")
+	}
+	for _, claim := range in.Claims {
+		parts := strings.SplitN(claim, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid --claim %q (want key=value)", claim)
+		}
+		claimMap[parts[0]] = parts[1]
+	}
+	if len(claimMap) > 0 {
+		trust["claims"] = claimMap
+	}
+	trust["issuer"] = in.Issuer
+	trust["audience"] = in.Audience
+	return trust, nil
+}
+
+func normalizeRef(branch string) string {
+	if strings.HasPrefix(branch, "refs/") {
+		return branch
+	}
+	return "refs/heads/" + branch
 }

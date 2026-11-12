@@ -10,8 +10,8 @@ Goal: Postgres and HA; secrets flow everywhere they're needed without long-lived
 ## Workload identity (no static tokens) 🔒
 - [x] **M3-04** 🔒 OIDC federation framework: trust config per identity (issuer, audience, claim conditions) → short-lived token (L)
 - [x] **M3-05** 🔒 GitHub Actions OIDC (repo/branch/environment claim conditions) (S)
-- [ ] **M3-06** 🔒 GitLab CI OIDC (S)
-- [ ] **M3-07** 🔒 Kubernetes service account token auth (TokenReview or OIDC) (M)
+- [x] **M3-06** 🔒 GitLab CI OIDC (S)
+- [x] **M3-07** 🔒 Kubernetes service account token auth (TokenReview or OIDC) (M)
 - [ ] **M3-08** 🔒 AWS IAM auth (signed `GetCallerIdentity`) (M)
 - [ ] **M3-09** 🔒 GCP workload identity (S)
 
