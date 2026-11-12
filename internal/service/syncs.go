@@ -3,12 +3,16 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -30,24 +34,27 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint        string `json:"endpoint,omitempty"`
-	Secret          []byte `json:"secret,omitempty"`
-	BaseURL         string `json:"base_url,omitempty"`
-	Project         string `json:"project,omitempty"`
-	Token           []byte `json:"token,omitempty"`
-	Protected       bool   `json:"protected,omitempty"`
-	Masked          bool   `json:"masked,omitempty"`
-	GitHubRepo      string `json:"github_repo,omitempty"`
-	GitHubEnv       string `json:"github_environment,omitempty"`
-	GitHubScope     string `json:"github_scope,omitempty"`
-	VercelProject   string `json:"vercel_project,omitempty"`
-	VercelTeamID    string `json:"vercel_team_id,omitempty"`
-	AWSRegion       string `json:"aws_region,omitempty"`
-	AWSAccessKey    string `json:"aws_access_key,omitempty"`
-	AWSSecret       []byte `json:"aws_secret,omitempty"`
-	AWSService      string `json:"aws_service,omitempty"`
-	AWSPrefix       string `json:"aws_prefix,omitempty"`
-	AWSSessionToken string `json:"aws_session_token,omitempty"`
+	Endpoint          string `json:"endpoint,omitempty"`
+	Secret            []byte `json:"secret,omitempty"`
+	BaseURL           string `json:"base_url,omitempty"`
+	Project           string `json:"project,omitempty"`
+	Token             []byte `json:"token,omitempty"`
+	Protected         bool   `json:"protected,omitempty"`
+	Masked            bool   `json:"masked,omitempty"`
+	GitHubRepo        string `json:"github_repo,omitempty"`
+	GitHubEnv         string `json:"github_environment,omitempty"`
+	GitHubScope       string `json:"github_scope,omitempty"`
+	VercelProject     string `json:"vercel_project,omitempty"`
+	VercelTeamID      string `json:"vercel_team_id,omitempty"`
+	AWSRegion         string `json:"aws_region,omitempty"`
+	AWSAccessKey      string `json:"aws_access_key,omitempty"`
+	AWSSecret         []byte `json:"aws_secret,omitempty"`
+	AWSService        string `json:"aws_service,omitempty"`
+	AWSPrefix         string `json:"aws_prefix,omitempty"`
+	AWSSessionToken   string `json:"aws_session_token,omitempty"`
+	GCPProject        string `json:"gcp_project,omitempty"`
+	GCPServiceAccount []byte `json:"gcp_service_account,omitempty"`
+	GCPPrefix         string `json:"gcp_prefix,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -72,6 +79,9 @@ type SyncInput struct {
 	AWSSessionToken   string
 	AWSService        string
 	AWSPrefix         string
+	GCPProject        string
+	GCPServiceAccount string
+	GCPPrefix         string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -113,8 +123,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" {
-		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, vercel, or aws", ErrValidation)
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" {
+		return nil, fmt.Errorf("%w: provider must be http, gitlab, github, vercel, aws, or gcp", ErrValidation)
 	}
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
@@ -131,6 +141,18 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "gcp" {
+		config.GCPProject = strings.TrimSpace(in.GCPProject)
+		config.GCPPrefix = strings.Trim(strings.TrimSpace(in.GCPPrefix), "-")
+		if config.GCPProject == "" || strings.TrimSpace(in.GCPServiceAccount) == "" {
+			return nil, fmt.Errorf("%w: GCP project and service account JSON are required", ErrValidation)
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "gcp_service_account", in.GCPServiceAccount)
+		if err != nil {
+			return nil, err
+		}
+		config.GCPServiceAccount = ciphertext
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	} else if provider == "aws" {
 		config.AWSRegion = strings.TrimSpace(in.AWSRegion)
 		config.AWSService = strings.ToLower(strings.TrimSpace(in.AWSService))
@@ -345,6 +367,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "aws" {
 		destination = fmt.Sprintf("aws:%s %s/%s", config.AWSService, config.AWSRegion, config.AWSPrefix)
 	}
+	if sync.Provider == "gcp" {
+		destination = "gcp:" + config.GCPProject
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -382,6 +407,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postVercel(ctx, org, sync, config, env, values, kinds)
 	} else if sync.Provider == "aws" {
 		err2 = s.postAWS(ctx, org, sync, config, project, env, values, kinds)
+	} else if sync.Provider == "gcp" {
+		err2 = s.postGCP(ctx, org, sync, config, project, env, values)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -1035,4 +1062,191 @@ func hmacSHA256Bytes(key []byte, value string) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(value))
 	return mac.Sum(nil)
+}
+
+type gcpServiceAccount struct {
+	ClientEmail string `json:"client_email"`
+	PrivateKey  string `json:"private_key"`
+	TokenURI    string `json:"token_uri"`
+}
+
+func (s *Service) postGCP(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values map[string]string) error {
+	rawAccount, err := s.decryptOrgSecret(org, sync.ID, "gcp_service_account", config.GCPServiceAccount)
+	if err != nil {
+		return err
+	}
+	var account gcpServiceAccount
+	if err := json.Unmarshal([]byte(rawAccount), &account); err != nil || account.ClientEmail == "" || account.PrivateKey == "" {
+		return fmt.Errorf("gcp: service account JSON must include client_email and private_key")
+	}
+	if account.TokenURI == "" {
+		account.TokenURI = "https://oauth2.googleapis.com/token"
+	}
+	accessToken, err := gcpAccessToken(ctx, s.WebhookClient, account)
+	if err != nil {
+		return err
+	}
+	base := config.BaseURL
+	if base == "" {
+		base = "https://secretmanager.googleapis.com"
+	}
+	parent := "projects/" + url.PathEscape(config.GCPProject)
+	prefix := config.GCPPrefix
+	if prefix == "" {
+		prefix = "clavis-" + project.Slug + "-" + env.Slug
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		name := prefix + "-" + sanitizeGCPName(key)
+		secretURL := base + "/v1/" + parent + "/secrets/" + url.PathEscape(name)
+		status, body, err := gcpRequest(ctx, s.WebhookClient, http.MethodGet, secretURL, accessToken, nil)
+		if err != nil {
+			return fmt.Errorf("gcp: request failed: %v; check the API URL and network policy", err)
+		}
+		if status == http.StatusNotFound {
+			payload, _ := json.Marshal(map[string]any{"replication": map[string]any{"automatic": map[string]any{}}})
+			status, body, err = gcpRequest(ctx, s.WebhookClient, http.MethodPost,
+				base+"/v1/"+parent+"/secrets?secretId="+url.QueryEscape(name), accessToken, payload)
+			if err != nil {
+				return fmt.Errorf("gcp: create secret failed: %v", err)
+			}
+			if status < 200 || status >= 300 {
+				return gcpStatusError("create "+name, status, body)
+			}
+		} else if status < 200 || status >= 300 {
+			return gcpStatusError("read "+name, status, body)
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"payload": map[string]string{"data": base64.StdEncoding.EncodeToString([]byte(values[key]))},
+		})
+		status, body, err = gcpRequest(ctx, s.WebhookClient, http.MethodPost, secretURL+":addVersion", accessToken, payload)
+		if err != nil {
+			return fmt.Errorf("gcp: add version failed: %v; check the API URL and network policy", err)
+		}
+		if status < 200 || status >= 300 {
+			return gcpStatusError("add version "+name, status, body)
+		}
+	}
+	return nil
+}
+
+func gcpAccessToken(ctx context.Context, client *http.Client, account gcpServiceAccount) (string, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	block, _ := pem.Decode([]byte(account.PrivateKey))
+	if block == nil {
+		return "", fmt.Errorf("gcp: invalid service account private key")
+	}
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		if rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
+			key = rsaKey
+		} else {
+			return "", fmt.Errorf("gcp: invalid service account private key")
+		}
+	}
+	rsaKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		return "", fmt.Errorf("gcp: service account key must be RSA")
+	}
+	now := time.Now().Unix()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	claims, _ := json.Marshal(map[string]any{
+		"iss":   account.ClientEmail,
+		"scope": "https://www.googleapis.com/auth/cloud-platform",
+		"aud":   account.TokenURI, "iat": now, "exp": now + 3600,
+	})
+	payload := base64.RawURLEncoding.EncodeToString(claims)
+	digest := sha256.Sum256([]byte(header + "." + payload))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.SHA256, digest[:])
+	if err != nil {
+		return "", err
+	}
+	assertion := header + "." + payload + "." + base64.RawURLEncoding.EncodeToString(signature)
+	form := url.Values{}
+	form.Set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+	form.Set("assertion", assertion)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, account.TokenURI, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := client.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("gcp: token exchange failed: %v; check the token URI and network policy", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("gcp: token exchange returned %d: %s", response.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var token struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(body, &token); err != nil || token.AccessToken == "" {
+		return "", fmt.Errorf("gcp: token response did not include an access token")
+	}
+	return token.AccessToken, nil
+}
+
+func gcpRequest(ctx context.Context, client *http.Client, method, endpoint, token string, payload []byte) (int, []byte, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	reader := bytes.NewReader(nil)
+	if payload != nil {
+		reader = bytes.NewReader(payload)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Accept", "application/json")
+	if payload != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	return response.StatusCode, body, nil
+}
+
+func gcpStatusError(operation string, status int, body []byte) error {
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("gcp: permission denied for %s; check the service account roles (Secret Manager Admin)", operation)
+	case http.StatusNotFound:
+		return fmt.Errorf("gcp: %s not found; check the project ID", operation)
+	default:
+		return fmt.Errorf("gcp: %s returned %d: %s", operation, status, detail)
+	}
+}
+
+func sanitizeGCPName(key string) string {
+	var b strings.Builder
+	for _, r := range key {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('-')
+		}
+	}
+	name := b.String()
+	if name == "" {
+		return "value"
+	}
+	return name
 }

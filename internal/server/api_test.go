@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"log/slog"
 	"math/big"
@@ -1928,6 +1929,83 @@ func TestAWSSync(t *testing.T) {
 	variable := got["clavis/web-app/dev/AWS_VAR"]
 	if variable.value != "plain-value" || variable.kind != "String" {
 		t.Fatalf("variable call = %+v", variable)
+	}
+}
+
+func TestGCPSync(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	var tokenURL string
+	values := make(chan string, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/token":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"gcp-token","token_type":"Bearer"}`))
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/secrets/"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":{"message":"not found"}}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/secrets"):
+			_, _ = w.Write([]byte(`{}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, ":addVersion"):
+			var body struct {
+				Payload struct {
+					Data string `json:"data"`
+				} `json:"payload"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			decoded, _ := base64.StdEncoding.DecodeString(body.Payload.Data)
+			values <- string(decoded)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	tokenURL = srv.URL + "/token"
+	account, _ := json.Marshal(map[string]string{
+		"client_email": "deployer@project.iam.gserviceaccount.com",
+		"private_key":  string(keyPEM),
+		"token_uri":    tokenURL,
+	})
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "gcp", "base_url": srv.URL,
+		"gcp_project": "project", "gcp_service_account": string(account),
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create gcp sync = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "GCP_KEY", "value": "gcp-value"}); rec.Code != http.StatusCreated {
+		t.Fatalf("secret = %d", rec.Code)
+	}
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	select {
+	case value := <-values:
+		if value != "gcp-value" {
+			t.Fatalf("gcp secret = %q", value)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("gcp secret not delivered")
 	}
 }
 

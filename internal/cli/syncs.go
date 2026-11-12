@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -104,6 +105,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
 	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
+	var gcpProject, gcpServiceAccount, gcpPrefix string
 	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -119,6 +121,13 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if strings.HasPrefix(gcpServiceAccount, "@") {
+				data, err := os.ReadFile(strings.TrimPrefix(gcpServiceAccount, "@"))
+				if err != nil {
+					return err
+				}
+				gcpServiceAccount = string(data)
+			}
 			var created syncJSON
 			body := map[string]any{
 				"environment": args[0], "provider": provider,
@@ -131,6 +140,8 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"aws_region": awsRegion, "aws_access_key": awsAccessKey,
 				"aws_secret_key": awsSecretKey, "aws_session_token": awsSessionToken,
 				"aws_service": awsService, "aws_prefix": awsPrefix,
+				"gcp_project": gcpProject, "gcp_service_account": gcpServiceAccount,
+				"gcp_prefix": gcpPrefix,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -164,6 +175,9 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&awsSessionToken, "aws-session-token", "", "AWS session token")
 	cmd.Flags().StringVar(&awsService, "aws-service", "ssm", "AWS service: ssm or secretsmanager")
 	cmd.Flags().StringVar(&awsPrefix, "aws-prefix", "", "AWS parameter/secret name prefix")
+	cmd.Flags().StringVar(&gcpProject, "gcp-project", "", "GCP project ID")
+	cmd.Flags().StringVar(&gcpServiceAccount, "gcp-service-account-json", "", "GCP service account JSON or @file")
+	cmd.Flags().StringVar(&gcpPrefix, "gcp-prefix", "", "GCP secret name prefix")
 	return cmd
 }
 

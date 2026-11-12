@@ -298,7 +298,8 @@ Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
 `--github-repo`, `--github-scope`, `--github-environment`, `--github-token`,
 `--vercel-project`, `--vercel-team`, `--vercel-token`, `--aws-region`,
 `--aws-access-key`, `--aws-secret-key`, `--aws-session-token`, `--aws-service`,
-`--aws-prefix`.
+`--aws-prefix`, `--gcp-project`, `--gcp-service-account-json`,
+`--gcp-prefix`.
 
 GitHub syncs encrypt secrets with the repository public key and create or
 update Actions variables:
@@ -310,6 +311,14 @@ clavis syncs create dev --provider github --github-repo acme/repo \
 clavis syncs create prod --provider github --github-scope environment \
   --github-repo acme/repo --github-environment production \
   --github-token "$GITHUB_TOKEN"
+```
+
+GCP syncs create Secret Manager secrets and add versions using a service
+account:
+
+```sh
+clavis syncs create dev --provider gcp --gcp-project my-project \
+  --gcp-service-account-json @service-account.json
 ```
 
 AWS syncs write SSM parameters or Secrets Manager secrets with SigV4:

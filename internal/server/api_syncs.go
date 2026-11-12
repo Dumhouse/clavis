@@ -56,6 +56,9 @@ type createSyncInput struct {
 		AWSSessionToken   string `json:"aws_session_token,omitempty" maxLength:"2000"`
 		AWSService        string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
 		AWSPrefix         string `json:"aws_prefix,omitempty" maxLength:"500"`
+		GCPProject        string `json:"gcp_project,omitempty" maxLength:"200"`
+		GCPServiceAccount string `json:"gcp_service_account,omitempty" maxLength:"20000"`
+		GCPPrefix         string `json:"gcp_prefix,omitempty" maxLength:"200"`
 	}
 }
 
@@ -148,6 +151,8 @@ func (s *Server) registerSyncRoutes() error {
 			AWSRegion: in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
 			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
 			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
+			GCPProject: in.Body.GCPProject, GCPServiceAccount: in.Body.GCPServiceAccount,
+			GCPPrefix: in.Body.GCPPrefix,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

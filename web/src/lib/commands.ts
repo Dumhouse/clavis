@@ -185,6 +185,7 @@ export const commandGroups: CommandGroup[] = [
           'clavis syncs create dev --provider github --github-repo acme/repo --github-token "$GITHUB_TOKEN"',
           'clavis syncs create dev --provider vercel --vercel-project prj_123 --vercel-token "$VERCEL_TOKEN"',
           'clavis syncs create dev --provider aws --aws-region eu-central-1 --aws-service ssm',
+          'clavis syncs create dev --provider gcp --gcp-project my-project --gcp-service-account-json @service-account.json',
         ],
       },
       {
