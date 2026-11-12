@@ -315,7 +315,7 @@ function randomString(alphabet: string, length: number): string {
   while (out.length < length) {
     for (const byte of randomBytes(length * 2)) {
       if (byte >= limit) continue
-      out += alphabet[byte % alphabet.length]
+      out += alphabet.charAt(byte % alphabet.length)
       if (out.length === length) break
     }
   }

@@ -125,7 +125,7 @@ async function seed() {
 
   const secrets = {
     dev: [
-      ['STRIPE_SECRET_KEY', 'sk_test_51NdemoDevKey000000000000'],
+      ['STRIPE_SECRET_KEY', 'demo_key_51NdemoDevKey000000000000'],
       ['DATABASE_URL', 'postgres://app:dev@db.dev.internal:5432/payments'],
       ['REDIS_URL', 'redis://cache.dev.internal:6379/0'],
       ['JWT_SECRET', 'devOnlyJwtSecretValue0000000000000000'],
@@ -134,7 +134,7 @@ async function seed() {
       ['PORT', '3000'],
     ],
     staging: [
-      ['STRIPE_SECRET_KEY', 'sk_test_51NdemoStagingKey0000000000'],
+      ['STRIPE_SECRET_KEY', 'demo_key_51NdemoStagingKey0000000000'],
       ['DATABASE_URL', 'postgres://app:staging@db.staging.internal:5432/payments'],
       ['JWT_SECRET', 'stagingJwtSecretValue000000000000000'],
       ['LOG_LEVEL', 'info'],
@@ -142,7 +142,7 @@ async function seed() {
       ['PORT', '3000'],
     ],
     prod: [
-      ['STRIPE_SECRET_KEY', 'sk_live_51NdemoProduction000000000'],
+      ['STRIPE_SECRET_KEY', 'demo_key_51NdemoProduction000000000'],
       ['DATABASE_URL', 'postgres://app@db.prod.internal:5432/payments'],
       ['REDIS_URL', 'redis://cache.prod.internal:6379/0'],
       ['JWT_SECRET', 'productionJwtSecretValue000000000000'],

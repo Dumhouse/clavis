@@ -187,10 +187,11 @@ func TestPostgresEventNotify(t *testing.T) {
 	for {
 		select {
 		case payload := <-received:
-			if payload != wanted {
-				t.Fatalf("payload = %q", payload)
+			// Other packages share this database and may publish their own
+			// events; only the payload sent here counts.
+			if payload == wanted {
+				return
 			}
-			return
 		case <-ticker.C:
 			_ = st.NotifyEvent(ctx, wanted)
 		case <-deadline:
