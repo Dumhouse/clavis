@@ -173,6 +173,8 @@ func (s *Server) apiError(ctx context.Context, err error) error {
 		return withRequestID(problem.New(http.StatusGone, "reset_invalid", "Reset link expired or invalid", "Request a new password reset link."), ctx)
 	case errors.Is(err, service.ErrLastOwner):
 		return withRequestID(problem.New(http.StatusConflict, "last_owner", "Cannot remove the last owner", "Promote another member to Owner first."), ctx)
+	case errors.Is(err, service.ErrEnvironmentFrozen):
+		return withRequestID(problem.New(http.StatusConflict, "environment_frozen", "Environment is frozen", "Wait for the freeze window to end or remove the freeze."), ctx)
 	case errors.Is(err, service.ErrSyncUnconfirmed):
 		return withRequestID(problem.New(http.StatusConflict, "sync_unconfirmed", "Confirm the first sync", "Run a dry-run preview and retry with confirm=true."), ctx)
 	case errors.Is(err, service.ErrSSORequired):

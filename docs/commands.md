@@ -422,7 +422,8 @@ clavis syncs run 123e4567 --yes
 
 ### `clavis syncs drift ID`
 
-Compare local values with a readable remote provider.
+Compare local values with a readable remote provider. Supported for GitLab,
+AWS, GCP, Netlify, Vercel, GitHub variables, and Cloudflare Pages.
 
 ```sh
 clavis syncs drift 123e4567

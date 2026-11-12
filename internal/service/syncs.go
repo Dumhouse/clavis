@@ -34,6 +34,9 @@ import (
 // ErrSyncUnconfirmed requires an explicit confirmation before the first push.
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
+// ErrEnvironmentFrozen blocks changes during a freeze window.
+var ErrEnvironmentFrozen = errors.New("service: environment is frozen")
+
 type syncConfig struct {
 	Endpoint          string `json:"endpoint,omitempty"`
 	Secret            []byte `json:"secret,omitempty"`
@@ -453,6 +456,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		return &SyncRunResult{Preview: preview}, ErrSyncUnconfirmed
 	}
 
+	if freeze, freezeErr := s.Store.ActiveFreeze(ctx, env.ID, s.Now().UTC()); freezeErr == nil && freeze != nil {
+		return nil, fmt.Errorf("%w: %s until %s", ErrEnvironmentFrozen, freeze.Reason, freeze.EndsAt.Format(time.RFC3339))
+	}
 	now := s.Now().UTC()
 	run := &store.SyncRun{
 		ID: uuid.NewString(), SyncID: sync.ID, ProjectID: project.ID, Status: "running",
@@ -1072,34 +1078,42 @@ func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync,
 }
 
 func (s *Service) awsJSONCall(ctx context.Context, client *http.Client, endpoint, target, service string, config syncConfig, secretKey string, payload []byte) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	status, body, err := awsJSONResponse(ctx, client, endpoint, target, service, config, secretKey, payload)
 	if err != nil {
 		return err
 	}
-	request.Header.Set("Content-Type", "application/x-amz-json-1.1")
-	request.Header.Set("X-Amz-Target", target)
-	signAWSJSON(request, payload, service, config, secretKey)
-	response, err := client.Do(request)
-	if err != nil {
-		return fmt.Errorf("aws: request failed: %v; check the region, endpoint, and network policy", err)
-	}
-	defer response.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-	if response.StatusCode >= 200 && response.StatusCode < 300 {
+	if status >= 200 && status < 300 {
 		return nil
 	}
 	detail := strings.TrimSpace(string(body))
 	if len(detail) > 300 {
 		detail = detail[:300]
 	}
-	switch response.StatusCode {
+	switch status {
 	case http.StatusForbidden, http.StatusUnauthorized:
 		return fmt.Errorf("aws: credentials rejected; check the access key, secret, and IAM permissions")
 	case http.StatusBadRequest:
 		return fmt.Errorf("aws: %s: %s", target, detail)
 	default:
-		return fmt.Errorf("aws: %s returned %d: %s", target, response.StatusCode, detail)
+		return fmt.Errorf("aws: %s returned %d: %s", target, status, detail)
 	}
+}
+
+func awsJSONResponse(ctx context.Context, client *http.Client, endpoint, target, service string, config syncConfig, secretKey string, payload []byte) (int, []byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	request.Header.Set("X-Amz-Target", target)
+	signAWSJSON(request, payload, service, config, secretKey)
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, fmt.Errorf("aws: request failed: %v; check the region, endpoint, and network policy", err)
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	return response.StatusCode, body, nil
 }
 
 func signAWSJSON(req *http.Request, payload []byte, service string, config syncConfig, secretKey string) {
@@ -1570,24 +1584,51 @@ func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug
 	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
 		return nil, err
 	}
-	values, _, err := s.syncValues(ctx, org, project, env)
+	values, kinds, err := s.syncValues(ctx, org, project, env)
 	if err != nil {
 		return nil, err
 	}
 	now := s.Now().UTC()
 	result := &SyncDrift{CheckedAt: now, Keys: []string{}}
+	var keys []string
 	switch sync.Provider {
 	case "gitlab":
-		keys, err := s.driftGitLab(ctx, org, sync, config, values)
-		if err != nil {
-			return nil, err
+		keys, err = s.driftGitLab(ctx, org, sync, config, values)
+		result.Detail = "GitLab variable values compared"
+	case "aws":
+		keys, err = s.driftAWS(ctx, org, sync, config, project, env, values)
+		result.Detail = "AWS values compared"
+	case "gcp":
+		keys, err = s.driftGCP(ctx, org, sync, config, project, env, values)
+		result.Detail = "GCP secret versions compared"
+	case "netlify":
+		keys, err = s.driftNetlify(ctx, org, sync, config, env, values)
+		result.Detail = "Netlify variables compared"
+	case "vercel":
+		keys, err = s.driftVercel(ctx, org, sync, config, values)
+		result.Detail = "Vercel variables compared"
+	case "github":
+		keys, err = s.driftGitHub(ctx, org, sync, config, values, kinds)
+		result.Detail = "GitHub variables compared; secrets checked for presence"
+	case "cloudflare":
+		if config.CFMode == "pages" {
+			keys, err = s.driftCloudflare(ctx, org, sync, config, env, values)
+			result.Detail = "Cloudflare Pages variables compared"
+		} else {
+			result.Detail = "Cloudflare Workers secrets are write-only"
 		}
+	default:
+		result.Detail = "Drift detection is not available for this provider yet"
+	}
+	if err != nil {
+		return nil, err
+	}
+	if result.Detail != "" && !strings.Contains(result.Detail, "not available") {
 		result.Supported = true
 		result.Keys = keys
-		result.Detail = "GitLab variable values compared"
-	default:
-		result.Supported = false
-		result.Detail = "Drift detection is not available for this provider yet"
+	}
+	if result.Keys == nil {
+		result.Keys = []string{}
 	}
 	if result.Supported {
 		encoded, _ := json.Marshal(result.Keys)
