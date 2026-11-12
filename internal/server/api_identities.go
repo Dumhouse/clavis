@@ -36,6 +36,7 @@ type identityBody struct {
 	AllowedCommands []string            `json:"allowed_commands,omitempty"`
 	CreatedAt       time.Time           `json:"created_at"`
 	Tokens          []identityTokenBody `json:"tokens"`
+	ActiveSessions  int                 `json:"active_sessions" doc:"Unexpired agent sessions started with clavis mcp --agent"`
 }
 
 type identitiesOutput struct {
@@ -77,6 +78,16 @@ type identityPath struct {
 	Org    string `path:"org"`
 	ID     string `path:"id"`
 	Reauth string `header:"X-Clavis-Reauth"`
+}
+
+type agentSessionOutput struct {
+	Body struct {
+		Token       string    `json:"token" doc:"Agent token; keep it in memory only"`
+		IdentityID  string    `json:"identity_id"`
+		Identity    string    `json:"identity"`
+		Environment string    `json:"environment"`
+		ExpiresAt   time.Time `json:"expires_at"`
+	}
 }
 
 type agentCommandsInput struct {
@@ -252,6 +263,39 @@ func (s *Server) registerIdentityRoutes() error {
 		return out, nil
 	})
 
+	// The service authorizes this route: the caller must be a person who holds
+	// the agent's access themselves.
+	sessionsPath := "/api/v1/orgs/{org}/identities/{id}/sessions"
+	if err := s.registry.DeclareAuthenticated(http.MethodPost, sessionsPath, "start a short-lived agent session for clavis mcp"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "start-agent-session", Method: http.MethodPost, Path: sessionsPath,
+		Summary:     "Start a delegated agent session",
+		Description: "Returns a one-hour agent token tied to the caller's own session or personal access token. `{id}` may be the identity ID or name.",
+		Tags:        []string{"identities"}, DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *identityPath) (*agentSessionOutput, error) {
+		actor, _ := actorFrom(ctx)
+		parent := service.AgentSessionParent{}
+		if principal, ok := principalFrom(ctx); ok && principal.Session != nil {
+			parent = service.AgentSessionParent{Kind: service.ParentSession, ID: principal.Session.ID}
+		} else if actor.Kind == authz.SubjectUser && len(actor.Bindings) == 1 {
+			// Personal access tokens resolve to a single binding carrying the token ID.
+			parent = service.AgentSessionParent{Kind: service.ParentPAT, ID: actor.Bindings[0].ID}
+		}
+		session, err := s.svc.StartAgentSession(ctx, actor, parent, in.Org, in.ID, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &agentSessionOutput{}
+		out.Body.Token = session.Token
+		out.Body.IdentityID = session.IdentityID
+		out.Body.Identity = session.Name
+		out.Body.Environment = session.Environment
+		out.Body.ExpiresAt = session.ExpiresAt
+		return out, nil
+	})
+
 	commandsPath := "/api/v1/orgs/{org}/identities/{id}/commands"
 	if err := s.registry.Declare(http.MethodGet, commandsPath, authz.TokensManage, "read an agent command allowlist"); err != nil {
 		return err
@@ -343,7 +387,8 @@ func (s *Server) registerIdentityRoutes() error {
 
 func identityFromView(view service.IdentityView) identityBody {
 	body := identityBody{
-		ID: view.Identity.ID, Name: view.Identity.Name, Type: view.Identity.Type,
+		ActiveSessions: view.ActiveSessions,
+		ID:             view.Identity.ID, Name: view.Identity.Name, Type: view.Identity.Type,
 		Role: view.Scope.Role, ProjectID: view.Scope.ProjectID, Environment: view.Scope.Environment,
 		CreatedAt: view.Identity.CreatedAt,
 	}

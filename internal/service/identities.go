@@ -64,8 +64,10 @@ type IdentityView struct {
 	Identity *store.Identity
 	Tokens   []store.AccessToken
 	Scope    TokenScope
-	OIDC     *OIDCTrust
-	AWS      *AWSTrust
+	// ActiveSessions counts unexpired delegated agent sessions (clavis mcp --agent).
+	ActiveSessions int
+	OIDC           *OIDCTrust
+	AWS            *AWSTrust
 }
 
 type tokenScopes struct {
@@ -73,6 +75,10 @@ type tokenScopes struct {
 	Permissions []string `json:"permissions,omitempty"`
 	ProjectID   string   `json:"project_id,omitempty"`
 	Environment string   `json:"environment,omitempty"`
+	// Set on delegated agent sessions started by `clavis mcp --agent`.
+	DelegatedBy string `json:"delegated_by,omitempty"`
+	ParentKind  string `json:"parent_kind,omitempty"`
+	ParentID    string `json:"parent_id,omitempty"`
 }
 
 // CreateIdentity creates an identity and one scoped token.
@@ -253,9 +259,23 @@ func (s *Service) ListIdentities(ctx context.Context, actor authz.Actor, orgSlug
 	}
 	out := make([]IdentityView, 0, len(identities))
 	for i := range identities {
-		tokens, err := s.Store.ListTokensForIdentity(ctx, identities[i].ID)
+		all, err := s.Store.ListTokensForIdentity(ctx, identities[i].ID)
 		if err != nil {
 			return nil, err
+		}
+		// Delegated agent sessions are counted, not listed as tokens.
+		tokens := make([]store.AccessToken, 0, len(all))
+		activeSessions := 0
+		now := s.Now().UTC()
+		for _, token := range all {
+			var decoded tokenScopes
+			if json.Unmarshal([]byte(token.Scopes), &decoded) == nil && decoded.DelegatedBy != "" {
+				if token.ExpiresAt == nil || now.Before(*token.ExpiresAt) {
+					activeSessions++
+				}
+				continue
+			}
+			tokens = append(tokens, token)
 		}
 		scope := TokenScope{}
 		if len(tokens) > 0 && tokens[0].Scopes != "" {
@@ -264,7 +284,7 @@ func (s *Service) ListIdentities(ctx context.Context, actor authz.Actor, orgSlug
 				scope = TokenScope{Role: decoded.Role, ProjectID: decoded.ProjectID, Environment: decoded.Environment}
 			}
 		}
-		view := IdentityView{Identity: &identities[i], Tokens: tokens, Scope: scope}
+		view := IdentityView{Identity: &identities[i], Tokens: tokens, Scope: scope, ActiveSessions: activeSessions}
 		if identities[i].OIDCTrust != "" && identities[i].OIDCTrust != "{}" {
 			var trust OIDCTrust
 			if json.Unmarshal([]byte(identities[i].OIDCTrust), &trust) == nil {
@@ -305,6 +325,7 @@ func (s *Service) RotateIdentityToken(ctx context.Context, actor authz.Actor, or
 		if err := json.Unmarshal([]byte(existing[0].Scopes), &scopes); err != nil {
 			return nil, fmt.Errorf("service: decode token scopes: %w", err)
 		}
+		scopes = scopes.withoutDelegation()
 	}
 	if identity.Type == "agent" {
 		scopes.Role = "Agent"
@@ -383,6 +404,9 @@ func (s *Service) AuthenticateMachineToken(ctx context.Context, raw, ip string) 
 		if err := json.Unmarshal([]byte(record.Scopes), &scopes); err != nil {
 			return authz.Actor{}, authn.ErrUnauthenticated
 		}
+	}
+	if scopes.DelegatedBy != "" && (identity.Type != "agent" || !s.delegationActive(ctx, record.OrgID, scopes)) {
+		return authz.Actor{}, authn.ErrUnauthenticated
 	}
 	subjectKind := authz.SubjectMachine
 	if identity.Type == "agent" {

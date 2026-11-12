@@ -161,3 +161,31 @@ func (s *Store) DeleteExpiredSessions(ctx context.Context, now time.Time) (int64
 	}
 	return res.RowsAffected()
 }
+
+// CredentialActive reports whether a user's session ("session") or personal
+// access token ("pat") still exists and has not expired. Delegated agent
+// sessions use it so that logging out or revoking a token ends them at once.
+func (s *Store) CredentialActive(ctx context.Context, kind, id, userID string, now time.Time) (bool, error) {
+	var query string
+	switch kind {
+	case "session":
+		query = `SELECT expires_at FROM sessions WHERE id = ? AND user_id = ?`
+	case "pat":
+		query = `SELECT expires_at FROM access_tokens WHERE id = ? AND user_id = ?`
+	default:
+		return false, nil
+	}
+	var expiresAt sql.NullString
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(&expiresAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("store: check credential: %w", err)
+	}
+	expires, err := parseNullableTime(expiresAt)
+	if err != nil {
+		return false, err
+	}
+	return expires == nil || now.Before(*expires), nil
+}

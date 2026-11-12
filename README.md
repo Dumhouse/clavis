@@ -34,7 +34,7 @@ Clavis (Latin for *key*) stores your application secrets (API keys, database URL
 | Infisical, Phase, Doppler lock SSO, RBAC, rotation, and approvals behind paid tiers | Everything is Apache-2.0 and free |
 | Vault/OpenBao are powerful but hard to operate (unseal, HCL policies, weak UI) | One binary, setup wizard, no unseal ceremony by default |
 | SOPS/dotenv files have no access control, audit, or revocation | Full RBAC, tamper-evident audit log, instant revocation |
-| AI agents need secrets to run code but should never see them | Agent-safe "use without reveal" mode + MCP server |
+| AI agents need secrets to run code but should never see them | MCP server with "use without reveal": approved commands only, no token in the agent's config (`clavis mcp --agent`) |
 
 ## Principles
 

@@ -19,7 +19,7 @@ Security is the product. This document is the reference for every security-relev
 | Compromised user account | Phished password | MFA/passkeys, SSO, session binding, anomaly alerts, least-privilege roles |
 | Malicious or curious insider | Developer reads prod secrets | Env-scoped RBAC, protected envs, JIT access, audit log, approvals |
 | Leaked machine token | Token committed to git | Short TTLs, IP allowlists, OIDC federation (no static tokens), token prefix for secret scanning, instant revocation |
-| AI agent misuse / prompt injection | Agent exfiltrates `.env` | Agent identities cannot read values; `run` with masking only; scoped and expiring |
+| AI agent misuse / prompt injection | Agent exfiltrates `.env` | Agent identities cannot read values through Clavis; allowlisted `run` with masking only; `clavis mcp --agent` keeps a one-hour session in memory, so no agent token sits in a file the agent can read; scoped and expiring. Residual risk: an agent with an unrestricted shell as the user can act as the user, so sandbox agents |
 | Web attacks | XSS, CSRF, SSRF | Strict CSP, SameSite cookies + CSRF tokens, SSRF-safe HTTP client for syncs/webhooks |
 | Supply chain | Malicious dependency or release | Minimal dependencies, pinned versions, signed releases, SBOM, provenance |
 | Tampering with audit log | Admin deletes evidence | Hash chain, external export, signed checkpoints |

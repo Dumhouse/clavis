@@ -242,6 +242,18 @@ func (s *Store) DeleteTokensForIdentity(ctx context.Context, identityID string) 
 	return res.RowsAffected()
 }
 
+// DeleteExpiredAgentSessions removes an identity's expired delegated agent
+// session tokens. Static tokens are kept because they carry the agent's scope.
+func (s *Store) DeleteExpiredAgentSessions(ctx context.Context, identityID string, now time.Time) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM access_tokens
+		WHERE identity_id = ? AND scopes LIKE '%"delegated_by":%' AND expires_at IS NOT NULL AND expires_at <= ?`,
+		identityID, formatTime(now))
+	if err != nil {
+		return fmt.Errorf("store: delete expired agent sessions: %w", err)
+	}
+	return nil
+}
+
 // TouchAccessToken records token use.
 func (s *Store) TouchAccessToken(ctx context.Context, id, ip string) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE access_tokens SET last_used_at = ?, last_used_ip = ? WHERE id = ?`,

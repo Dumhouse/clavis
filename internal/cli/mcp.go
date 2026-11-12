@@ -60,31 +60,71 @@ type toolDefinition struct {
 type mcpServer struct {
 	opts     *Options
 	resolved *resolvedContext
-	client   *client.Client
+	client   *client.Client      // static agent token (legacy, headless use)
+	session  *agentSessionSource // delegated session started with the person's login
 	encoder  *json.Encoder
 }
 
+// api returns the client for the current agent credential.
+func (s *mcpServer) api(ctx context.Context) (*client.Client, error) {
+	if s.session != nil {
+		return s.session.client(ctx)
+	}
+	return s.client, nil
+}
+
 func newMCPCommand(opts *Options) *cobra.Command {
-	return &cobra.Command{
+	var agent string
+	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Run a Model Context Protocol server over stdio",
 		Long: "Expose list_secrets, check_env, run_with_secrets, and request_secret to\n" +
 			"MCP clients. Values are only returned to allowed commands; every run is\n" +
-			"checked against the agent's server-side allowlist and audited.",
+			"checked against the agent's server-side allowlist and audited.\n\n" +
+			"With --agent, clavis mcp uses your own `clavis login` to start a one-hour\n" +
+			"agent session, keeps it in memory, and renews it. Nothing secret goes in\n" +
+			"the MCP config file. Logging out ends the session.",
+		Example: "  clavis mcp --agent claude-code\n" +
+			"  claude mcp add clavis -- clavis mcp --agent claude-code",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resolved, err := opts.resolveContext(true)
 			if err != nil {
 				return err
 			}
-			c, err := resolved.newClient()
-			if err != nil {
-				return err
+			agent = firstNonEmpty(agent, os.Getenv("CLAVIS_AGENT"))
+			server := &mcpServer{opts: opts, resolved: resolved, encoder: json.NewEncoder(os.Stdout)}
+			stderr := cmd.ErrOrStderr()
+			switch {
+			case agent != "":
+				if strings.HasPrefix(resolved.Token, "clv_at_") || strings.HasPrefix(resolved.Token, "clv_mt_") {
+					return fmt.Errorf("--agent uses your own login; remove CLAVIS_TOKEN (an agent or machine token) from the MCP config and run `clavis login`")
+				}
+				human, err := resolved.newClient()
+				if err != nil {
+					return err
+				}
+				server.session = newAgentSessionSource(human, resolved.Server, resolved.Org, agent)
+				if _, err := server.session.client(cmd.Context()); err != nil {
+					return err
+				}
+				fmt.Fprintf(stderr, "clavis mcp: agent %s, session held in memory and renewed hourly\n", agent)
+			case strings.HasPrefix(resolved.Token, "clv_at_"):
+				fmt.Fprintln(stderr, "clavis mcp: warning: using a static agent token from CLAVIS_TOKEN. "+
+					"An agent that can read its MCP config can read this token. Prefer `clavis mcp --agent <name>`.")
+				c, err := resolved.newClient()
+				if err != nil {
+					return err
+				}
+				server.client = c
+			default:
+				return fmt.Errorf("clavis mcp runs as an agent: use `clavis mcp --agent <name>` (starts a session with your login) or set CLAVIS_TOKEN to an agent token")
 			}
-			server := &mcpServer{opts: opts, resolved: resolved, client: c, encoder: json.NewEncoder(os.Stdout)}
 			return server.serve(cmd.Context(), os.Stdin)
 		},
 	}
+	cmd.Flags().StringVar(&agent, "agent", "", "agent identity name; starts an in-memory session with your login (env CLAVIS_AGENT)")
+	return cmd
 }
 
 func (s *mcpServer) serve(ctx context.Context, in io.Reader) error {
@@ -213,11 +253,15 @@ func (s *mcpServer) callTool(ctx context.Context, name string, raw json.RawMessa
 
 func (s *mcpServer) listSecrets(ctx context.Context) (*toolResult, error) {
 	var schema schemaResponse
-	if err := s.client.Get(ctx, schemaBase(s.resolved), &schema); err != nil {
+	c, err := s.api(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Get(ctx, schemaBase(s.resolved), &schema); err != nil {
 		return nil, err
 	}
 	var secrets secretsListResponse
-	if err := s.client.Get(ctx, secretsBase(s.resolved), &secrets); err != nil {
+	if err := c.Get(ctx, secretsBase(s.resolved), &secrets); err != nil {
 		return nil, err
 	}
 	kinds := make(map[string]string, len(secrets.Secrets))
@@ -264,11 +308,15 @@ func (s *mcpServer) checkEnv(ctx context.Context, raw json.RawMessage) (*toolRes
 		resolved.Env = args.Environment
 	}
 	var schema schemaResponse
-	if err := s.client.Get(ctx, schemaBase(&resolved), &schema); err != nil {
+	c, err := s.api(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Get(ctx, schemaBase(&resolved), &schema); err != nil {
 		return nil, err
 	}
 	var project projectDetail
-	if err := s.client.Get(ctx, projectBase(&resolved), &project); err != nil {
+	if err := c.Get(ctx, projectBase(&resolved), &project); err != nil {
 		return nil, err
 	}
 	envType := ""
@@ -279,7 +327,7 @@ func (s *mcpServer) checkEnv(ctx context.Context, raw json.RawMessage) (*toolRes
 		}
 	}
 	var secrets secretsListResponse
-	if err := s.client.Get(ctx, secretsBase(&resolved), &secrets); err != nil {
+	if err := c.Get(ctx, secretsBase(&resolved), &secrets); err != nil {
 		return nil, err
 	}
 	present := make(map[string]bool, len(secrets.Secrets))
@@ -334,7 +382,11 @@ func (s *mcpServer) runWithSecrets(ctx context.Context, raw json.RawMessage) (*t
 	commandText := strings.Join(append([]string{args.Command}, args.Args...), " ")
 	path := fmt.Sprintf("%s:agent?command=%s", secretsBase(s.resolved), url.QueryEscape(commandText))
 	var secrets secretsListResponse
-	if err := s.client.Get(ctx, path, &secrets); err != nil {
+	c, err := s.api(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Get(ctx, path, &secrets); err != nil {
 		return nil, err
 	}
 	entries, values, cleanup, err := prepareSecretEnv(secrets.Secrets, false)
@@ -385,7 +437,11 @@ func (s *mcpServer) requestSecret(ctx context.Context, raw json.RawMessage) (*to
 	}
 	path := strings.TrimSuffix(secretsBase(s.resolved), "/secrets") + "/secret-requests"
 	body := map[string]any{"key": args.Key, "reason": args.Reason}
-	if err := s.client.Post(ctx, path, body, nil); err != nil {
+	c, err := s.api(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Post(ctx, path, body, nil); err != nil {
 		return nil, err
 	}
 	return textResult(map[string]any{

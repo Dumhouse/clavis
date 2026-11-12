@@ -41,9 +41,10 @@ The MCP server exposes tools to AI coding agents:
 | `run_with_secrets` | Runs an allowed command with secrets injected; output is masked. |
 | `request_secret` | Asks a human to add a missing secret (creates a notification). |
 
-It authenticates as an **agent identity** holding only `secrets:read-names` + `secrets:use`.
+It authenticates as an **agent identity** holding only `secrets:read-names` + `secrets:use`. `clavis mcp --agent NAME` starts a one-hour session for that identity with your own `clavis login` and keeps it in memory, so no agent token is written to the MCP config. Logging out ends it. Static agent tokens (`CLAVIS_TOKEN=clv_at_…`) remain for headless agents.
 
 - **Command allowlist is required and deny-all by default.** A human approves patterns (e.g. `npm test`, `go test ./...`, `pnpm dev`) in the UI or with `clavis agents allow`. Allowlists are stored server-side on the identity, not only in `.clavis.yaml`, so the agent can't edit its own allowlist.
 - Agents get development/preview environments by default; production requires an explicit org policy.
 - Every call is audited with the agent's identity and the exact command.
+- **Scope of the guarantee:** Clavis controls what reaches the agent through MCP. An agent with an unrestricted shell running as you can do anything you can; the guarantee holds when the agent's shell is sandboxed.
 - **Limitation (stated in docs and UI):** an allowed command still receives the secrets. If that command runs code the agent wrote (e.g. a test file), the agent could exfiltrate values. Masking is a convenience, not a security boundary. Prefer dynamic, short-lived credentials for agent workflows.

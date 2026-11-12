@@ -799,12 +799,19 @@ audited, and the Identities page shows recent agent activity.
 
 ### `clavis mcp`
 
-Run a Model Context Protocol server over stdio. Configure it in Claude Code,
-Cursor, Codex, Windsurf, or any MCP client with an agent token.
+Run a Model Context Protocol server over stdio for Claude Code, Cursor, Codex,
+Windsurf, or any MCP client.
 
 ```sh
-CLAVIS_TOKEN=clv_at_… clavis mcp
+clavis mcp --agent claude-code              # recommended: uses your clavis login
+CLAVIS_TOKEN=clv_at_… clavis mcp            # headless agents only
 ```
+
+With `--agent NAME` (or `CLAVIS_AGENT`), `clavis mcp` uses your own login to
+start a one-hour agent session, keeps it in memory and renews it. The MCP config
+holds no secret, and logging out ends the session. You can only start an agent
+with access you hold yourself. A static agent token in `CLAVIS_TOKEN` still
+works for headless use and prints a warning.
 
 Tools: `list_secrets`, `check_env`, `run_with_secrets`, `request_secret`.
 `run_with_secrets` checks the command against the allowlist before decrypting
