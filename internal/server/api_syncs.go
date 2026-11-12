@@ -36,15 +36,18 @@ type createSyncInput struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	Body    struct {
-		Environment   string `json:"environment" minLength:"1" maxLength:"60"`
-		Provider      string `json:"provider,omitempty"`
-		Endpoint      string `json:"endpoint,omitempty" maxLength:"2048"`
-		Secret        string `json:"secret,omitempty" maxLength:"500"`
-		BaseURL       string `json:"base_url,omitempty" maxLength:"500"`
-		GitLabProject string `json:"gitlab_project,omitempty" maxLength:"500"`
-		Token         string `json:"token,omitempty" maxLength:"1000"`
-		Protected     bool   `json:"protected,omitempty"`
-		Masked        bool   `json:"masked,omitempty"`
+		Environment       string `json:"environment" minLength:"1" maxLength:"60"`
+		Provider          string `json:"provider,omitempty"`
+		Endpoint          string `json:"endpoint,omitempty" maxLength:"2048"`
+		Secret            string `json:"secret,omitempty" maxLength:"500"`
+		BaseURL           string `json:"base_url,omitempty" maxLength:"500"`
+		GitLabProject     string `json:"gitlab_project,omitempty" maxLength:"500"`
+		Token             string `json:"token,omitempty" maxLength:"1000"`
+		Protected         bool   `json:"protected,omitempty"`
+		Masked            bool   `json:"masked,omitempty"`
+		GitHubRepo        string `json:"github_repo,omitempty" maxLength:"500"`
+		GitHubEnvironment string `json:"github_environment,omitempty" maxLength:"200"`
+		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
 	}
 }
 
@@ -131,6 +134,8 @@ func (s *Server) registerSyncRoutes() error {
 			Endpoint: in.Body.Endpoint, Secret: in.Body.Secret,
 			BaseURL: in.Body.BaseURL, GitLabProject: in.Body.GitLabProject,
 			Token: in.Body.Token, Protected: in.Body.Protected, Masked: in.Body.Masked,
+			GitHubRepo: in.Body.GitHubRepo, GitHubEnvironment: in.Body.GitHubEnvironment,
+			GitHubScope: in.Body.GitHubScope,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

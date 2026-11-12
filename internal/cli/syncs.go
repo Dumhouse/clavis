@@ -102,6 +102,7 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
+	var githubRepo, githubEnvironment, githubScope string
 	var protected, masked bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
@@ -123,6 +124,8 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"endpoint": endpoint, "secret": secret,
 				"base_url": baseURL, "gitlab_project": gitlabProject, "token": token,
 				"protected": protected, "masked": masked,
+				"github_repo": githubRepo, "github_environment": githubEnvironment,
+				"github_scope": githubScope,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -143,6 +146,10 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&token, "gitlab-token", "", "GitLab access token with api scope")
 	cmd.Flags().BoolVar(&protected, "protected", false, "mark GitLab variables protected")
 	cmd.Flags().BoolVar(&masked, "masked", true, "mask GitLab variables when possible")
+	cmd.Flags().StringVar(&githubRepo, "github-repo", "", "GitHub repository (owner/name) or org for org scope")
+	cmd.Flags().StringVar(&githubEnvironment, "github-environment", "", "GitHub environment name")
+	cmd.Flags().StringVar(&githubScope, "github-scope", "repo", "GitHub scope: repo, environment, or org")
+	cmd.Flags().StringVar(&token, "github-token", "", "GitHub token with Actions secrets/variables write access")
 	return cmd
 }
 

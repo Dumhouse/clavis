@@ -294,7 +294,20 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 ```
 
 Flags: `--endpoint`, `--secret`, `--provider http|gitlab`,
-`--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`.
+`--gitlab-url`, `--gitlab-project`, `--gitlab-token`, `--protected`, `--masked`,
+`--github-repo`, `--github-scope`, `--github-environment`, `--github-token`.
+
+GitHub syncs encrypt secrets with the repository public key and create or
+update Actions variables:
+
+```sh
+clavis syncs create dev --provider github --github-repo acme/repo \
+  --github-token "$GITHUB_TOKEN"
+
+clavis syncs create prod --provider github --github-scope environment \
+  --github-repo acme/repo --github-environment production \
+  --github-token "$GITHUB_TOKEN"
+```
 
 GitLab syncs upsert project CI/CD variables:
 

@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/nacl/box"
+
 	"github.com/dumhouse/clavis/internal/authn"
 	"github.com/dumhouse/clavis/internal/config"
 	"github.com/dumhouse/clavis/internal/crypto"
@@ -1700,6 +1702,96 @@ func TestGitLabSync(t *testing.T) {
 		}
 	case <-time.After(8 * time.Second):
 		t.Fatal("gitlab variable not created")
+	}
+}
+
+func TestGitHubSync(t *testing.T) {
+	publicKey, privateKey, err := box.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretValues := make(chan string, 4)
+	variableValues := make(chan string, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/actions/secrets/public-key"):
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"key_id": "key-1",
+				"key":    base64.StdEncoding.EncodeToString(publicKey[:]),
+			})
+		case r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/actions/secrets/SECRET_KEY"):
+			var body struct {
+				EncryptedValue string `json:"encrypted_value"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			sealed, _ := base64.StdEncoding.DecodeString(body.EncryptedValue)
+			plaintext, ok := box.OpenAnonymous(nil, sealed, publicKey, privateKey)
+			if !ok {
+				t.Error("could not decrypt sealed secret")
+			}
+			secretValues <- string(plaintext)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/actions/variables"):
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"variables":[]}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/actions/variables"):
+			var body struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			variableValues <- body.Name + "=" + body.Value
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+		"environment": "dev", "provider": "github", "base_url": srv.URL,
+		"github_repo": "acme/repo", "github_scope": "repo", "token": "ghp-test",
+	})
+	if sync.Code != http.StatusCreated {
+		t.Fatalf("create github sync = %d body=%s", sync.Code, sync.Body)
+	}
+	var syncBody struct {
+		ID string `json:"id"`
+	}
+	syncBody = decode[struct {
+		ID string `json:"id"`
+	}](t, sync)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "SECRET_KEY", "value": "super-secret"}); rec.Code != http.StatusCreated {
+		t.Fatalf("secret = %d", rec.Code)
+	}
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "VAR_KEY", "value": "config-value", "kind": "variable"}); rec.Code != http.StatusCreated {
+		t.Fatalf("variable = %d", rec.Code)
+	}
+	run := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+syncBody.ID+"/run", map[string]any{"confirm": true})
+	if run.Code != http.StatusCreated || !strings.Contains(run.Body.String(), `"status":"success"`) {
+		t.Fatalf("run = %d body=%s", run.Code, run.Body)
+	}
+	select {
+	case value := <-secretValues:
+		if value != "super-secret" {
+			t.Fatalf("sealed secret = %q", value)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("github secret not delivered")
+	}
+	select {
+	case value := <-variableValues:
+		if value != "VAR_KEY=config-value" {
+			t.Fatalf("variable = %q", value)
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("github variable not delivered")
 	}
 }
 

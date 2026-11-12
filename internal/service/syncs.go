@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/nacl/box"
 
 	"github.com/dumhouse/clavis/internal/audit"
 	"github.com/dumhouse/clavis/internal/authz"
@@ -27,26 +30,32 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint  string `json:"endpoint,omitempty"`
-	Secret    []byte `json:"secret,omitempty"`
-	BaseURL   string `json:"base_url,omitempty"`
-	Project   string `json:"project,omitempty"`
-	Token     []byte `json:"token,omitempty"`
-	Protected bool   `json:"protected,omitempty"`
-	Masked    bool   `json:"masked,omitempty"`
+	Endpoint    string `json:"endpoint,omitempty"`
+	Secret      []byte `json:"secret,omitempty"`
+	BaseURL     string `json:"base_url,omitempty"`
+	Project     string `json:"project,omitempty"`
+	Token       []byte `json:"token,omitempty"`
+	Protected   bool   `json:"protected,omitempty"`
+	Masked      bool   `json:"masked,omitempty"`
+	GitHubRepo  string `json:"github_repo,omitempty"`
+	GitHubEnv   string `json:"github_environment,omitempty"`
+	GitHubScope string `json:"github_scope,omitempty"`
 }
 
 // SyncInput creates a sync definition.
 type SyncInput struct {
-	EnvironmentSlug string
-	Provider        string
-	Endpoint        string
-	Secret          string
-	BaseURL         string
-	GitLabProject   string
-	Token           string
-	Protected       bool
-	Masked          bool
+	EnvironmentSlug   string
+	Provider          string
+	Endpoint          string
+	Secret            string
+	BaseURL           string
+	GitLabProject     string
+	Token             string
+	Protected         bool
+	Masked            bool
+	GitHubRepo        string
+	GitHubEnvironment string
+	GitHubScope       string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -88,8 +97,8 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" {
-		return nil, fmt.Errorf("%w: provider must be http or gitlab", ErrValidation)
+	if provider != "http" && provider != "gitlab" && provider != "github" {
+		return nil, fmt.Errorf("%w: provider must be http, gitlab, or github", ErrValidation)
 	}
 	id := uuid.NewString()
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
@@ -106,6 +115,41 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	} else if provider == "github" {
+		config.GitHubRepo = strings.TrimSpace(in.GitHubRepo)
+		config.GitHubEnv = strings.TrimSpace(in.GitHubEnvironment)
+		config.GitHubScope = strings.ToLower(strings.TrimSpace(in.GitHubScope))
+		if config.GitHubScope == "" {
+			config.GitHubScope = "repo"
+		}
+		switch config.GitHubScope {
+		case "repo":
+			if !strings.Contains(config.GitHubRepo, "/") {
+				return nil, fmt.Errorf("%w: GitHub repository must be owner/name", ErrValidation)
+			}
+		case "environment":
+			if !strings.Contains(config.GitHubRepo, "/") || config.GitHubEnv == "" {
+				return nil, fmt.Errorf("%w: GitHub environment sync needs repository and environment", ErrValidation)
+			}
+		case "org":
+			if config.GitHubRepo == "" {
+				return nil, fmt.Errorf("%w: GitHub org sync needs an organization", ErrValidation)
+			}
+		default:
+			return nil, fmt.Errorf("%w: GitHub scope must be repo, environment, or org", ErrValidation)
+		}
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		if config.BaseURL == "" {
+			config.BaseURL = "https://api.github.com"
+		}
+		if in.Token == "" {
+			return nil, fmt.Errorf("%w: GitHub token is required", ErrValidation)
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
 	} else {
 		config.Project = strings.TrimSpace(in.GitLabProject)
 		if config.Project == "" {
@@ -220,7 +264,7 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if err != nil {
 		return nil, err
 	}
-	values, err := s.syncValues(ctx, org, project, env)
+	values, kinds, err := s.syncValues(ctx, org, project, env)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +280,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	destination := config.Endpoint
 	if sync.Provider == "gitlab" {
 		destination = config.BaseURL + "/" + config.Project
+	}
+	if sync.Provider == "github" {
+		destination = config.BaseURL + " " + config.GitHubScope + ":" + config.GitHubRepo
 	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
@@ -268,6 +315,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	var err2 error
 	if sync.Provider == "gitlab" {
 		err2 = s.postGitLab(ctx, org, sync, config, values)
+	} else if sync.Provider == "github" {
+		err2 = s.postGitHub(ctx, org, sync, config, values, kinds)
 	} else {
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -354,29 +403,30 @@ func (s *Service) postSync(ctx context.Context, run *store.SyncRun, sync *store.
 	return lastErr
 }
 
-func (s *Service) syncValues(ctx context.Context, org *store.Org, project *store.Project, env *store.Environment) (map[string]string, error) {
+func (s *Service) syncValues(ctx context.Context, org *store.Org, project *store.Project, env *store.Environment) (map[string]string, map[string]string, error) {
 	valueKey, indexKey, err := s.ProjectKeys(ctx, org, project)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer valueKey.Zero()
 	defer indexKey.Zero()
+	kinds := map[string]string{}
 	chain, err := s.environmentChain(ctx, env)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	seen := make(map[string]bool)
 	var secrets []Secret
 	for _, sourceEnv := range chain {
 		items, err := s.Store.ListItems(ctx, sourceEnv.ID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for i := range items {
 			item := &items[i]
 			key, err := s.decryptKey(valueKey, org, project, sourceEnv, item)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if seen[key] {
 				continue
@@ -386,21 +436,22 @@ func (s *Service) syncValues(ctx context.Context, org *store.Org, project *store
 			if len(item.ValueCiphertext) > 0 {
 				decrypted, err := decryptField(valueKey, org, project, sourceEnv, item, "value", item.Version, item.ValueCiphertext)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				value = string(decrypted)
 			}
+			kinds[key] = item.Kind
 			secrets = append(secrets, Secret{Key: key, Kind: item.Kind, Value: value})
 		}
 	}
 	if err := resolveSecretReferences(secrets); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	values := make(map[string]string, len(secrets))
 	for _, secret := range secrets {
 		values[secret.Key] = secret.Value
 	}
-	return values, nil
+	return values, kinds, nil
 }
 
 func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) error {
@@ -489,4 +540,188 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 	}
 	return nil
+}
+
+func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	var actions string
+	switch config.GitHubScope {
+	case "org":
+		actions = base + "/orgs/" + url.PathEscape(config.GitHubRepo) + "/actions"
+	case "environment":
+		parts := strings.SplitN(config.GitHubRepo, "/", 2)
+		actions = base + "/repos/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1]) +
+			"/environments/" + url.PathEscape(config.GitHubEnv) + "/actions"
+	default:
+		parts := strings.SplitN(config.GitHubRepo, "/", 2)
+		actions = base + "/repos/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1]) + "/actions"
+	}
+
+	var secrets []string
+	for key := range values {
+		if kinds[key] != "variable" {
+			secrets = append(secrets, key)
+		}
+	}
+	if len(secrets) > 0 {
+		var keyInfo struct {
+			KeyID string `json:"key_id"`
+			Key   string `json:"key"`
+		}
+		status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/secrets/public-key", token, nil)
+		if err != nil {
+			return fmt.Errorf("github: public key request failed: %v; check the API URL and network policy", err)
+		}
+		if status < 200 || status >= 300 {
+			return githubStatusError("public key", status, body)
+		}
+		if err := json.Unmarshal(body, &keyInfo); err != nil {
+			return fmt.Errorf("github: invalid public key response")
+		}
+		rawKey, err := base64.StdEncoding.DecodeString(keyInfo.Key)
+		if err != nil || len(rawKey) != 32 {
+			return fmt.Errorf("github: invalid secret public key")
+		}
+		var publicKey [32]byte
+		copy(publicKey[:], rawKey)
+		sort.Strings(secrets)
+		for _, name := range secrets {
+			if !validGitHubName(name) {
+				return fmt.Errorf("github: %q is not a valid Actions secret name (letters, digits, underscore; cannot start with GITHUB_)", name)
+			}
+			sealed, err := box.SealAnonymous(nil, []byte(values[name]), &publicKey, rand.Reader)
+			if err != nil {
+				return fmt.Errorf("github: encrypt secret %s: %w", name, err)
+			}
+			payload, _ := json.Marshal(map[string]string{
+				"encrypted_value": base64.StdEncoding.EncodeToString(sealed),
+				"key_id":          keyInfo.KeyID,
+			})
+			status, body, err := githubRequest(ctx, client, http.MethodPut, actions+"/secrets/"+url.PathEscape(name), token, payload)
+			if err != nil {
+				return fmt.Errorf("github: secret update failed: %v; check the API URL and network policy", err)
+			}
+			if status < 200 || status >= 300 {
+				return githubStatusError("secret "+name, status, body)
+			}
+		}
+	}
+
+	var variableNames []string
+	for key := range values {
+		if kinds[key] == "variable" {
+			variableNames = append(variableNames, key)
+		}
+	}
+	if len(variableNames) == 0 {
+		return nil
+	}
+	existing := map[string]bool{}
+	status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/variables?per_page=100", token, nil)
+	if err != nil {
+		return fmt.Errorf("github: variable list failed: %v; check the API URL and network policy", err)
+	}
+	if status == http.StatusOK {
+		var listing struct {
+			Variables []struct {
+				Name string `json:"name"`
+			} `json:"variables"`
+		}
+		if json.Unmarshal(body, &listing) == nil {
+			for _, variable := range listing.Variables {
+				existing[variable.Name] = true
+			}
+		}
+	} else if status != http.StatusNotFound {
+		return githubStatusError("variable list", status, body)
+	}
+	sort.Strings(variableNames)
+	for _, name := range variableNames {
+		if !validGitHubName(name) {
+			return fmt.Errorf("github: %q is not a valid Actions variable name (letters, digits, underscore; cannot start with GITHUB_)", name)
+		}
+		payload, _ := json.Marshal(map[string]string{"name": name, "value": values[name]})
+		method := http.MethodPost
+		endpoint := actions + "/variables"
+		if existing[name] {
+			method = http.MethodPatch
+			endpoint = actions + "/variables/" + url.PathEscape(name)
+		}
+		status, body, err := githubRequest(ctx, client, method, endpoint, token, payload)
+		if err != nil {
+			return fmt.Errorf("github: variable update failed: %v; check the API URL and network policy", err)
+		}
+		if status < 200 || status >= 300 {
+			return githubStatusError("variable "+name, status, body)
+		}
+	}
+	return nil
+}
+
+func githubRequest(ctx context.Context, client *http.Client, method, endpoint, token string, payload []byte) (int, []byte, error) {
+	var reader *bytes.Reader
+	if payload != nil {
+		reader = bytes.NewReader(payload)
+	} else {
+		reader = bytes.NewReader(nil)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	request.Header.Set("User-Agent", "clavis-sync/1")
+	if payload != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer response.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	return response.StatusCode, body, nil
+}
+
+func githubStatusError(operation string, status int, body []byte) error {
+	detail := strings.TrimSpace(string(body))
+	if len(detail) > 300 {
+		detail = detail[:300]
+	}
+	switch status {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("github: token rejected; check that it has Actions secrets/variables write permission")
+	case http.StatusForbidden:
+		return fmt.Errorf("github: permission denied for %s; check token scopes and repository/org policy", operation)
+	case http.StatusNotFound:
+		return fmt.Errorf("github: %s not found; check the repository, environment, and API URL", operation)
+	default:
+		return fmt.Errorf("github: %s returned %d: %s", operation, status, detail)
+	}
+}
+
+func validGitHubName(name string) bool {
+	if name == "" || strings.HasPrefix(strings.ToUpper(name), "GITHUB_") {
+		return false
+	}
+	for i, r := range name {
+		if r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			continue
+		}
+		if i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
