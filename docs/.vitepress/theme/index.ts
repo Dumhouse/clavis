@@ -4,6 +4,7 @@ import type { Theme } from 'vitepress'
 
 import Landing from './components/Landing.vue'
 import NavStars from './components/NavStars.vue'
+import NotFound from './components/NotFound.vue'
 import './custom.css'
 import './mock.css'
 
@@ -42,7 +43,7 @@ function installLightbox() {
 
 export default {
   extends: DefaultTheme,
-  Layout: () => h(DefaultTheme.Layout, null, { 'nav-bar-content-after': () => h(NavStars) }),
+  Layout: () => h(DefaultTheme.Layout, null, { 'nav-bar-content-after': () => h(NavStars), 'not-found': () => h(NotFound) }),
   enhanceApp({ app }) {
     app.component('Landing', Landing)
     installLightbox()

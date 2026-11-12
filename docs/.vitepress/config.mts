@@ -14,7 +14,7 @@ export default defineConfig({
   titleTemplate: ':title — Clavis',
   base,
   description: 'Open-source secrets management for humans, machines, and AI agents.',
-  ignoreDeadLinks: true,
+  ignoreDeadLinks: [/^https?:\/\/localhost/],
   appearance: true,
   lastUpdated: true,
   // Pages without a description get one from their first paragraph.
@@ -117,6 +117,10 @@ export default defineConfig({
         items: [
           { text: 'AI agents and MCP', link: '/agents' },
           { text: 'Migration guides', link: '/migrations/' },
+          { text: 'Replace .env files', link: '/guides/replace-env-files' },
+          { text: 'GitHub Actions', link: '/guides/github-actions-secrets' },
+          { text: 'Claude Code and Cursor', link: '/guides/claude-code-secrets' },
+          { text: 'Compare with Vault, Infisical, Doppler', link: '/compare/' },
           { text: 'Fuzzing', link: '/fuzzing' },
         ],
       },
