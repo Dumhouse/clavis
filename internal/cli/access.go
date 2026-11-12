@@ -57,6 +57,9 @@ func newMembersCommand(opts *Options) *cobra.Command {
 		Short: "Inspect organization members",
 	}
 	cmd.AddCommand(newMembersListCommand(opts))
+	cmd.AddCommand(newMembersOffboardingCommand(opts))
+	cmd.AddCommand(newMembersMarkSafeCommand(opts, "safe"))
+	cmd.AddCommand(newMembersMarkSafeCommand(opts, "rotated"))
 	return cmd
 }
 
@@ -106,6 +109,12 @@ func newAccessCommand(opts *Options) *cobra.Command {
 		Short: "Explain effective access",
 	}
 	cmd.AddCommand(newAccessExplainCommand(opts))
+	cmd.AddCommand(newAccessRequestCommand(opts))
+	cmd.AddCommand(newAccessRequestsCommand(opts))
+	cmd.AddCommand(newAccessApproveCommand(opts, true))
+	cmd.AddCommand(newAccessApproveCommand(opts, false))
+	cmd.AddCommand(newAccessBreakGlassCommand(opts))
+	cmd.AddCommand(newAccessReviewCommand(opts))
 	return cmd
 }
 

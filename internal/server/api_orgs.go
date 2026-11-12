@@ -115,6 +115,7 @@ type orgSettingsInput struct {
 		GitHubWebhookSecret  *string                `json:"github_webhook_secret,omitempty" maxLength:"500"`
 		PreviewEnabled       *bool                  `json:"preview_enabled,omitempty"`
 		PreviewRetentionDays *int                   `json:"preview_retention_days,omitempty" minimum:"1" maximum:"90"`
+		DuplicateDetection   *bool                  `json:"duplicate_detection,omitempty"`
 	}
 }
 
@@ -162,6 +163,7 @@ type settingsBody struct {
 	GitHubWebhookSecretSet bool                  `json:"github_webhook_secret_set"`
 	PreviewEnabled         bool                  `json:"preview_enabled"`
 	PreviewRetentionDays   int                   `json:"preview_retention_days"`
+	DuplicateDetection     bool                  `json:"duplicate_detection"`
 }
 
 type orgSettingsOutput struct {
@@ -192,6 +194,7 @@ func settingsBodyFromService(settings service.OrgSettings) settingsBody {
 		GitHubWebhookSecretSet: len(settings.GitHubWebhookSecret) > 0,
 		PreviewEnabled:         settings.PreviewEnabled,
 		PreviewRetentionDays:   settings.PreviewRetentionDays,
+		DuplicateDetection:     settings.DuplicateDetection,
 		SSO: ssoBody{
 			Enabled: settings.SSOEnabled, Provider: settings.SSOProvider, ClientID: settings.SSOClientID,
 			ClientSecretSet: len(settings.SSOClientSecret) > 0, Issuer: settings.SSOIssuer,
@@ -391,6 +394,7 @@ func (s *Server) registerOrgRoutes() error {
 			IPAllowlist: in.Body.IPAllowlist, BlockCLIWrites: in.Body.BlockCLIWrites,
 			GitHubWebhookSecret: in.Body.GitHubWebhookSecret, PreviewEnabled: in.Body.PreviewEnabled,
 			PreviewRetentionDays: in.Body.PreviewRetentionDays,
+			DuplicateDetection:   in.Body.DuplicateDetection,
 		}
 		if in.Body.SSO != nil {
 			patch.SSOEnabled = in.Body.SSO.Enabled

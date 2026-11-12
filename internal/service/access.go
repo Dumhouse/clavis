@@ -333,3 +333,39 @@ func bindingAllows(binding authz.Binding, perm authz.Permission) bool {
 	}
 	return false
 }
+
+// AccessReviewRow is one subject with value-reading access in a scope.
+type AccessReviewRow struct {
+	SubjectKind string
+	SubjectID   string
+	Name        string
+	Email       string
+	Role        string
+	Permissions []string
+}
+
+// AccessReview returns who can read values in a project/environment.
+func (s *Service) AccessReview(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug string) ([]AccessReviewRow, error) {
+	matrix, err := s.AccessMatrix(ctx, actor, orgSlug, MatrixInput{ProjectSlug: projectSlug, Environment: envSlug})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AccessReviewRow, 0)
+	for _, row := range matrix.Rows {
+		canRead := false
+		for _, permission := range row.Permissions {
+			if permission == string(authz.SecretsReadValues) {
+				canRead = true
+				break
+			}
+		}
+		if !canRead {
+			continue
+		}
+		out = append(out, AccessReviewRow{
+			SubjectKind: row.SubjectKind, SubjectID: row.SubjectID, Name: row.Name,
+			Email: row.Email, Role: row.Role, Permissions: row.Permissions,
+		})
+	}
+	return out, nil
+}

@@ -16,13 +16,14 @@ import (
 
 // ProjectGrant creates a project-scoped role binding for a user.
 type ProjectGrant struct {
-	SubjectKind   string
-	SubjectID     string
-	UserID        string
-	Role          string
-	Environment   string
-	Path          string
-	ExpiresInDays int
+	SubjectKind      string
+	SubjectID        string
+	UserID           string
+	Role             string
+	Environment      string
+	Path             string
+	ExpiresInDays    int
+	ExpiresInSeconds int
 }
 
 // ProjectGrantView is a binding enriched for display.
@@ -84,7 +85,10 @@ func (s *Service) GrantProjectAccess(ctx context.Context, actor authz.Actor, org
 		path = authz.NormalizePath(path)
 	}
 	var expiresAt *time.Time
-	if in.ExpiresInDays > 0 {
+	if in.ExpiresInSeconds > 0 {
+		expiry := s.Now().UTC().Add(time.Duration(in.ExpiresInSeconds) * time.Second)
+		expiresAt = &expiry
+	} else if in.ExpiresInDays > 0 {
 		days := in.ExpiresInDays
 		if days > 365 {
 			days = 365

@@ -124,7 +124,46 @@ func (s *Server) registerAccessMatrixRoutes() error {
 		}
 		return out, nil
 	})
+	if err := s.registry.Declare(http.MethodGet, "/api/v1/orgs/{org}/access-review", authz.RolesManage, "who can read values in an environment"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "access-review", Method: http.MethodGet, Path: "/api/v1/orgs/{org}/access-review",
+		Summary: "Access review report", Tags: []string{"access"},
+	}, func(ctx context.Context, in *accessReviewInput) (*accessReviewOutput, error) {
+		actor, _ := actorFrom(ctx)
+		rows, err := s.svc.AccessReview(ctx, actor, in.Org, in.Project, in.Env)
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &accessReviewOutput{}
+		for _, row := range rows {
+			out.Body = append(out.Body, accessReviewRowBody{
+				SubjectKind: row.SubjectKind, SubjectID: row.SubjectID, Name: row.Name,
+				Email: row.Email, Role: row.Role,
+			})
+		}
+		return out, nil
+	})
 	return nil
+}
+
+type accessReviewInput struct {
+	Org     string `path:"org"`
+	Project string `query:"project" maxLength:"60"`
+	Env     string `query:"env" maxLength:"60" default:"prod"`
+}
+
+type accessReviewRowBody struct {
+	SubjectKind string `json:"subject_kind"`
+	SubjectID   string `json:"subject_id"`
+	Name        string `json:"name"`
+	Email       string `json:"email,omitempty"`
+	Role        string `json:"role,omitempty"`
+}
+
+type accessReviewOutput struct {
+	Body []accessReviewRowBody
 }
 
 func bindingViewFromService(view service.BindingView) bindingViewBody {

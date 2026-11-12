@@ -42,3 +42,53 @@ type FreezeWindow struct {
 	Reason        string
 	CreatedBy     string
 }
+
+// CreateFreezeWindow inserts a scheduled freeze.
+func (s *Store) CreateFreezeWindow(ctx context.Context, freeze *FreezeWindow) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO freeze_windows
+		(id, environment_id, starts_at, ends_at, reason, created_by, created_at)
+		VALUES (?,?,?,?,?,?,?)`,
+		freeze.ID, freeze.EnvironmentID, formatTime(freeze.StartsAt), formatTime(freeze.EndsAt),
+		freeze.Reason, freeze.CreatedBy, formatTime(time.Now().UTC()))
+	if err != nil {
+		return fmt.Errorf("store: create freeze: %w", err)
+	}
+	return nil
+}
+
+// ListFreezeWindows returns upcoming and active freezes for an environment.
+func (s *Store) ListFreezeWindows(ctx context.Context, envID string, at time.Time) ([]FreezeWindow, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, environment_id, starts_at, ends_at, reason, created_by
+		FROM freeze_windows WHERE environment_id = ? AND ends_at >= ? ORDER BY starts_at`, envID, formatTime(at))
+	if err != nil {
+		return nil, fmt.Errorf("store: list freezes: %w", err)
+	}
+	defer rows.Close()
+	var out []FreezeWindow
+	for rows.Next() {
+		var freeze FreezeWindow
+		var startsAt, endsAt string
+		if err := rows.Scan(&freeze.ID, &freeze.EnvironmentID, &startsAt, &endsAt,
+			&freeze.Reason, &freeze.CreatedBy); err != nil {
+			return nil, err
+		}
+		var err error
+		if freeze.StartsAt, err = parseTime(startsAt); err != nil {
+			return nil, err
+		}
+		if freeze.EndsAt, err = parseTime(endsAt); err != nil {
+			return nil, err
+		}
+		out = append(out, freeze)
+	}
+	return out, rows.Err()
+}
+
+// DeleteFreezeWindow removes a scheduled freeze.
+func (s *Store) DeleteFreezeWindow(ctx context.Context, envID, id string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM freeze_windows WHERE environment_id = ? AND id = ?`, envID, id)
+	if err != nil {
+		return err
+	}
+	return expectOne(res, "delete freeze")
+}

@@ -306,11 +306,17 @@ func (s *Service) RemoveMember(ctx context.Context, actor authz.Actor, orgSlug, 
 			return ErrLastOwner
 		}
 	}
+	if err := s.createOffboardingTasks(ctx, org.ID, userID); err != nil {
+		s.Logger.Warn("create offboarding tasks failed", "user_id", userID, "error", err)
+	}
 	if err := s.Store.RemoveMember(ctx, org.ID, userID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		}
 		return err
+	}
+	if err := s.Store.DeleteUserPersonalTokens(ctx, userID, org.ID); err != nil {
+		s.Logger.Error("revoke removed member personal tokens failed", "user_id", userID, "error", err)
 	}
 	if _, err := s.Store.DeleteUserSessions(ctx, userID); err != nil {
 		s.Logger.Error("revoke removed member sessions failed", "user_id", userID, "error", err)
