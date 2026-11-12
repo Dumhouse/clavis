@@ -1,0 +1,3 @@
+# Vulnerabilities govulncheck may report as reachable without failing CI.
+# Format: <OSV id>  <reason and review date>
+GO-2026-6909  crewjam/saml v0.6.3: no upstream fix exists; SAML SSO depends on it. Re-check on every saml release (added 2026-11-12).

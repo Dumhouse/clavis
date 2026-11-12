@@ -21,7 +21,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest
-      - run: govulncheck ./...
+      - run: ./scripts/govulncheck.sh
 
   codeql:
     name: CodeQL
