@@ -33,7 +33,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon }
 
 const workspaceNav: NavItem[] = [
   { to: '/', label: 'Projects', icon: FolderKanban },
-  { to: '/shared-sets', label: 'Shared sets', icon: Layers },
+  { to: '/sets', label: 'Shared sets', icon: Layers },
   { to: '/health', label: 'Health', icon: HeartPulse },
   { to: '/requests', label: 'Requests', icon: Inbox },
 ]

@@ -13,6 +13,7 @@ import { AccessMatrixPage } from '@/pages/access-matrix'
 import { SecretsPage } from '@/pages/secrets'
 import { SnapshotsPage } from '@/pages/snapshots'
 import { SectionPage } from '@/pages/section'
+import { SharedSetsPage } from '@/pages/sets'
 import { SettingsPage } from '@/pages/settings'
 
 const rootRoute = createRootRoute({
@@ -82,6 +83,12 @@ const membersRoute = createRoute({
   component: MembersPage,
 })
 
+const setsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/sets',
+  component: SharedSetsPage,
+})
+
 const docsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/docs',
@@ -113,6 +120,7 @@ const routeTree = rootRoute.addChildren([
   membersRoute,
   identitiesRoute,
   auditRoute,
+  setsRoute,
   docsRoute,
   settingsRoute,
   ...sectionRoutes,

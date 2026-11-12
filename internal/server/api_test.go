@@ -2124,6 +2124,70 @@ func TestCloudflareWorkersSync(t *testing.T) {
 	}
 }
 
+func TestSharedSets(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+
+	created := owner.request(http.MethodPost, "/api/v1/orgs/acme/sets", map[string]any{
+		"name": "Shared API", "slug": "shared",
+	})
+	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"slug":"shared"`) {
+		t.Fatalf("create set = %d body=%s", created.Code, created.Body)
+	}
+	setBase := "/api/v1/orgs/acme/sets/shared"
+	if rec := owner.request(http.MethodPut, setBase+"/items/SHARED_KEY", map[string]any{"value": "from-set"}); rec.Code != http.StatusNoContent {
+		t.Fatalf("set item = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPut, setBase+"/items/SHARED_REF", map[string]any{"value": "referenced"}); rec.Code != http.StatusNoContent {
+		t.Fatalf("set ref item = %d", rec.Code)
+	}
+	importURL := "/api/v1/orgs/acme/projects/web-app/environments/dev/sets/shared"
+	if rec := owner.request(http.MethodPost, importURL, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("import = %d body=%s", rec.Code, rec.Body)
+	}
+	imports := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/environments/dev/sets", nil)
+	if imports.Code != http.StatusOK || !strings.Contains(imports.Body.String(), "shared") {
+		t.Fatalf("imports = %d body=%s", imports.Code, imports.Body)
+	}
+
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	list := owner.request(http.MethodGet, dev+"?reveal=true", nil)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "from-set") ||
+		!strings.Contains(list.Body.String(), `"source_environment":"shared"`) {
+		t.Fatalf("list = %d body=%s", list.Code, list.Body)
+	}
+	get := owner.request(http.MethodGet, dev+"/SHARED_KEY?reveal=true", nil)
+	if get.Code != http.StatusOK || !strings.Contains(get.Body.String(), "from-set") {
+		t.Fatalf("get shared = %d body=%s", get.Code, get.Body)
+	}
+
+	// A local value wins over the shared set.
+	if rec := owner.request(http.MethodPut, dev+"/SHARED_KEY", map[string]any{"value": "local"}); rec.Code != http.StatusOK {
+		t.Fatalf("local override = %d body=%s", rec.Code, rec.Body)
+	}
+	get = owner.request(http.MethodGet, dev+"/SHARED_KEY?reveal=true", nil)
+	if !strings.Contains(get.Body.String(), "local") || strings.Contains(get.Body.String(), "from-set") {
+		t.Fatalf("local should win: %s", get.Body)
+	}
+
+	// ${set:KEY} references resolve from imported sets.
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "COMPOSED", "value": "prefix-${set:SHARED_REF}"}); rec.Code != http.StatusCreated {
+		t.Fatalf("composed = %d", rec.Code)
+	}
+	composed := owner.request(http.MethodGet, dev+"/COMPOSED?reveal=true", nil)
+	if !strings.Contains(composed.Body.String(), "prefix-referenced") {
+		t.Fatalf("composed = %s", composed.Body)
+	}
+
+	if rec := owner.request(http.MethodDelete, importURL, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("detach = %d", rec.Code)
+	}
+	after := owner.request(http.MethodGet, dev+"?reveal=true", nil)
+	if strings.Contains(after.Body.String(), "from-set") {
+		t.Fatalf("set still applied after detach: %s", after.Body)
+	}
+}
+
 func TestSetupDefaultsProject(t *testing.T) {
 	f := newFixture(t)
 	tokenBytes, err := os.ReadFile(filepath.Join(f.dir, "setup-token"))

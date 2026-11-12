@@ -9,6 +9,7 @@ import (
 )
 
 var referencePattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_.-]*)\}`)
+var referenceSetPattern = regexp.MustCompile(`\$\{set:([A-Za-z_][A-Za-z0-9_.-]*)\}`)
 
 // ResolveSecrets returns the environment with `${KEY}` references expanded.
 // Cycles and unknown references are rejected, and the caller must hold

@@ -279,6 +279,50 @@ Delete an identity and its tokens.
 
 ---
 
+## Shared sets
+
+### `clavis sets ls`
+
+List org-level shared sets.
+
+### `clavis sets show SET [--reveal]`
+
+Show a set and its keys. `--reveal` decrypts values.
+
+```sh
+clavis sets show shared-api --reveal
+```
+
+### `clavis sets create NAME --slug SLUG`
+
+Create a shared set with its own encryption key.
+
+### `clavis sets set SET KEY [VALUE]`
+
+Create or update a setting inside a set.
+
+```sh
+clavis sets set shared-api STRIPE_KEY
+```
+
+### `clavis sets rm SET KEY`
+
+Remove a key from a set.
+
+### `clavis sets import SET [--env E]`
+
+Import a set into an environment. Local environment values always win.
+
+```sh
+clavis sets import shared-api --env staging
+```
+
+### `clavis sets detach SET [--env E]`
+
+Remove the import from an environment.
+
+---
+
 ## Syncs
 
 ### `clavis syncs ls`

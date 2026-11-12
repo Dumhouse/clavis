@@ -158,6 +158,39 @@ export const commandGroups: CommandGroup[] = [
     ],
   },
   {
+    title: 'Shared sets',
+    description: 'Org-level secret sets imported by environments.',
+    commands: [
+      { name: 'sets ls', usage: 'clavis sets ls', description: 'List shared sets.' },
+      {
+        name: 'sets show',
+        usage: 'clavis sets show SET [--reveal]',
+        description: 'Show set keys; --reveal decrypts values.',
+      },
+      {
+        name: 'sets create',
+        usage: 'clavis sets create NAME --slug SLUG',
+        description: 'Create a shared set with its own encryption key.',
+      },
+      {
+        name: 'sets set',
+        usage: 'clavis sets set SET KEY [VALUE]',
+        description: 'Create or update a value inside a set.',
+      },
+      { name: 'sets rm', usage: 'clavis sets rm SET KEY', description: 'Remove a key from a set.' },
+      {
+        name: 'sets import',
+        usage: 'clavis sets import SET [--env E]',
+        description: 'Import a set into an environment. Local values win.',
+      },
+      {
+        name: 'sets detach',
+        usage: 'clavis sets detach SET [--env E]',
+        description: 'Remove a set import from an environment.',
+      },
+    ],
+  },
+  {
     title: 'Syncs',
     description: 'Push resolved secrets to external systems.',
     commands: [

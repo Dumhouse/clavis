@@ -256,6 +256,10 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 	if err != nil {
 		return nil, "", err
 	}
+	sharedSets, err := s.sharedSetValues(ctx, org, env)
+	if err != nil {
+		return nil, "", err
+	}
 	seen := make(map[string]bool)
 	var allItems []store.Item
 	var resolvedItems []struct {
@@ -347,6 +351,22 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 			}{env: sourceEnv, item: item})
 		}
 	}
+	for _, key := range sortedSharedKeys(sharedSets) {
+		if seen[key] {
+			continue
+		}
+		value := sharedSets[key]
+		view := Secret{
+			Key: key, Kind: value.Kind, SourceEnvironment: value.SetSlug,
+			Inherited: true,
+		}
+		if value.Kind == "variable" || reveal {
+			view.Value = value.Value
+			view.Revealed = true
+		}
+		out = append(out, view)
+	}
+	applySharedSetReferences(out, sharedSets)
 	if reveal {
 		for _, entry := range resolvedItems {
 			if entry.item.Kind == "variable" {
@@ -393,6 +413,10 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 	defer indexKey.Zero()
 
 	blind := crypto.BlindIndex(indexKey, key)
+	sharedSets, err := s.sharedSetValues(ctx, org, env)
+	if err != nil {
+		return nil, err
+	}
 	chain, err := s.environmentChain(ctx, env)
 	if err != nil {
 		return nil, err
@@ -411,7 +435,27 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 		break
 	}
 	if item == nil {
-		return nil, ErrNotFound
+		value, ok := sharedSets[key]
+		if !ok {
+			return nil, ErrNotFound
+		}
+		view := &Secret{
+			Key: key, Kind: value.Kind, SourceEnvironment: value.SetSlug,
+			Inherited: true,
+		}
+		if value.Kind == "variable" || reveal {
+			if reveal && env.Type == "production" && strings.TrimSpace(reason) == "" {
+				return nil, fmt.Errorf("%w: a reason is required to reveal values in production", ErrValidation)
+			}
+			if reveal {
+				if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsReadValues); err != nil {
+					return nil, err
+				}
+			}
+			view.Value = expandSetValue(value.Value, sharedSets)
+			view.Revealed = true
+		}
+		return view, nil
 	}
 
 	folder := ""
@@ -452,7 +496,7 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 			if err != nil {
 				return nil, err
 			}
-			view.Value = string(value)
+			view.Value = expandSetValue(string(value), sharedSets)
 			view.Revealed = true
 		}
 		return view, nil
@@ -468,7 +512,7 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 		if err != nil {
 			return nil, err
 		}
-		view.Value = string(value)
+		view.Value = expandSetValue(string(value), sharedSets)
 		view.Revealed = true
 		if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, item.ID, channel, item.Version); err != nil {
 			s.Logger.Error("record reveal event failed", "item_id", item.ID, "error", err)
@@ -629,6 +673,11 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 			if _, lookupErr := s.Store.GetItemByBlindIndex(ctx, candidate.ID, blind); lookupErr == nil {
 				inherited = true
 				break
+			}
+		}
+		if !inherited {
+			if shared, lookupErr := s.sharedSetValues(ctx, org, env); lookupErr == nil {
+				_, inherited = shared[key]
 			}
 		}
 		if inherited {

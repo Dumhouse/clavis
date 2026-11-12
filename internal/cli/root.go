@@ -72,6 +72,7 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newMembersCommand(opts))
 	root.AddCommand(newIdentitiesCommand(opts))
 	root.AddCommand(newSyncsCommand(opts))
+	root.AddCommand(newSetsCommand(opts))
 	root.AddCommand(newAccessCommand(opts))
 	return root
 }

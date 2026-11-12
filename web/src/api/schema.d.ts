@@ -1143,6 +1143,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List imported sets */
+        get: operations["list-environment-sets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/sets/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import a shared set */
+        post: operations["import-shared-set"];
+        /** Detach a shared set */
+        delete: operations["detach-shared-set"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/snapshots": {
         parameters: {
             query?: never;
@@ -1193,6 +1228,75 @@ export interface paths {
         head?: never;
         /** Apply atomic changes across environments */
         patch: operations["batch-project-secrets"];
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List syncs */
+        get: operations["list-syncs"];
+        put?: never;
+        /** Create a sync */
+        post: operations["create-sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a sync */
+        delete: operations["delete-sync"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview or run a sync */
+        post: operations["run-sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List sync runs */
+        get: operations["list-sync-runs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/orgs/{org}/roles": {
@@ -1261,6 +1365,60 @@ export interface paths {
         post?: never;
         /** Revoke a SCIM token */
         delete: operations["revoke-scim-token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List shared sets */
+        get: operations["list-shared-sets"];
+        put?: never;
+        /** Create a shared set */
+        post: operations["create-shared-set"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/sets/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a shared set */
+        get: operations["get-shared-set"];
+        put?: never;
+        post?: never;
+        /** Delete a shared set */
+        delete: operations["delete-shared-set"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/sets/{slug}/items/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set a shared set value */
+        put: operations["set-shared-set-item"];
+        post?: never;
+        /** Delete a shared set value */
+        delete: operations["delete-shared-set-item"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1638,8 +1796,46 @@ export interface components {
             tags?: string[] | null;
             value: string;
         };
+        CreateSharedSetInputBody: {
+            name: string;
+            slug?: string;
+        };
         CreateSnapshotInputBody: {
             reason?: string;
+        };
+        CreateSyncInputBody: {
+            aws_access_key?: string;
+            aws_prefix?: string;
+            aws_region?: string;
+            aws_secret_key?: string;
+            /** @enum {string} */
+            aws_service?: "ssm" | "secretsmanager";
+            aws_session_token?: string;
+            base_url?: string;
+            cloudflare_account?: string;
+            /** @enum {string} */
+            cloudflare_mode?: "workers" | "pages";
+            cloudflare_project?: string;
+            cloudflare_script?: string;
+            endpoint?: string;
+            environment: string;
+            gcp_prefix?: string;
+            gcp_project?: string;
+            gcp_service_account?: string;
+            github_environment?: string;
+            github_repo?: string;
+            /** @enum {string} */
+            github_scope?: "repo" | "environment" | "org";
+            gitlab_project?: string;
+            masked?: boolean;
+            netlify_account?: string;
+            netlify_site?: string;
+            protected?: boolean;
+            provider?: string;
+            secret?: string;
+            token?: string;
+            vercel_project?: string;
+            vercel_team_id?: string;
         };
         CreateWebhookInputBody: {
             description?: string;
@@ -2099,6 +2295,14 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        RunSyncInputBody: {
+            confirm?: boolean;
+            dry_run?: boolean;
+        };
+        RunSyncOutputBody: {
+            preview?: components["schemas"]["SyncPreviewBody"];
+            run: components["schemas"]["SyncRunBody"];
+        };
         ScimTokenBody: {
             /** Format: date-time */
             created_at: string;
@@ -2195,6 +2399,51 @@ export interface components {
         SetupStatusOutputBody: {
             required: boolean;
         };
+        SharedSetBody: {
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            imports: components["schemas"]["SharedSetImportBody"][] | null;
+            items: components["schemas"]["SharedSetItemBody"][] | null;
+            name: string;
+            slug: string;
+        };
+        SharedSetImportBody: {
+            /** Format: date-time */
+            created_at: string;
+            environment_slug?: string;
+            id: string;
+            /** Format: int64 */
+            priority: number;
+            project_slug?: string;
+            set_name: string;
+            set_slug: string;
+        };
+        SharedSetImportsOutputBody: {
+            imports: components["schemas"]["SharedSetImportBody"][] | null;
+        };
+        SharedSetItemBody: {
+            comment?: string;
+            key: string;
+            kind: string;
+            /** Format: date-time */
+            updated_at: string;
+            value?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        SharedSetItemInputBody: {
+            comment?: string;
+            /**
+             * @default secret
+             * @enum {string}
+             */
+            kind: "secret" | "variable" | "file";
+            value: string;
+        };
+        SharedSetsOutputBody: {
+            sets: components["schemas"]["SharedSetBody"][] | null;
+        };
         SnapshotBody: {
             /** Format: date-time */
             created_at: string;
@@ -2226,6 +2475,44 @@ export interface components {
             /** @enum {string} */
             provider?: "google" | "github" | "microsoft" | "okta" | "generic" | "saml";
             role?: string;
+        };
+        SyncBody: {
+            confirmed: boolean;
+            /** Format: date-time */
+            created_at: string;
+            environment: string;
+            id: string;
+            /** Format: date-time */
+            last_synced_at?: string;
+            provider: string;
+            status: string;
+        };
+        SyncPreviewBody: {
+            confirmed: boolean;
+            /** Format: int64 */
+            count: number;
+            destination: string;
+            environment: string;
+            keys: string[] | null;
+            sync_id: string;
+        };
+        SyncRunBody: {
+            dry_run: boolean;
+            error?: string;
+            /** Format: date-time */
+            finished_at?: string;
+            id: string;
+            /** Format: int64 */
+            secret_count: number;
+            /** Format: date-time */
+            started_at: string;
+            status: string;
+        };
+        SyncRunsOutputBody: {
+            runs: components["schemas"]["SyncRunBody"][] | null;
+        };
+        SyncsOutputBody: {
+            syncs: components["schemas"]["SyncBody"][] | null;
         };
         UpdateEnvironmentInputBody: {
             name?: string;
@@ -5110,6 +5397,106 @@ export interface operations {
             };
         };
     };
+    "list-environment-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+                /** @description Environment slug */
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSetImportsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "import-shared-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "detach-shared-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-snapshots": {
         parameters: {
             query?: never;
@@ -5237,6 +5624,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectBatchOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-syncs": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Short-lived token from /auth/reauthenticate */
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSyncInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "run-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSyncInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunSyncOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-sync-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncRunsOutputBody"];
                 };
             };
             /** @description Error */
@@ -5463,6 +6024,206 @@ export interface operations {
             path: {
                 org: string;
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-shared-sets": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Short-lived token from /auth/reauthenticate */
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                /** @description Organization slug */
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSetsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-shared-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSharedSetInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSetBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-shared-set": {
+        parameters: {
+            query?: {
+                reveal?: boolean;
+            };
+            header?: never;
+            path: {
+                org: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSetBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-shared-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "set-shared-set-item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                slug: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SharedSetItemInputBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-shared-set-item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                slug: string;
+                key: string;
             };
             cookie?: never;
         };

@@ -49,6 +49,25 @@ func (kr *Keyring) UnwrapOrgKey(orgID string, wrapped []byte) (Key, error) {
 	return kr.unwrap(kr.root, wrapped, wrapAAD("org", orgID, ""))
 }
 
+// NewSharedSetKey generates a shared-set key and wraps it with the org key.
+func (kr *Keyring) NewSharedSetKey(orgID, setID string) (wrapped []byte, key Key, err error) {
+	key, err = GenerateKey()
+	if err != nil {
+		return nil, Key{}, err
+	}
+	wrapped, err = kr.wrap(kr.root, key, wrapAAD("shared_set", orgID, setID))
+	if err != nil {
+		key.Zero()
+		return nil, Key{}, err
+	}
+	return wrapped, key, nil
+}
+
+// UnwrapSharedSetKey unwraps a shared-set key.
+func (kr *Keyring) UnwrapSharedSetKey(orgID, setID string, wrapped []byte) (Key, error) {
+	return kr.unwrap(kr.root, wrapped, wrapAAD("shared_set", orgID, setID))
+}
+
 // RewrapOrgKey unwraps an org key with this keyring and wraps it with newRoot.
 func (kr *Keyring) RewrapOrgKey(orgID string, wrapped []byte, newRoot Key) ([]byte, error) {
 	orgKey, err := kr.UnwrapOrgKey(orgID, wrapped)

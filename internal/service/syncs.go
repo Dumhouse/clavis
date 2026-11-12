@@ -603,6 +603,19 @@ func (s *Service) syncValues(ctx context.Context, org *store.Org, project *store
 			secrets = append(secrets, Secret{Key: key, Kind: item.Kind, Value: value})
 		}
 	}
+	sharedSets, err := s.sharedSetValues(ctx, org, env)
+	if err != nil {
+		return nil, nil, err
+	}
+	applySharedSetReferences(secrets, sharedSets)
+	for _, key := range sortedSharedKeys(sharedSets) {
+		if seen[key] {
+			continue
+		}
+		value := sharedSets[key]
+		kinds[key] = value.Kind
+		secrets = append(secrets, Secret{Key: key, Kind: value.Kind, Value: value.Value})
+	}
 	if err := resolveSecretReferences(secrets); err != nil {
 		return nil, nil, err
 	}
