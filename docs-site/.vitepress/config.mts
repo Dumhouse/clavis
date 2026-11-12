@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'Clavis',
+  base: process.env.DOCS_BASE || '/',
   description: 'Open-source secrets management for humans, machines, and AI agents.',
   srcDir: '.docs',
   cleanUrls: true,
