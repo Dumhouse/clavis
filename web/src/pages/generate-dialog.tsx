@@ -309,9 +309,16 @@ function randomBytes(length: number): Uint8Array {
 }
 
 function randomString(alphabet: string, length: number): string {
-  const bytes = randomBytes(length)
+  // Rejection sampling: discard bytes that would bias the modulo.
+  const limit = 256 - (256 % alphabet.length)
   let out = ''
-  for (const byte of bytes) out += alphabet[byte % alphabet.length] ?? ''
+  while (out.length < length) {
+    for (const byte of randomBytes(length * 2)) {
+      if (byte >= limit) continue
+      out += alphabet[byte % alphabet.length]
+      if (out.length === length) break
+    }
+  }
   return out
 }
 
