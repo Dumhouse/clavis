@@ -55,6 +55,7 @@ type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Database DatabaseConfig `yaml:"database"`
 	Keys     KeysConfig     `yaml:"keys"`
+	Backup   BackupConfig   `yaml:"backup"`
 	Log      LogConfig      `yaml:"log"`
 	Email    EmailConfig    `yaml:"email"`
 	Security SecurityConfig `yaml:"security"`
@@ -121,6 +122,14 @@ type DatabaseConfig struct {
 	DSN    string `yaml:"dsn"`
 }
 
+// BackupConfig controls scheduled encrypted backups.
+type BackupConfig struct {
+	Enabled  bool     `yaml:"enabled"`
+	Dir      string   `yaml:"dir"`
+	Interval Duration `yaml:"interval"`
+	Keep     int      `yaml:"keep"`
+}
+
 // KeysConfig controls the root key provider.
 type KeysConfig struct {
 	Provider    string `yaml:"provider"` // file | env | aws-kms | gcp-kms
@@ -160,6 +169,7 @@ func Default() *Config {
 			RateLimitPerMinute: 600,
 		},
 		Database: DatabaseConfig{Driver: "sqlite"},
+		Backup:   BackupConfig{Interval: Duration(24 * time.Hour), Keep: 7},
 		Keys: KeysConfig{
 			Provider:   "file",
 			RootKeyEnv: "CLAVIS_ROOT_KEY",
@@ -208,6 +218,9 @@ func (c *Config) applyDerived() {
 	}
 	if c.Keys.RootKeyFile == "" {
 		c.Keys.RootKeyFile = filepath.Join(c.dataDir(), "root.key")
+	}
+	if c.Backup.Dir == "" {
+		c.Backup.Dir = filepath.Join(c.dataDir(), "backups")
 	}
 	if c.Server.BaseURL == "" {
 		addr := c.Server.Addr
@@ -292,6 +305,7 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_DB_DRIVER", &c.Database.Driver)
 	setString("CLAVIS_DB_PATH", &c.Database.Path)
 	setString("CLAVIS_DB_DSN", &c.Database.DSN)
+	setString("CLAVIS_BACKUP_DIR", &c.Backup.Dir)
 	setString("CLAVIS_KEY_PROVIDER", &c.Keys.Provider)
 	setString("CLAVIS_ROOT_KEY_FILE", &c.Keys.RootKeyFile)
 	setString("CLAVIS_ROOT_KEY_ENV", &c.Keys.RootKeyEnv)
@@ -315,14 +329,17 @@ func applyEnv(c *Config) error {
 
 	for _, err := range []error{
 		setBool("CLAVIS_DEV", &c.Server.Dev),
+		setBool("CLAVIS_BACKUP_ENABLED", &c.Backup.Enabled),
 		setBool("CLAVIS_METRICS_PUBLIC", &c.Server.MetricsPublic),
 		setDuration("CLAVIS_READ_TIMEOUT", &c.Server.ReadTimeout),
 		setDuration("CLAVIS_WRITE_TIMEOUT", &c.Server.WriteTimeout),
 		setDuration("CLAVIS_IDLE_TIMEOUT", &c.Server.IdleTimeout),
 		setDuration("CLAVIS_SHUTDOWN_TIMEOUT", &c.Server.ShutdownTimeout),
+		setDuration("CLAVIS_BACKUP_INTERVAL", &c.Backup.Interval),
 		setInt64("CLAVIS_MAX_BODY_BYTES", &c.Server.MaxBodyBytes),
 		setBool("CLAVIS_EMAIL_ENABLED", &c.Email.Enabled),
 		setInt("CLAVIS_EMAIL_PORT", &c.Email.Port),
+		setInt("CLAVIS_BACKUP_KEEP", &c.Backup.Keep),
 		setInt("CLAVIS_RATE_LIMIT_PER_MINUTE", &c.Server.RateLimitPerMinute),
 		setBool("CLAVIS_BREACH_CHECK", &c.Security.BreachCheck),
 	} {
@@ -396,6 +413,17 @@ func (c *Config) Validate() error {
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("config: server.base_url scheme must be http or https")
+	}
+	if c.Backup.Enabled {
+		if c.Backup.Interval.Duration() <= 0 {
+			return fmt.Errorf("config: backup.interval must be positive")
+		}
+		if c.Backup.Keep < 1 {
+			return fmt.Errorf("config: backup.keep must be at least 1")
+		}
+		if c.Backup.Dir == "" {
+			return fmt.Errorf("config: backup.dir is required when backups are enabled")
+		}
 	}
 	switch c.Database.Driver {
 	case "sqlite":

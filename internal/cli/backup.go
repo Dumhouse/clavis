@@ -2,25 +2,17 @@ package cli
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/dumhouse/clavis/internal/backup"
 	"github.com/dumhouse/clavis/internal/config"
 	"github.com/dumhouse/clavis/internal/crypto"
 	"github.com/dumhouse/clavis/internal/store"
 )
-
-const backupMagic = "CLVBK1\n"
 
 func newAdminBackupCommand(opts *Options) *cobra.Command {
 	var configPath, outPath string
@@ -50,7 +42,7 @@ func newAdminBackupCommand(opts *Options) *cobra.Command {
 			_ = temp.Close()
 			defer os.Remove(tempPath)
 			if cfg.Database.Driver == "postgres" {
-				if err := dumpPostgres(cmd.Context(), cfg.Database.DSN, tempPath); err != nil {
+				if err := backup.SnapshotPostgres(cmd.Context(), cfg.Database.DSN, tempPath); err != nil {
 					return err
 				}
 			} else {
@@ -58,17 +50,17 @@ func newAdminBackupCommand(opts *Options) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				_, execErr := st.DB().ExecContext(cmd.Context(), "VACUUM INTO ?", tempPath)
+				execErr := backup.SnapshotSQLite(cmd.Context(), st.DB(), tempPath)
 				_ = st.Close()
 				if execErr != nil {
-					return fmt.Errorf("sqlite backup: %w", execErr)
+					return execErr
 				}
 			}
 			plaintext, err := os.ReadFile(tempPath)
 			if err != nil {
 				return err
 			}
-			encrypted, err := encryptBackup(rootKey[:], plaintext)
+			encrypted, err := backup.Encrypt(rootKey[:], plaintext)
 			if err != nil {
 				return err
 			}
@@ -110,7 +102,7 @@ func newAdminRestoreCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			plaintext, err := decryptBackup(rootKey[:], encrypted)
+			plaintext, err := backup.Decrypt(rootKey[:], encrypted)
 			if err != nil {
 				return err
 			}
@@ -126,7 +118,7 @@ func newAdminRestoreCommand(opts *Options) *cobra.Command {
 			}
 			_ = temp.Close()
 			if cfg.Database.Driver == "postgres" {
-				if err := restorePostgres(cmd.Context(), cfg.Database.DSN, tempPath); err != nil {
+				if err := backup.RestorePostgres(cmd.Context(), cfg.Database.DSN, tempPath); err != nil {
 					return err
 				}
 			} else {
@@ -155,58 +147,4 @@ func loadRootKey(ctx context.Context, cfg *config.Config) (crypto.Key, error) {
 	}
 	defer func() { _ = provider.Close() }()
 	return provider.Load(ctx)
-}
-
-func backupCipher(key []byte) (cipher.AEAD, error) {
-	sum := sha256.Sum256(append(append([]byte(nil), key...), []byte("clavis-backup-v1")...))
-	block, err := aes.NewCipher(sum[:])
-	if err != nil {
-		return nil, err
-	}
-	return cipher.NewGCM(block)
-}
-
-func encryptBackup(key, plaintext []byte) ([]byte, error) {
-	gcm, err := backupCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return nil, err
-	}
-	return gcm.Seal(append([]byte(backupMagic), nonce...), nonce, plaintext, []byte(backupMagic)), nil
-}
-
-func decryptBackup(key, data []byte) ([]byte, error) {
-	if !strings.HasPrefix(string(data), backupMagic) {
-		return nil, fmt.Errorf("not a Clavis backup")
-	}
-	gcm, err := backupCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	payload := data[len(backupMagic):]
-	if len(payload) < gcm.NonceSize() {
-		return nil, fmt.Errorf("truncated backup")
-	}
-	return gcm.Open(nil, payload[:gcm.NonceSize()], payload[gcm.NonceSize():], []byte(backupMagic))
-}
-
-func dumpPostgres(ctx context.Context, dsn, path string) error {
-	command := exec.CommandContext(ctx, "pg_dump", "--dbname", dsn, "--file", path, "--no-owner", "--no-privileges")
-	command.Stderr = io.Discard
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("pg_dump: %w (is pg_dump installed?)", err)
-	}
-	return nil
-}
-
-func restorePostgres(ctx context.Context, dsn, path string) error {
-	command := exec.CommandContext(ctx, "psql", "--dbname", dsn, "--file", path)
-	command.Stderr = io.Discard
-	if err := command.Run(); err != nil {
-		return fmt.Errorf("psql: %w (is psql installed?)", err)
-	}
-	return nil
 }

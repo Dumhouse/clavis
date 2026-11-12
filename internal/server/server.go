@@ -720,6 +720,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go s.leaseLoop(ctx)
 	go s.rotationLoop(ctx)
 	go s.rotationReminderLoop(ctx)
+	go s.backupLoop(ctx)
 	errCh := make(chan error, 1)
 	go func() {
 		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)

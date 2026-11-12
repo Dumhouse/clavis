@@ -22,6 +22,14 @@ keys:
   root_key_file: "./data/root.key"
   root_key_env: "CLAVIS_ROOT_KEY"
 
+# Optional scheduled encrypted backups. The root key is required to restore,
+# so store it separately from this directory.
+backup:
+  enabled: false
+  dir: "./data/backups"
+  interval: 24h
+  keep: 7
+
 log:
   level: info
   format: json

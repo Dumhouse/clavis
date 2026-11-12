@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/rand"
 	"testing"
+
+	"github.com/dumhouse/clavis/internal/backup"
 )
 
 func TestBackupEncryptionRoundTripAndTamper(t *testing.T) {
@@ -12,16 +14,16 @@ func TestBackupEncryptionRoundTripAndTamper(t *testing.T) {
 		t.Fatal(err)
 	}
 	plaintext := []byte("database bytes with wrapped keys")
-	encrypted, err := encryptBackup(key, plaintext)
+	encrypted, err := backup.Encrypt(key, plaintext)
 	if err != nil {
 		t.Fatal(err)
 	}
-	decrypted, err := decryptBackup(key, encrypted)
+	decrypted, err := backup.Decrypt(key, encrypted)
 	if err != nil || !bytes.Equal(decrypted, plaintext) {
 		t.Fatalf("decrypt = %q %v", decrypted, err)
 	}
 	encrypted[len(encrypted)-1] ^= 0xff
-	if _, err := decryptBackup(key, encrypted); err == nil {
+	if _, err := backup.Decrypt(key, encrypted); err == nil {
 		t.Fatal("tampered backup decrypted")
 	}
 }

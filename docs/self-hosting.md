@@ -48,12 +48,27 @@ Choose one:
 
 ## Backups
 
+Manual backup and restore:
+
 ```sh
 clavis admin backup --out clavis-backup.enc
 clavis admin restore clavis-backup.enc --yes
 ```
 
-Keep the root key and backup in separate trust domains. Test restore quarterly.
+Scheduled backups run inside the server when enabled:
+
+```yaml
+backup:
+  enabled: true
+  dir: "/var/lib/clavis/backups"
+  interval: 24h
+  keep: 7
+```
+
+Each run writes an encrypted `clavis-<timestamp>.clvbk` file (0600) and prunes
+all but the newest `keep` files. The same superuser is required to restore, so
+keep the root key and the backups in separate trust domains. Test a restore
+quarterly.
 
 ## Upgrades
 
