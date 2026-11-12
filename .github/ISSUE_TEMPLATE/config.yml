@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/dumhouse/clavis/discussions
+    about: Ask usage questions, share setups, or discuss ideas.
+  - name: Security report
+    url: https://github.com/dumhouse/clavis/security/policy
+    about: Report vulnerabilities privately. Never open a public issue.
+  - name: Documentation
+    url: https://github.com/dumhouse/clavis/tree/main/docs
+    about: Read the quickstart, CLI reference, and security design.

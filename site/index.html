@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clavis — open-source secrets management</title>
+    <meta name="description" content="Clavis is an open-source secrets manager for humans, machines, and AI agents." />
+    <link rel="icon" href="../brand/logo-mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#"><img src="../brand/wordmark.svg" alt="Clavis" height="44" /></a>
+      <nav>
+        <a href="#compare">Compare</a>
+        <a href="../docs/quickstart.md">Quickstart</a>
+        <a href="../docs/commands.md">Docs</a>
+        <a href="https://github.com/dumhouse/clavis">GitHub</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Open source · Self-hosted · Agent-safe</p>
+        <h1>Secrets management for humans, machines, and AI agents.</h1>
+        <p class="lede">
+          One Go binary, a fast web UI, typed schemas, dynamic credentials, JIT access,
+          and an auditable path for coding agents. No per-seat pricing and no feature gates.
+        </p>
+        <div class="actions">
+          <a class="primary" href="../docs/quickstart.md">Get started</a>
+          <a class="secondary" href="https://github.com/dumhouse/clavis">Star on GitHub</a>
+        </div>
+        <pre><code>docker run -p 8080:8080 -v clavis-data:/data ghcr.io/dumhouse/clavis:latest</code></pre>
+      </section>
+
+      <section class="grid">
+        <article><h3>Typed config</h3><p>Schema, patterns, enums, required environments, and generated zod/Go/Python loaders.</p></article>
+        <article><h3>Dynamic secrets</h3><p>Short-lived PostgreSQL roles and AWS STS credentials with automatic revocation.</p></article>
+        <article><h3>Agent-safe</h3><p>Read-names + use only, server-side command allowlists, MCP, and local decryption.</p></article>
+      </section>
+
+      <section id="compare">
+        <h2>How Clavis compares</h2>
+        <p class="muted">Open-source and self-hosted first. Bring your own KMS, Postgres, and identity provider.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Capability</th><th>Clavis</th><th>Vault</th><th>Infisical</th><th>Doppler</th></tr></thead>
+            <tbody>
+              <tr><td>Self-hosted OSS core</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+              <tr><td>Single Go binary + embedded UI</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+              <tr><td>Typed schema + codegen</td><td>Yes</td><td>No</td><td>Partial</td><td>No</td></tr>
+              <tr><td>Dynamic DB/cloud credentials</td><td>Yes</td><td>Yes</td><td>Limited</td><td>No</td></tr>
+              <tr><td>JIT access + approvals</td><td>Yes</td><td>Enterprise</td><td>Paid</td><td>Paid</td></tr>
+              <tr><td>AI agent allowlists + MCP</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+              <tr><td>Client-side encrypted share links</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="demo">
+        <h2>Try the demo</h2>
+        <p>Run the disposable instance locally. It resets every hour and never stores real secrets.</p>
+        <pre><code>./deploy/demo/reset.sh</code></pre>
+        <p class="muted">The setup token is printed by the server and written to the demo data directory.</p>
+      </section>
+    </main>
+    <footer>
+      <span>Clavis · Apache-2.0</span>
+      <a href="../SECURITY.md">Security</a>
+      <a href="../CONTRIBUTING.md">Contributing</a>
+    </footer>
+  </body>
+</html>

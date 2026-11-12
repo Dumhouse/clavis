@@ -55,7 +55,16 @@ Clavis (Latin for *key*) stores your application secrets (API keys, database URL
 | [docs/security.md](docs/security.md) | Threat model, key hierarchy, crypto, auth, authz, audit, supply chain |
 | [docs/design.md](docs/design.md) | Visual language, UX principles, key screens |
 | [operator/README.md](operator/README.md) | Kubernetes operator and `ClavisSecret` CRD |
+| [csi/README.md](csi/README.md) | Secrets Store CSI driver node plugin |
+| [brand/README.md](brand/README.md) | Logo, wordmark, and social-card assets |
+| [site/index.html](site/index.html) | Landing page and comparison table |
+| [docs-site/README.md](docs-site/README.md) | VitePress documentation site |
+| [deploy/demo/README.md](deploy/demo/README.md) | Hourly-reset demo instance |
 | [integrations/eso/README.md](integrations/eso/README.md) | External Secrets Operator webhook integration |
+| [docs/agents.md](docs/agents.md) | AI agent identities, MCP setup, and limitations |
+| [docs/api-stability.md](docs/api-stability.md) | API versioning, deprecation, and error-code policy |
+| [docs/vulnerability-disclosure.md](docs/vulnerability-disclosure.md) | Coordinated disclosure policy and safe harbor |
+| [docs/sustainability.md](docs/sustainability.md) | Funding, governance, and no-feature-gating policy |
 | [docs/commands.md](docs/commands.md) | Complete user command reference with examples |
 | [docs/cli.md](docs/cli.md) | CLI UX rules and command documentation conventions |
 | [docs/roadmap.md](docs/roadmap.md) | Milestones M0–M6 with exit criteria, cut list, backlog |

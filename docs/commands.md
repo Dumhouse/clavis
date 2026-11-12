@@ -138,6 +138,22 @@ Flags: `--remove`, `--comment`.
 
 ## Running and exporting
 
+### `clavis --overlay SLUG`
+
+Tenant/region overlays override selected keys without changing the base
+environment. Pass `--overlay` to `run`, `export`, `secrets ls`, or
+`secrets get`:
+
+```sh
+clavis --overlay eu run -- npm start
+clavis --overlay us-east export --format dotenv
+clavis --overlay eu secrets ls --reveal
+```
+
+Overlays are stored separately from base values, resolve after inheritance,
+and appear as extra columns in the secrets grid. Create them in the UI/API and
+set values with the overlay endpoints.
+
 ### `clavis run -- COMMAND [ARGS...]`
 
 Run a command with secrets injected as environment variables. Output is masked
@@ -147,6 +163,31 @@ against the injected values.
 clavis run -- npm run dev
 clavis run --mount -- ./start.sh   # file secrets become private temp files
 clavis run --no-mask -- ./debug.sh # explicit opt-out of masking
+clavis run --watch -- pnpm dev      # restart when secrets change
+```
+
+`--watch` subscribes to the organization event stream and restarts the child
+when the linked environment's secrets change. The child is restarted with a
+fresh value set.
+
+### Offline cache
+
+When `.clavis.yaml` has `cache: true` (written by `clavis init`), `clavis run`
+stores an AES-256-GCM encrypted copy of the resolved environment after a
+successful fetch. If the server is unreachable, it uses that cache for up to 24
+hours and prints a warning. The cache key lives in the OS keychain (or the
+0600 credential fallback), and the cache is scoped to server/org/project/env.
+
+Set `cache: false` in `.clavis.yaml` to opt out for a project. Clear the cache
+with your platform's cache directory or `CLAVIS_CACHE_DIR` if you set one.
+
+### `clavis shell`
+
+Start an interactive subshell with the environment's resolved secrets exported
+and a colored prompt. Values are not masked; use it only in a trusted terminal.
+
+```sh
+clavis shell
 ```
 
 `--mount` writes file secrets to a `0700` temp directory as `0600` files and
@@ -166,6 +207,37 @@ clavis export --format k8s > secret.yaml
 
 Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`.
 
+### `clavis share KEY`
+
+Create a client-encrypted one-time share link. Only ciphertext is uploaded; the
+AES key stays in the URL fragment and never reaches the server.
+
+```sh
+clavis share DATABASE_URL
+clavis share API_KEY --ttl 2h --views 3
+clavis share API_KEY --prompt-password
+```
+
+The server enforces expiry and view limits, and checks an optional password
+hash. The browser viewer at `/share/<id>#<key>` decrypts locally and shows the
+value once. Share links are intended for people, not for automation.
+
+### `clavis scan [PATH]`
+
+Scan files for valid Clavis token formats and, with `secrets:read-values`, for
+resolved secret values in memory. Findings never include the value itself.
+
+```sh
+clavis scan
+clavis scan ./config
+clavis scan --staged
+clavis scan --install-hook
+```
+
+Exit code `7` means a leak was found. `--install-hook` writes a pre-commit hook
+that runs `clavis scan --staged`. `--values=false` skips value matching when
+only token formats should be checked.
+
 ### `clavis import FILE|DIR`
 
 Import `.env`, JSON, or YAML. A directory is walked recursively and each file's
@@ -175,7 +247,159 @@ parent directory becomes the secret folder.
 clavis import .env
 clavis import ./config/ --kind variable
 clavis import ./secrets/ --dry-run
+clavis import .env --map import-map.yaml
 ```
+
+Dry runs classify keys as `new`, `changed`, `unchanged`, or `present` (when the
+token cannot reveal values) and never print values.
+
+Map keys and folders before applying:
+
+```yaml
+keys:
+  OLD_DATABASE_URL: DATABASE_URL
+  DROP_ME: ""
+folders:
+  "": /imported
+  legacy: /legacy
+```
+
+#### Provider imports
+
+Use `--provider` to pull from an external secret manager. Provider tokens and
+endpoints can also come from environment variables.
+
+```sh
+# Infisical
+clavis import --provider infisical \
+  --remote-project "$INFISICAL_PROJECT" --remote-env dev \
+  --token "$INFISICAL_TOKEN" --dry-run
+
+# Doppler
+clavis import --provider doppler \
+  --remote-project my-project --remote-env dev \
+  --token "$DOPPLER_TOKEN" --dry-run
+
+# Vault or OpenBao KV v1/v2
+clavis import --provider vault \
+  --base-url "$VAULT_ADDR" --vault-mount secret --vault-version 2 \
+  --remote-path apps/web --token "$VAULT_TOKEN" --dry-run
+
+# 1Password Connect
+clavis import --provider onepassword \
+  --base-url "$OP_CONNECT_HOST" --op-vault "$OP_VAULT" \
+  --token "$OP_CONNECT_TOKEN" --dry-run
+
+# AWS Secrets Manager
+clavis import --provider aws --aws-region eu-central-1 \
+  --aws-access-key "$AWS_ACCESS_KEY_ID" --aws-secret-key "$AWS_SECRET_ACCESS_KEY" \
+  --aws-prefix app/ --dry-run
+
+# GCP Secret Manager
+clavis import --provider gcp --gcp-project my-project \
+  --gcp-service-account service-account.json --gcp-prefix APP_ --dry-run
+```
+
+Provider environment variables: `INFISICAL_TOKEN`, `INFISICAL_URL`,
+`INFISICAL_PROJECT`, `INFISICAL_ENV`, `DOPPLER_TOKEN`, `DOPPLER_PROJECT`,
+`DOPPLER_CONFIG`, `VAULT_ADDR`, `VAULT_TOKEN`, `OPENBAO_ADDR`, `OPENBAO_TOKEN`,
+`OP_CONNECT_HOST`, `OP_CONNECT_TOKEN`, `OP_VAULT`, `AWS_REGION`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`,
+`GCP_PROJECT`, and `GOOGLE_APPLICATION_CREDENTIALS`.
+
+The web UI’s **Import** dialog accepts `.env` or flat JSON and lets you remap
+keys, folders, and kinds with the same dry-run diff before applying.
+
+---
+
+## Schema and validation
+
+Keep the typed configuration contract in the repository so reviews and CI
+catch bad values before deployment.
+
+### `clavis check`
+
+Validates the selected environment against the project schema. Missing required
+keys, type mismatches, pattern failures, and invalid enum values are errors.
+Optional missing keys and keys absent from the schema are warnings.
+
+```sh
+clavis check
+clavis check --env production
+clavis check --all
+clavis check --json
+```
+
+Exit code `6` means at least one check failed. Use it directly in CI:
+
+```sh
+clavis check --env production
+```
+
+### `clavis schema ls`
+
+List the project schema.
+
+```sh
+clavis schema ls
+clavis schema ls --json
+```
+
+### `clavis schema pull`
+
+Download the schema as a YAML file suitable for code review. The default file is
+`clavis.schema.yaml`; `-o -` writes to stdout.
+
+```sh
+clavis schema pull
+clavis schema pull -o config/clavis.schema.yaml
+```
+
+### `clavis schema push [FILE]`
+
+Replace the project schema from a YAML file. The server validates keys, types,
+patterns, required maps, and enum values before saving.
+
+```sh
+clavis schema push
+clavis schema push config/clavis.schema.yaml --dry-run
+```
+
+### `clavis schema infer`
+
+Suggest a schema from the current environment’s resolved values. The output
+contains types and kinds, never secret values. Review the suggestions before
+committing or pushing them.
+
+```sh
+clavis schema infer
+clavis schema infer -o clavis.schema.yaml
+clavis schema infer --push
+```
+
+Schema entries support `string`, `url`, `int`, `bool`, `json`, and `enum` types;
+`secret`, `variable`, and `file` kinds; per-environment-type `required` flags;
+a regular-expression `pattern`; a description, an example, and enum values.
+
+### `clavis codegen`
+
+Generate a typed config loader from the schema.
+
+```sh
+clavis codegen --lang ts -o src/config.ts
+clavis codegen --lang go --package config -o internal/config/config.go
+clavis codegen --lang python -o app/config.py
+```
+
+- TypeScript uses zod and exports a schema, inferred type, and `loadConfig`.
+- Go exports a struct, `Load`, `LoadFor(envType)`, and `LoadFrom(environ)`.
+- Python uses pydantic and exports `Config` and `load_config`.
+
+Generated loaders parse env-style strings: integers become numbers, booleans
+accept `true/false/1/0/yes/no`, JSON fields are decoded, enums are checked, and
+patterns are enforced. Keys required in any environment type are required
+fields; the rest are optional. Go’s `LoadFor` additionally enforces the required
+set for the environment type you pass.
 
 ---
 
@@ -195,13 +419,43 @@ clavis env create QA --slug qa --type staging
 
 Types: `development`, `preview`, `staging`, `production`.
 
-### `clavis env diff SOURCE TARGET`
+### `clavis env branch [BRANCH]`
+
+Create or refresh a preview environment for a git branch. Branch environments
+inherit from the first development environment, get a stable slug derived from
+the branch name, and expire after the organization's preview retention period.
+Calling the command again refreshes the expiry.
+
+```sh
+clavis env branch
+clavis env branch feature/checkout
+clavis --env dev-feature-checkout-abc123 secrets ls
+```
 
 Compare key names between two environments.
 
 ```sh
 clavis env diff dev prod
 ```
+
+### `clavis promote`
+
+Diff two environments, select keys, schema-check them, snapshot the target, and
+copy the selected values. Statuses are `added`, `changed`, `missing` (present
+only in the target), and `unchanged`.
+
+```sh
+clavis promote --from dev --to staging
+clavis promote --from dev --to staging --keys DATABASE_URL,STRIPE_KEY
+clavis promote --from dev --to staging --interactive
+clavis promote --from dev --to staging --request
+```
+
+- New and changed keys are selected by default.
+- Schema errors block promotion.
+- The target is snapshotted before writing unless `--snapshot=false`.
+- Protected targets require an Admin/Owner. Other users should pass `--request`;
+  an Admin or Owner can approve it in the **Promote** page.
 
 ---
 
@@ -286,6 +540,277 @@ clavis identities create gitlab-ci \
 ### `clavis identities revoke NAME`
 
 Delete an identity and its tokens.
+
+---
+
+## Migration guides
+
+See [migrations/](migrations/) for Infisical, Doppler, Vault/OpenBao, and `.env`
+import walkthroughs.
+
+## Dynamic secrets
+
+Issue short-lived PostgreSQL credentials instead of static passwords. Leases
+have a default and maximum TTL, can be renewed or revoked, are revoked on
+expiry, and are revoked when the creating identity is deleted.
+
+### `clavis lease config-create`
+
+```sh
+clavis lease config-create   --host db.internal --database app --username clavis_admin   --password "$PGPASSWORD" --grant-role app_readwrite   --default-ttl 3600 --max-ttl 86400
+```
+
+### AWS STS config
+
+```sh
+clavis lease config-create --engine aws \
+  --aws-region eu-central-1 --aws-access-key "$AWS_ACCESS_KEY_ID" \
+  --aws-secret-key "$AWS_SECRET_ACCESS_KEY" --aws-role-arn arn:aws:iam::123456789012:role/deploy
+```
+
+AWS leases return `access_key_id`, `secret_access_key`, `session_token`, and
+`expiration`. STS credentials cannot be renewed; create a new lease instead.
+
+### `clavis lease configs`
+
+List dynamic secret configs.
+
+### `clavis lease create CONFIG_ID`
+
+Issue credentials. The password is shown once.
+
+```sh
+clavis lease create 4a1c… --ttl 1800
+```
+
+### `clavis lease ls CONFIG_ID`
+
+List lease metadata and status.
+
+### `clavis lease renew LEASE_ID --ttl 3600`
+
+Extend a lease up to the config's maximum TTL.
+
+### `clavis lease revoke LEASE_ID`
+
+Drop the generated database role and mark the lease revoked.
+
+### `clavis lease run CONFIG_ID -- COMMAND`
+
+Issue credentials, export `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and
+`PGDATABASE`, run the command, then revoke the lease even if the command fails.
+
+## Offboarding
+
+Removing a member immediately revokes sessions, personal tokens, project
+grants, and dynamic leases. Clavis also builds an offboarding review from the
+secrets the member revealed, with progress and rotate/mark-safe actions.
+
+### `clavis members offboarding USER`
+
+Show the review. Use `--start` to create tasks from reveal history.
+
+```sh
+clavis members offboarding ada@example.com --start
+```
+
+### `clavis members mark-safe USER TASK_ID`
+
+Mark a revealed secret reviewed as safe.
+
+### `clavis members mark-rotated USER TASK_ID`
+
+Mark a revealed secret as rotated. The Members page has the same review dialog.
+
+## Health
+
+### `clavis health`
+
+Report stale/unused secrets, missing rotation policies, expiring secrets,
+members without MFA, and non-expiring identity tokens. Enable
+`duplicate_detection` in organization settings to compare value fingerprints
+without exposing values.
+
+```sh
+clavis health
+clavis health --project web-app
+clavis health --json
+```
+
+The web **Health** page shows the same score and findings.
+
+## Just-in-time access
+
+Users can request a temporary role for one environment. Requests need one or
+more approvers, a reason, and a duration of 5 minutes to 24 hours. Approving
+creates a time-bound project grant. Requesters cannot approve their own request.
+
+### `clavis access request`
+
+```sh
+clavis access request --env prod --role Developer --duration 1h \
+  --reason "Debugging checkout latency" --approvals 1
+```
+
+### `clavis access requests`
+
+List pending requests. Non-managers see only their own requests.
+
+```sh
+clavis access requests
+clavis access requests --status approved
+```
+
+### `clavis access approve|reject REQUEST_ID`
+
+Approve or reject a request. The final approval creates the grant.
+
+Creating a request emails Admin/Owner approvers and, if configured, posts signed
+Approve/Reject buttons to Slack, Teams, or Discord webhooks. Links expire after
+72 hours. Opening a link requires sign-in and password re-authentication before
+the decision is applied; requesters still cannot approve themselves.
+
+### `clavis access review`
+
+Report every member and group that can read values in an environment. Use
+`--format csv` for access-review spreadsheets.
+
+```sh
+clavis access review --env prod
+clavis access review --env prod --format csv > access-review.csv
+```
+
+### `clavis access break-glass`
+
+Immediately grant an Admin-level grant for a short incident window, lift any
+active freeze, and write a loud audit event. Requires `settings:manage`.
+
+```sh
+clavis access break-glass --env prod --reason "SEV-1 checkout outage" --duration 1h
+```
+
+## Change freezes
+
+### `clavis env freeze`
+
+Schedule a freeze that blocks secret writes, promotions, syncs, and overlay
+edits for the linked environment.
+
+```sh
+clavis env freeze --reason "Release freeze" --hours 4
+clavis env freeze --start 2026-11-15T09:00:00Z --hours 8 --reason "Black Friday"
+```
+
+### `clavis env freezes`
+
+List upcoming and active freeze windows.
+
+### `clavis env unfreeze FREEZE_ID`
+
+Delete a freeze window. Break-glass access also lifts the active freeze.
+
+## Rotation
+
+Two-phase rotation creates the new credential, writes and verifies the Clavis
+secret, then revokes the old credential. Failures roll back where the provider
+supports it, and every phase is recorded.
+
+### `clavis rotation create KEY`
+
+```sh
+clavis rotation create DATABASE_PASSWORD --provider postgres \
+  --pg-host db.internal --pg-database app --pg-username admin \
+  --pg-password "$PGPASSWORD" --pg-role app_user --interval 24h
+```
+
+Providers: `postgres` (role password), `aws` (IAM access key; the secret stores
+JSON with `access_key_id` and `secret_access_key`), and `webhook`
+(`create`/`rollback`/`revoke` actions with optional HMAC).
+
+### `clavis rotation status`
+
+Show managed policies, unmanaged secrets, and secrets older than the stale
+threshold. The server emails owner groups weekly about unmanaged secrets that
+have not changed for 90 days.
+
+```sh
+clavis rotation status
+clavis rotation status --stale-days 60
+```
+
+### `clavis rotation ls`
+
+List policies, interval, next run, and last status.
+
+### `clavis rotation run POLICY_ID`
+
+Rotate immediately.
+
+### `clavis rotation enable|disable POLICY_ID`
+
+Toggle the schedule.
+
+### `clavis rotation runs POLICY_ID`
+
+Show rotation phase history and errors.
+
+### `clavis rotation rm POLICY_ID`
+
+Delete a policy.
+
+The **Rotation** page shows schedules, next runs, status, errors, run history,
+and one-click manual rotation.
+
+## AI agents
+
+Agent identity tokens use the `clv_at_` prefix. They receive only
+`secrets:read-names` and `secrets:use`, expire after one day by default (maximum
+seven days), and are denied staging and production. They never receive values
+directly: values are returned only for commands on the server-side allowlist.
+
+### `clavis agents ls`
+
+List agent identities and whether their allowlist is deny-all.
+
+```sh
+clavis agents ls
+```
+
+### `clavis agents allow IDENTITY COMMAND...`
+
+Approve command patterns. Patterns support `*` and `?`; a bare `*` is rejected.
+
+```sh
+clavis agents allow coding-agent "npm test"
+clavis agents allow coding-agent "go test ./..." "pnpm dev"
+```
+
+### `clavis agents revoke IDENTITY [COMMAND...]`
+
+Remove patterns, or use `--clear` to return to deny-all.
+
+```sh
+clavis agents revoke coding-agent "pnpm dev"
+clavis agents revoke coding-agent --clear
+```
+
+Agents cannot change their own allowlist. Every allowed run and every denial is
+audited, and the Identities page shows recent agent activity.
+
+### `clavis mcp`
+
+Run a Model Context Protocol server over stdio. Configure it in Claude Code,
+Cursor, Codex, Windsurf, or any MCP client with an agent token.
+
+```sh
+CLAVIS_TOKEN=clv_at_… clavis mcp
+```
+
+Tools: `list_secrets`, `check_env`, `run_with_secrets`, `request_secret`.
+`run_with_secrets` checks the command against the allowlist before decrypting
+values and masks command output. Masking reduces accidental leaks but is not a
+security boundary: an allowed command can still exfiltrate the secrets it
+receives.
 
 ---
 
@@ -453,6 +978,19 @@ Show recent run history, status, key count, and errors.
 
 ## Audit
 
+### `clavis audit ls`
+
+List recent audit events for the organization.
+
+```sh
+clavis audit ls
+clavis audit ls --limit 200 --after 1234
+clavis audit ls --json
+```
+
+Events never contain secret values. Agent command runs, denials, promotions,
+allowlist changes, and expiry reminders are recorded here.
+
 ### `clavis admin audit verify`
 
 Recompute the audit hash chain and verify signed checkpoints.
@@ -469,6 +1007,45 @@ clavis admin audit checkpoint
 ---
 
 ## Administration
+
+### `clavis admin shamir split`
+
+Split the root key into threshold shares and optionally remove the root key so
+the server cannot start until unsealed.
+
+```sh
+clavis admin shamir split --shares 5 --threshold 3 --out ./shares --seal --yes
+```
+
+### `clavis admin unseal`
+
+Reconstruct and verify the root key from shares, then remove the sealed marker.
+
+```sh
+clavis admin unseal --share share-01.key --share share-03.key --share share-05.key
+```
+
+Shamir unseal requires `keys.provider=file`. Shares are equivalent to the root
+key; store them offline and separately.
+
+### `clavis admin backup`
+
+Create an AES-256-GCM encrypted, consistent database snapshot. SQLite uses
+`VACUUM INTO`; Postgres uses `pg_dump`. The backup includes wrapped organization
+keys, so keep the root key separately and protected.
+
+```sh
+clavis admin backup --out clavis-backup.enc
+```
+
+### `clavis admin restore`
+
+Restore an encrypted snapshot while the server is stopped. The previous SQLite
+database is moved aside with a timestamped suffix.
+
+```sh
+clavis admin restore clavis-backup.enc --yes
+```
 
 ### `clavis admin rotate-root-key`
 

@@ -1,0 +1,14 @@
+{
+  "name": "@clavis/docs-site",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/sync-docs.mjs && vitepress dev",
+    "build": "node scripts/sync-docs.mjs && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

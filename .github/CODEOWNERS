@@ -1,0 +1,10 @@
+# Default owners
+* @dumhouse
+
+# Security-sensitive areas
+/internal/crypto/ @dumhouse
+/internal/authn/ @dumhouse
+/internal/authz/ @dumhouse
+/internal/audit/ @dumhouse
+/internal/server/ @dumhouse
+/security/ @dumhouse
