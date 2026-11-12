@@ -175,8 +175,11 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 	}
 
 	s.router.Use(middleware.RequestID)
-	// TODO: replace RealIP with a trusted-proxy-aware client IP resolver.
-	s.router.Use(middleware.RealIP) //nolint:staticcheck // SA1019: kept until trusted-proxy config exists; see TODO above
+	clientIPs, err := newClientIPResolver(cfg.Server.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
+	s.router.Use(clientIPs.middleware)
 	s.router.Use(middleware.GetHead)
 	s.router.Use(withRequestInfo)
 	s.router.Use(s.observe)

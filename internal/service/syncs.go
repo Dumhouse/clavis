@@ -35,33 +35,36 @@ import (
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
 type syncConfig struct {
-	Endpoint          string `json:"endpoint,omitempty"`
-	Secret            []byte `json:"secret,omitempty"`
-	BaseURL           string `json:"base_url,omitempty"`
-	Project           string `json:"project,omitempty"`
-	Token             []byte `json:"token,omitempty"`
-	Protected         bool   `json:"protected,omitempty"`
-	Masked            bool   `json:"masked,omitempty"`
-	GitHubRepo        string `json:"github_repo,omitempty"`
-	GitHubEnv         string `json:"github_environment,omitempty"`
-	GitHubScope       string `json:"github_scope,omitempty"`
-	VercelProject     string `json:"vercel_project,omitempty"`
-	VercelTeamID      string `json:"vercel_team_id,omitempty"`
-	AWSRegion         string `json:"aws_region,omitempty"`
-	AWSAccessKey      string `json:"aws_access_key,omitempty"`
-	AWSSecret         []byte `json:"aws_secret,omitempty"`
-	AWSService        string `json:"aws_service,omitempty"`
-	AWSPrefix         string `json:"aws_prefix,omitempty"`
-	AWSSessionToken   string `json:"aws_session_token,omitempty"`
-	GCPProject        string `json:"gcp_project,omitempty"`
-	GCPServiceAccount []byte `json:"gcp_service_account,omitempty"`
-	GCPPrefix         string `json:"gcp_prefix,omitempty"`
-	NetlifyAccount    string `json:"netlify_account,omitempty"`
-	NetlifySite       string `json:"netlify_site,omitempty"`
-	CFAccount         string `json:"cf_account,omitempty"`
-	CFProject         string `json:"cf_project,omitempty"`
-	CFScript          string `json:"cf_script,omitempty"`
-	CFMode            string `json:"cf_mode,omitempty"`
+	Endpoint      string `json:"endpoint,omitempty"`
+	Secret        []byte `json:"secret,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	Project       string `json:"project,omitempty"`
+	Token         []byte `json:"token,omitempty"`
+	Protected     bool   `json:"protected,omitempty"`
+	Masked        bool   `json:"masked,omitempty"`
+	GitHubRepo    string `json:"github_repo,omitempty"`
+	GitHubEnv     string `json:"github_environment,omitempty"`
+	GitHubScope   string `json:"github_scope,omitempty"`
+	VercelProject string `json:"vercel_project,omitempty"`
+	VercelTeamID  string `json:"vercel_team_id,omitempty"`
+	AWSRegion     string `json:"aws_region,omitempty"`
+	AWSAccessKey  string `json:"aws_access_key,omitempty"`
+	AWSSecret     []byte `json:"aws_secret,omitempty"`
+	AWSService    string `json:"aws_service,omitempty"`
+	AWSPrefix     string `json:"aws_prefix,omitempty"`
+	// AWSSessionToken is the legacy plaintext field, read only for sync
+	// configs saved before the token was encrypted.
+	AWSSessionToken    string `json:"aws_session_token,omitempty"`
+	AWSSessionTokenEnc []byte `json:"aws_session_token_enc,omitempty"`
+	GCPProject         string `json:"gcp_project,omitempty"`
+	GCPServiceAccount  []byte `json:"gcp_service_account,omitempty"`
+	GCPPrefix          string `json:"gcp_prefix,omitempty"`
+	NetlifyAccount     string `json:"netlify_account,omitempty"`
+	NetlifySite        string `json:"netlify_site,omitempty"`
+	CFAccount          string `json:"cf_account,omitempty"`
+	CFProject          string `json:"cf_project,omitempty"`
+	CFScript           string `json:"cf_script,omitempty"`
+	CFMode             string `json:"cf_mode,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -230,7 +233,11 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, err
 		}
 		config.AWSSecret = ciphertext
-		config.AWSSessionToken = strings.TrimSpace(in.AWSSessionToken)
+		if token := strings.TrimSpace(in.AWSSessionToken); token != "" {
+			if config.AWSSessionTokenEnc, err = s.encryptOrgSecret(org, id, "aws_session_token", token); err != nil {
+				return nil, err
+			}
+		}
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	case "vercel":
 		config.VercelProject = strings.TrimSpace(in.VercelProject)
@@ -306,7 +313,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		}
 		config.Token = ciphertext
 	}
-	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token and AWSSecret hold org-key ciphertext
+	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token, AWSSecret and AWSSessionTokenEnc hold org-key ciphertext
 	if err != nil {
 		return nil, err
 	}
@@ -1021,6 +1028,12 @@ func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync,
 	secretKey, err := s.decryptOrgSecret(org, sync.ID, "aws_secret", config.AWSSecret)
 	if err != nil {
 		return err
+	}
+	// config is a copy: swap in the decrypted token for signing.
+	if len(config.AWSSessionTokenEnc) > 0 {
+		if config.AWSSessionToken, err = s.decryptOrgSecret(org, sync.ID, "aws_session_token", config.AWSSessionTokenEnc); err != nil {
+			return err
+		}
 	}
 	client := s.WebhookClient
 	if client == nil {

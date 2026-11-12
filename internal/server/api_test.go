@@ -1778,6 +1778,7 @@ func TestAWSSync(t *testing.T) {
 		name   string
 		value  string
 		kind   string
+		token  string
 	}
 	calls := make(chan putParameter, 4)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1791,6 +1792,7 @@ func TestAWSSync(t *testing.T) {
 		calls <- putParameter{
 			target: r.Header.Get("X-Amz-Target"), auth: r.Header.Get("Authorization"),
 			name: payload.Name, value: payload.Value, kind: payload.Type,
+			token: r.Header.Get("X-Amz-Security-Token"),
 		}
 		_, _ = w.Write([]byte(`{}`))
 	}))
@@ -1801,7 +1803,7 @@ func TestAWSSync(t *testing.T) {
 	sync := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
 		"environment": "dev", "provider": "aws", "base_url": srv.URL,
 		"aws_region": "eu-central-1", "aws_access_key": "AKID", "aws_secret_key": "SECRET",
-		"aws_service": "ssm",
+		"aws_service": "ssm", "aws_session_token": "SESSION-TOKEN",
 	})
 	if sync.Code != http.StatusCreated {
 		t.Fatalf("create aws sync = %d body=%s", sync.Code, sync.Body)
@@ -1829,6 +1831,9 @@ func TestAWSSync(t *testing.T) {
 	if secret.target != "AmazonSSM.PutParameter" || secret.value != "secret-value" || secret.kind != "SecureString" ||
 		!strings.HasPrefix(secret.auth, "AWS4-HMAC-SHA256 Credential=AKID/") {
 		t.Fatalf("secret call = %+v", secret)
+	}
+	if secret.token != "SESSION-TOKEN" {
+		t.Fatalf("session token header = %q, want decrypted token", secret.token)
 	}
 	variable := got["clavis/web-app/dev/AWS_VAR"]
 	if variable.value != "plain-value" || variable.kind != "String" {
