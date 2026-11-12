@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" role="img" aria-label="Clavis">
+  <defs>
+    <linearGradient id="g" x1="10" y1="10" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="96" rx="20" fill="#0b0f0d"/>
+  <rect x="10" y="16" width="64" height="64" rx="16" fill="url(#g)"/>
+  <path d="M32 30a11 11 0 1 0 0 22h6v9h9v-9h6v-9H40a2.5 2.5 0 1 1 0-5h11v-8H32Z" fill="#06241c"/>
+  <text x="94" y="64" fill="#fafafa" font-family="Manrope, Geist, system-ui, sans-serif" font-size="44" font-weight="700" letter-spacing="-1.5">Clavis</text>
+</svg>

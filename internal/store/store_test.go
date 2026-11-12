@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ import (
 )
 
 func TestMigrateCreatesSchema(t *testing.T) {
+	if os.Getenv("CLAVIS_TEST_POSTGRES") != "" {
+		t.Skip("SQLite schema introspection")
+	}
 	s := storetest.Open(t)
 	want := []string{
 		"users", "sessions", "orgs", "memberships", "roles", "role_bindings",
@@ -53,6 +57,34 @@ func TestOpenMissingDirectory(t *testing.T) {
 	// SQLite cannot create intermediate directories; Open must fail clearly.
 	if _, err := store.Open(ctx, path); err == nil {
 		t.Fatal("open in missing directory succeeded")
+	}
+}
+
+func TestOpenCreatesOwnerOnlyFiles(t *testing.T) {
+	if os.Getenv("CLAVIS_TEST_POSTGRES") != "" {
+		t.Skip("SQLite file permissions")
+	}
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "clavis.db")
+	st, err := store.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = st.Close() }()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		info, err := os.Stat(p)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode := info.Mode().Perm(); mode&0o077 != 0 {
+			t.Fatalf("%s mode = %o, want owner-only", filepath.Base(p), mode)
+		}
 	}
 }
 

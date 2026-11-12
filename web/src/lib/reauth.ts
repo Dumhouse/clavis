@@ -1,4 +1,5 @@
 import { api } from '@/api/client'
+import { promptDialog } from '@/components/ui/dialogs'
 import { apiErrorMessage } from '@/lib/api-error'
 
 type Cached = { token: string; expiresAt: number }
@@ -31,7 +32,13 @@ export async function reauth(password: string): Promise<string> {
 export async function ensureReauth(): Promise<string> {
   const current = usable()
   if (current) return current
-  const password = window.prompt('Confirm your password to continue')
+  const password = await promptDialog({
+    title: 'Confirm it’s you',
+    body: 'This action is sensitive. Enter your password to continue; it is valid for a few minutes.',
+    label: 'Password',
+    type: 'password',
+    confirmLabel: 'Confirm',
+  })
   if (!password) throw new Error('Password confirmation is required.')
   return reauth(password)
 }

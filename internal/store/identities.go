@@ -18,6 +18,7 @@ type Identity struct {
 	TokenTTLSeconds int
 	AllowedCommands string
 	OIDCTrust       string
+	AWSTrust        string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -55,11 +56,14 @@ func (s *Store) CreateIdentity(ctx context.Context, identity *Identity) error {
 	if identity.OIDCTrust == "" {
 		identity.OIDCTrust = "{}"
 	}
+	if identity.AWSTrust == "" {
+		identity.AWSTrust = "{}"
+	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO identities
-		(id, org_id, name, type, auth_methods, token_ttl_seconds, allowed_commands, oidc_trust, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		(id, org_id, name, type, auth_methods, token_ttl_seconds, allowed_commands, oidc_trust, aws_trust, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		identity.ID, identity.OrgID, identity.Name, identity.Type, identity.AuthMethods,
-		identity.TokenTTLSeconds, identity.AllowedCommands, identity.OIDCTrust,
+		identity.TokenTTLSeconds, identity.AllowedCommands, identity.OIDCTrust, identity.AWSTrust,
 		formatTime(identity.CreatedAt), formatTime(identity.UpdatedAt))
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -70,8 +74,18 @@ func (s *Store) CreateIdentity(ctx context.Context, identity *Identity) error {
 	return nil
 }
 
+// UpdateIdentityAllowedCommands replaces an identity's command allowlist.
+func (s *Store) UpdateIdentityAllowedCommands(ctx context.Context, orgID, identityID, allowed string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE identities SET allowed_commands = ?, updated_at = ?
+		WHERE org_id = ? AND id = ?`, allowed, formatTime(time.Now().UTC()), orgID, identityID)
+	if err != nil {
+		return fmt.Errorf("store: update identity commands: %w", err)
+	}
+	return expectOne(res, "update identity commands")
+}
+
 const identityColumns = `id, org_id, name, type, auth_methods, token_ttl_seconds,
-	allowed_commands, oidc_trust, created_at, updated_at`
+	allowed_commands, oidc_trust, aws_trust, created_at, updated_at`
 
 func scanIdentity(row rowScanner) (*Identity, error) {
 	var (
@@ -80,7 +94,7 @@ func scanIdentity(row rowScanner) (*Identity, error) {
 	)
 	err := row.Scan(&identity.ID, &identity.OrgID, &identity.Name, &identity.Type,
 		&identity.AuthMethods, &identity.TokenTTLSeconds, &identity.AllowedCommands,
-		&identity.OIDCTrust, &createdAt, &updatedAt)
+		&identity.OIDCTrust, &identity.AWSTrust, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -227,6 +241,18 @@ func (s *Store) DeleteTokensForIdentity(ctx context.Context, identityID string) 
 		return 0, fmt.Errorf("store: delete tokens: %w", err)
 	}
 	return res.RowsAffected()
+}
+
+// DeleteExpiredAgentSessions removes an identity's expired delegated agent
+// session tokens. Static tokens are kept because they carry the agent's scope.
+func (s *Store) DeleteExpiredAgentSessions(ctx context.Context, identityID string, now time.Time) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM access_tokens
+		WHERE identity_id = ? AND scopes LIKE '%"delegated_by":%' AND expires_at IS NOT NULL AND expires_at <= ?`,
+		identityID, formatTime(now))
+	if err != nil {
+		return fmt.Errorf("store: delete expired agent sessions: %w", err)
+	}
+	return nil
 }
 
 // TouchAccessToken records token use.

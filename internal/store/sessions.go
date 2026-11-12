@@ -50,13 +50,13 @@ func (s *Store) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (*S
 		passwordHash                       sql.NullString
 	)
 	err := s.db.QueryRowContext(ctx, `SELECT
-			s.id, s.user_id, s.token_hash, COALESCE(s.csrf_hash, x''), s.ip, s.user_agent,
+			s.id, s.user_id, s.token_hash, COALESCE(s.csrf_hash, ?), s.ip, s.user_agent,
 			s.mfa_verified, s.created_at, s.last_seen_at, s.expires_at,
 			u.id, u.email, u.name, u.avatar_url, u.password_hash, u.mfa_enabled,
 			u.mfa_secret_ciphertext, u.email_verified, u.preferences, u.created_at, u.updated_at
 		FROM sessions s
 		JOIN users u ON u.id = s.user_id
-		WHERE s.token_hash = ?`, tokenHash).Scan(
+		WHERE s.token_hash = ?`, []byte{}, tokenHash).Scan(
 		&session.ID, &session.UserID, &session.TokenHash, &session.CSRFHash, &session.IP, &session.UserAgent,
 		&mfaVerified, &createdAt, &lastSeenAt, &expiresAt,
 		&user.ID, &user.Email, &user.Name, &user.AvatarURL, &passwordHash, &userMFA,
@@ -160,4 +160,32 @@ func (s *Store) DeleteExpiredSessions(ctx context.Context, now time.Time) (int64
 		return 0, fmt.Errorf("store: delete expired sessions: %w", err)
 	}
 	return res.RowsAffected()
+}
+
+// CredentialActive reports whether a user's session ("session") or personal
+// access token ("pat") still exists and has not expired. Delegated agent
+// sessions use it so that logging out or revoking a token ends them at once.
+func (s *Store) CredentialActive(ctx context.Context, kind, id, userID string, now time.Time) (bool, error) {
+	var query string
+	switch kind {
+	case "session":
+		query = `SELECT expires_at FROM sessions WHERE id = ? AND user_id = ?`
+	case "pat":
+		query = `SELECT expires_at FROM access_tokens WHERE id = ? AND user_id = ?`
+	default:
+		return false, nil
+	}
+	var expiresAt sql.NullString
+	err := s.db.QueryRowContext(ctx, query, id, userID).Scan(&expiresAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("store: check credential: %w", err)
+	}
+	expires, err := parseNullableTime(expiresAt)
+	if err != nil {
+		return false, err
+	}
+	return expires == nil || now.Before(*expires), nil
 }

@@ -19,6 +19,7 @@ type resolvedContext struct {
 	Path       string
 	Token      string
 	ConfigPath string
+	Cache      bool
 }
 
 const defaultServer = "http://localhost:8080"
@@ -35,6 +36,7 @@ func (o *Options) resolveContext(requireScope bool) (*resolvedContext, error) {
 		Env:        firstNonEmpty(o.Env, os.Getenv("CLAVIS_ENV"), cfg.Env, "dev"),
 		Path:       firstNonEmpty(o.Path, cfg.Path, "/"),
 		ConfigPath: path,
+		Cache:      cfg.Cache,
 	}
 	r.Server = strings.TrimRight(r.Server, "/")
 

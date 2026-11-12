@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Clavis open-source secrets management">
+  <defs>
+    <linearGradient id="g" x1="80" y1="60" x2="260" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b0f0d"/><stop offset="1" stop-color="#101b17"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="80" y="90" width="128" height="128" rx="32" fill="url(#g)"/>
+  <path d="M124 118a22 22 0 1 0 0 44h12v18h18v-18h12v-18h-24a5 5 0 1 1 0-10h24v-16h-42Z" fill="#06241c"/>
+  <text x="80" y="320" fill="#fafafa" font-family="Manrope, Geist, system-ui, sans-serif" font-size="96" font-weight="700" letter-spacing="-3">Clavis</text>
+  <text x="84" y="390" fill="#8fdcbb" font-family="Geist, system-ui, sans-serif" font-size="34">Open-source secrets management</text>
+  <text x="84" y="436" fill="#a1a1aa" font-family="Geist, system-ui, sans-serif" font-size="26">for humans, machines, and AI agents</text>
+  <rect x="80" y="500" width="280" height="56" rx="14" fill="#10b981" opacity="0.14" stroke="#10b981" stroke-opacity="0.4"/>
+  <text x="104" y="536" fill="#6ee7b7" font-family="Geist, system-ui, sans-serif" font-size="22">github.com/dumhouse/clavis</text>
+</svg>

@@ -125,7 +125,7 @@ func (s *Service) RestoreSnapshot(ctx context.Context, actor authz.Actor, orgSlu
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 		return 0, err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 		return 0, err
 	}
 	snapshot, err := s.Store.GetSnapshot(ctx, env.ID, snapshotID)

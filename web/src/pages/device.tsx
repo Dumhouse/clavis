@@ -5,6 +5,7 @@ import { api } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useAuth } from '@/lib/auth'
+import { Input } from '@/components/ui/field'
 
 export function DevicePage() {
   const { user } = useAuth()
@@ -44,10 +45,10 @@ export function DevicePage() {
               <X className="size-5 text-danger" />
             )}
           </div>
-          <h1 className="mt-3 font-head text-[20px] font-semibold">
+          <h1 className="mt-3 font-head text-xl font-semibold">
             {result === 'approved' ? 'CLI approved' : 'Request denied'}
           </h1>
-          <p className="mt-1 text-[12.5px] text-muted">
+          <p className="mt-1 text-sm text-muted">
             {result === 'approved'
               ? 'You can return to your terminal. The CLI finishes signing in automatically.'
               : 'The CLI was not granted access. You can close this tab.'}
@@ -65,23 +66,21 @@ export function DevicePage() {
             <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
           </div>
           <div>
-            <h1 className="font-head text-[18px] font-semibold tracking-tight">
-              Approve CLI login
-            </h1>
-            <p className="text-[11.5px] text-dim">Signed in as {user?.email}</p>
+            <h1 className="font-head text-lg font-semibold tracking-tight">Approve CLI login</h1>
+            <p className="text-xs text-dim">Signed in as {user?.email}</p>
           </div>
         </div>
 
         <form onSubmit={submit} className="mt-5 space-y-3">
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">
+            <span className="mb-1 block text-xs font-medium text-muted">
               Code from the terminal
             </span>
-            <input
+            <Input
               autoFocus
               required
               maxLength={20}
-              className="h-11 w-full rounded-app-sm border border-border bg-bg px-3 text-center font-mono text-[18px] tracking-[0.18em] text-text focus:border-accent-line focus:outline-none"
+              className="h-11 px-3 text-center font-mono text-lg tracking-[0.18em]"
               placeholder="ABCD-EFGH"
               value={code}
               onChange={(event) => {
@@ -90,9 +89,7 @@ export function DevicePage() {
             />
           </label>
           {error && (
-            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
-              {error}
-            </p>
+            <p className="rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
           )}
           <div className="flex gap-2">
             <Button type="submit" variant="primary" size="lg" className="flex-1" disabled={busy}>
@@ -113,7 +110,7 @@ export function DevicePage() {
           </div>
         </form>
 
-        <div className="mt-4 flex items-start gap-2 rounded-app-sm bg-amber-bg px-2.5 py-2 text-[11px] text-amber-fg">
+        <div className="mt-4 flex items-start gap-2 rounded-app-sm bg-amber-bg px-2.5 py-2 text-xs text-amber-fg">
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
           <span>
             Only approve a code you just started with{' '}

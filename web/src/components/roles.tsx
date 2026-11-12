@@ -7,6 +7,8 @@ import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { confirmAction } from '@/components/ui/dialogs'
+import { Input } from '@/components/ui/field'
 
 type Role = components['schemas']['RoleBody']
 
@@ -75,7 +77,7 @@ export function Roles() {
   const remove = useMutation({
     mutationFn: async (role: Role) => {
       if (!org) throw new Error('No organization.')
-      if (!window.confirm(`Delete the role “${role.name}”?`)) return
+      if (!(await confirmAction(`Delete the role “${role.name}”?`))) return
       const result = await api.DELETE('/api/v1/orgs/{org}/roles/{id}', {
         params: { path: { org: org.slug, id: role.id } },
       })
@@ -94,8 +96,8 @@ export function Roles() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Shield className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">Roles</h2>
-        <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+        <h2 className="text-base font-semibold">Roles</h2>
+        <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
           {roles.data?.length ?? 0}
         </span>
         <Button
@@ -111,7 +113,7 @@ export function Roles() {
         </Button>
       </div>
 
-      {error && <p className="px-4 py-3 text-[11.5px] text-danger">{error}</p>}
+      {error && <p className="px-4 py-3 text-xs text-danger">{error}</p>}
 
       {editing && (
         <RoleEditor
@@ -131,8 +133,8 @@ export function Roles() {
         {(roles.data ?? []).map((role) => (
           <div key={role.id} className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[12.5px] font-medium">{role.name}</p>
-              <span className="rounded-full bg-elev px-1.5 py-0.5 text-[10px] font-semibold text-muted">
+              <p className="text-sm font-medium">{role.name}</p>
+              <span className="rounded-full bg-elev px-1.5 py-0.5 text-2xs font-semibold text-muted">
                 {role.builtin ? 'built-in' : 'custom'}
               </span>
               {!role.builtin && (
@@ -162,7 +164,7 @@ export function Roles() {
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[11px] text-dim">
+            <p className="mt-1 text-xs text-dim">
               {(role.permissions ?? []).length === 0
                 ? 'No permissions'
                 : (role.permissions ?? [])
@@ -172,19 +174,19 @@ export function Roles() {
           </div>
         ))}
         {roles.isLoading && (
-          <p className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+          <p className="flex items-center gap-2 px-4 py-5 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading roles…
           </p>
         )}
         {!roles.isLoading && (roles.data?.length ?? 0) === 0 && (
-          <p className="px-4 py-5 text-[12px] text-muted">
+          <p className="px-4 py-5 text-sm text-muted">
             Only built-in roles exist. Create a custom role to fine-tune access.
           </p>
         )}
       </div>
 
       {builtin.length + custom.length > 0 && (
-        <p className="border-t border-border-soft px-4 py-2 text-[11px] text-dim">
+        <p className="border-t border-border-soft px-4 py-2 text-xs text-dim">
           Custom roles can never grant a permission you do not hold yourself.
         </p>
       )}
@@ -244,9 +246,7 @@ function RoleEditor({
       className="border-b border-border bg-panel p-4"
     >
       <div className="flex items-center gap-2">
-        <h3 className="text-[12.5px] font-semibold">
-          {role ? `Edit ${role.name}` : 'New custom role'}
-        </h3>
+        <h3 className="text-sm font-semibold">{role ? `Edit ${role.name}` : 'New custom role'}</h3>
         <Button
           type="button"
           variant="ghost"
@@ -259,9 +259,9 @@ function RoleEditor({
         </Button>
       </div>
       <label className="mt-3 block max-w-xs">
-        <span className="mb-1 block text-[11.5px] font-medium text-muted">Role name</span>
-        <input
-          className="h-8 w-full rounded-app-sm border border-border bg-bg px-2.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+        <span className="mb-1 block text-xs font-medium text-muted">Role name</span>
+        <Input
+          className="h-8"
           value={name}
           onChange={(event) => {
             setName(event.target.value)
@@ -273,12 +273,12 @@ function RoleEditor({
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {permissionGroups.map((group) => (
           <div key={group.label}>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-dim">
+            <p className="text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
               {group.label}
             </p>
             <div className="mt-1.5 space-y-1">
               {group.permissions.map(([value, label]) => (
-                <label key={value} className="flex items-center gap-2 text-[11.5px]">
+                <label key={value} className="flex items-center gap-2 text-xs">
                   <input
                     type="checkbox"
                     checked={permissions.includes(value)}
@@ -294,9 +294,7 @@ function RoleEditor({
         ))}
       </div>
       {error && (
-        <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-[11.5px] text-danger">
-          {error}
-        </p>
+        <p className="mt-3 rounded-app-sm bg-danger-bg px-2.5 py-2 text-xs text-danger">{error}</p>
       )}
       <div className="mt-3 flex items-center gap-2">
         <Button

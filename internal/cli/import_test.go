@@ -1,7 +1,14 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -77,4 +84,54 @@ func FuzzParseDotenv(f *testing.F) {
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		_, _ = ParseDotenv(data)
 	})
+}
+
+func TestProviderImportDryRunAndMapping(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/api/v3/secrets/raw":
+			_ = json.NewEncoder(w).Encode(map[string]any{"secrets": []map[string]string{
+				{"secretKey": "SOURCE_KEY", "secretValue": "new-value"},
+				{"secretKey": "DROP_KEY", "secretValue": "x"},
+			}})
+		case strings.HasSuffix(r.URL.Path, "/secrets:resolve"):
+			_ = json.NewEncoder(w).Encode(map[string]any{"secrets": []map[string]any{
+				{"key": "TARGET_KEY", "value": "old-value", "kind": "secret"},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("CLAVIS_TOKEN", "tok")
+
+	dir := t.TempDir()
+	mapPath := filepath.Join(dir, "map.yaml")
+	if err := os.WriteFile(mapPath, []byte("keys:\n  SOURCE_KEY: TARGET_KEY\n  DROP_KEY: \"\"\nfolders:\n  \"\": /imported\n"), 0o644); err != nil { //nolint:gosec // G306: test fixture
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	opts := &Options{
+		JSON: true, ServerURL: server.URL, Org: "acme", Project: "web-app", Env: "dev",
+		Output: NewTestOutput(&out, &errOut, true, false),
+	}
+	cmd := newImportCommand(opts)
+	cmd.SetArgs([]string{
+		"--provider", "infisical", "--base-url", server.URL, "--token", "inf-token",
+		"--remote-project", "ws", "--remote-env", "dev", "--map", mapPath, "--dry-run",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatalf("decode dry run: %v (%s)", err, out.String())
+	}
+	if len(rows) != 1 || rows[0]["key"] != "TARGET_KEY" || rows[0]["action"] != "changed" || rows[0]["folder"] != "/imported" {
+		t.Fatalf("rows = %#v", rows)
+	}
+	if strings.Contains(out.String(), "new-value") || strings.Contains(out.String(), "old-value") {
+		t.Fatalf("dry run leaked a value: %s", out.String())
+	}
 }

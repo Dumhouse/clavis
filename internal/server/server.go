@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/netip"
@@ -22,6 +23,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 
 	"github.com/dumhouse/clavis/internal/auditexport"
 	"github.com/dumhouse/clavis/internal/authn"
@@ -43,22 +45,26 @@ import (
 
 // Server is the Clavis HTTP server.
 type Server struct {
-	cfg      *config.Config
-	store    *store.Store
-	logger   *slog.Logger
-	rootKey  crypto.Key
-	keyring  *crypto.Keyring
-	auth     *authn.Service
-	svc      *service.Service
-	bus      *events.Bus
-	mailer   email.Sender
-	limiter  *ratelimit.Limiter
-	registry *authz.Registry
-	metrics  *metrics.Metrics
-	router   chi.Router
-	api      huma.API
-	http     *http.Server
-	webFS    fs.FS
+	cfg        *config.Config
+	store      *store.Store
+	logger     *slog.Logger
+	rootKey    crypto.Key
+	keyring    *crypto.Keyring
+	auth       *authn.Service
+	svc        *service.Service
+	bus        *events.Bus
+	mailer     email.Sender
+	limiter    *ratelimit.Limiter
+	registry   *authz.Registry
+	metrics    *metrics.Metrics
+	router     chi.Router
+	api        huma.API
+	http       *http.Server
+	webFS      fs.FS
+	awsSTSURL  string
+	instanceID string
+
+	setupNotice []any // first-run setup log fields, logged once the listener is bound
 }
 
 // Option customizes the server.
@@ -71,6 +77,11 @@ func WithMailer(mailer email.Sender) Option {
 
 // WithWebFS replaces the embedded SPA filesystem (used by tests and
 // alternative distributions).
+// WithAWSSTSEndpoint overrides the STS endpoint (tests and private endpoints).
+func WithAWSSTSEndpoint(endpoint string) Option {
+	return func(s *Server) { s.awsSTSURL = endpoint }
+}
+
 func WithWebFS(fsys fs.FS) Option {
 	return func(s *Server) {
 		if fsys != nil {
@@ -102,12 +113,29 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 		opt(s)
 	}
 	s.bus = events.NewBus()
+	s.instanceID = uuid.NewString()
 	s.svc = service.New(st, s.keyring, logger, s.bus)
+	if st.IsPostgres() {
+		s.bus.SetNotifier(func(orgID string, event events.Event) {
+			payload, err := json.Marshal(struct {
+				Origin string       `json:"origin"`
+				OrgID  string       `json:"org_id"`
+				Event  events.Event `json:"event"`
+			}{Origin: s.instanceID, OrgID: orgID, Event: event})
+			if err != nil {
+				return
+			}
+			if err := st.NotifyEvent(context.Background(), string(payload)); err != nil {
+				s.logger.Warn("publish event notification failed", "error", err)
+			}
+		})
+	}
 	signingKey, err := crypto.DeriveAuditSigningKey(rootKey)
 	if err != nil {
 		return nil, err
 	}
 	s.svc.SigningKey = signingKey
+	s.svc.AWSSTSEndpoint = s.awsSTSURL
 	ssoAllow := []string(nil)
 	if cfg.Server.Dev {
 		ssoAllow = []string{"127.0.0.1/32", "::1/128"}
@@ -243,7 +271,7 @@ func (s *Server) initSetupToken(ctx context.Context) error {
 	if created {
 		attrs = append(attrs, "setup_token", token)
 	}
-	s.logger.Warn("first-run setup is required", attrs...)
+	s.setupNotice = attrs
 	return nil
 }
 
@@ -391,7 +419,43 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerSecretRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerSchemaRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerPromotionRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerBranchRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerShareRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerOverlayRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerDynamicRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerRotationRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerAccessRequestRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerFreezeRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerHealthRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerOffboardingRoutes(); err != nil {
+		return err
+	}
 	if err := s.registerAuditRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerSearchRoutes(); err != nil {
 		return err
 	}
 	if err := s.registerMemberRoutes(); err != nil {
@@ -447,6 +511,12 @@ func (s *Server) registerRoutes() error {
 		return err
 	}
 	if err := s.registerSAMLRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerPreviewRoutes(); err != nil {
+		return err
+	}
+	if err := s.registerESORoutes(); err != nil {
 		return err
 	}
 	s.router.Get("/*", spaHandler(s.cfg, s.webFS).ServeHTTP)
@@ -611,12 +681,57 @@ func (s *Server) bodyLimit(next http.Handler) http.Handler {
 	})
 }
 
+// listenEvents mirrors Postgres notifications into the local SSE bus.
+func (s *Server) listenEvents(ctx context.Context) {
+	for {
+		err := s.store.ListenEvents(ctx, func(payload string) {
+			var envelope struct {
+				Origin string       `json:"origin"`
+				OrgID  string       `json:"org_id"`
+				Event  events.Event `json:"event"`
+			}
+			if json.Unmarshal([]byte(payload), &envelope) != nil || envelope.OrgID == "" {
+				return
+			}
+			if envelope.Origin == s.instanceID {
+				return
+			}
+			s.bus.PublishLocal(envelope.OrgID, envelope.Event)
+		})
+		if ctx.Err() != nil {
+			return
+		}
+		s.logger.Warn("event listener stopped; reconnecting", "error", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
+	// Bind first so a busy port fails before the setup token is printed.
+	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
+	if err != nil {
+		return fmt.Errorf("server: listen: %w", err)
+	}
+	if s.setupNotice != nil {
+		s.logger.Warn("first-run setup is required", s.setupNotice...)
+	}
+	if s.store.IsPostgres() {
+		go s.listenEvents(ctx)
+	}
+	go s.expiryLoop(ctx)
+	go s.leaseLoop(ctx)
+	go s.rotationLoop(ctx)
+	go s.rotationReminderLoop(ctx)
+	go s.backupLoop(ctx)
 	errCh := make(chan error, 1)
 	go func() {
 		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
-		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.http.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
 		}
@@ -636,6 +751,126 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("server: shutdown: %w", err)
 	}
 	return nil
+}
+
+func (s *Server) rotationReminderLoop(ctx context.Context) {
+	ticker := time.NewTicker(24 * time.Hour)
+	defer ticker.Stop()
+	for {
+		if time.Now().UTC().Weekday() == time.Monday {
+			s.sendRotationReminders(ctx)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) sendRotationReminders(ctx context.Context) {
+	if s.mailer == nil {
+		return
+	}
+	reminders := s.svc.ListManualRotationReminders(ctx, 90)
+	byEmail := map[string][]service.ManualRotationReminder{}
+	for _, reminder := range reminders {
+		for _, address := range reminder.Emails {
+			byEmail[address] = append(byEmail[address], reminder)
+		}
+	}
+	for address, items := range byEmail {
+		var text strings.Builder
+		text.WriteString("These secrets have no rotation policy and have not changed recently:\n\n")
+		for _, item := range items {
+			fmt.Fprintf(&text, "- %s in %s/%s/%s: %d days old\n",
+				item.Key, item.OrgSlug, item.ProjectSlug, item.EnvSlug, item.AgeDays)
+		}
+		text.WriteString("\nAdd a rotation policy or rotate and mark the secret safe.\n")
+		msg := email.Message{To: address, Subject: "Clavis secrets need rotation", Text: text.String()}
+		if err := s.mailer.Send(ctx, msg); err != nil {
+			s.logger.Warn("rotation reminder email failed", "to", address, "error", err)
+		}
+	}
+}
+
+func (s *Server) rotationLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		s.svc.RunDueRotations(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) leaseLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		s.svc.RevokeExpiredLeases(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) expiryLoop(ctx context.Context) {
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	for {
+		s.sendExpiryReminders(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Server) sendExpiryReminders(ctx context.Context) {
+	if s.mailer == nil {
+		return
+	}
+	now := time.Now().UTC()
+	reminders, err := s.svc.ListExpiringSecrets(ctx, now.Add(31*24*time.Hour))
+	if err != nil {
+		s.logger.Error("expiry reminder scan failed", "error", err)
+		return
+	}
+	byEmail := map[string][]service.ExpiringSecret{}
+	for _, reminder := range reminders {
+		days := int(math.Ceil(reminder.ExpiresAt.Sub(now).Hours() / 24))
+		if days != 30 && days != 7 && days != 1 {
+			continue
+		}
+		for _, address := range reminder.Emails {
+			byEmail[address] = append(byEmail[address], reminder)
+		}
+	}
+	for address, items := range byEmail {
+		var text strings.Builder
+		text.WriteString("These secrets are approaching their expiry date:\n\n")
+		for _, item := range items {
+			days := int(math.Ceil(item.ExpiresAt.Sub(now).Hours() / 24))
+			fmt.Fprintf(&text, "- %s in %s/%s expires in %d day(s) (%s)\n",
+				item.Key, item.ProjectSlug, item.EnvSlug, days, item.ExpiresAt.Format("2006-01-02"))
+		}
+		text.WriteString("\nRotate or extend them, or remove the expiry date if they are permanent.\n")
+		msg := email.Message{
+			To:      address,
+			Subject: "Clavis secrets expiring soon",
+			Text:    text.String(),
+		}
+		if err := s.mailer.Send(ctx, msg); err != nil {
+			s.logger.Warn("expiry reminder email failed", "to", address, "error", err)
+		}
+	}
 }
 
 // Close immediately closes the listener. Prefer Run's graceful shutdown.

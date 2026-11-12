@@ -10,7 +10,7 @@ LDFLAGS     := -s -w \
 	-X $(MODULE)/internal/version.Commit=$(COMMIT) \
 	-X $(MODULE)/internal/version.Date=$(BUILD_DATE)
 
-.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean tools
+.PHONY: all build web web-install dev server test test-race cover lint fmt fmt-check gen gen-api clean clean-all tools operator csi docs-site docs-dev
 
 all: build
 
@@ -33,9 +33,31 @@ dev:
 	(cd web && pnpm dev) & \
 	CLAVIS_DEV=true go run ./cmd/clavis server
 
+## doctor: check the local toolchain, ports, and instance state
+doctor:
+	@bash scripts/doctor.sh
+
 ## server: run the built binary
 server: build
 	./$(BIN) server
+
+## csi: build the Secrets Store CSI driver
+csi:
+	@mkdir -p bin
+	cd csi && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-csi .
+
+## operator: build the Kubernetes operator
+operator:
+	@mkdir -p bin
+	cd operator && CGO_ENABLED=0 go build -trimpath -o ../bin/clavis-operator .
+
+## docs-site: build the VitePress documentation site and landing page
+docs-site:
+	cd docs && pnpm install --frozen-lockfile && pnpm build
+
+## docs-dev: preview the docs site at http://localhost:5174
+docs-dev:
+	cd docs && pnpm install --frozen-lockfile && pnpm dev
 
 ## test: unit and integration tests against SQLite
 test:
@@ -70,10 +92,13 @@ gen-api:
 	@echo "generating web/src/api/schema.d.ts from a local server"
 	@set -e; \
 	DATA_DIR=$$(mktemp -d); \
-	CLAVIS_DATA_DIR="$$DATA_DIR" CLAVIS_SERVER_ADDR=127.0.0.1:18081 go run ./cmd/clavis server >/dev/null 2>&1 & \
+	go build -o "$$DATA_DIR/clavis" ./cmd/clavis; \
+	CLAVIS_DATA_DIR="$$DATA_DIR" CLAVIS_SERVER_ADDR=127.0.0.1:18081 "$$DATA_DIR/clavis" server >/dev/null 2>&1 & \
 	PID=$$!; \
 	trap 'kill $$PID 2>/dev/null || true; rm -rf "$$DATA_DIR"' EXIT; \
-	for i in $$(seq 1 100); do curl -sf http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 0.1; done; \
+	for i in $$(seq 1 100); do \
+		kill -0 $$PID 2>/dev/null || { echo "gen-api: server exited (is port 18081 in use?)"; exit 1; }; \
+		curl -sf http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 0.1; done; \
 	CLAVIS_OPENAPI_URL=http://127.0.0.1:18081/api/v1/openapi.json pnpm --dir web gen:api
 
 ## tools: install developer tooling
@@ -83,5 +108,8 @@ tools:
 	go install github.com/evilmartians/lefthook@latest
 
 clean:
-	rm -rf bin coverage.out coverage.html
+	rm -rf bin dist/dry-run csi/csi coverage.out coverage.html
 	rm -rf web/dist && mkdir -p web/dist && touch web/dist/.gitkeep
+
+clean-all: clean
+	rm -rf web/node_modules docs/node_modules

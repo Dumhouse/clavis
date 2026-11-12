@@ -44,6 +44,12 @@ var (
 	ErrBreachedPassword = errors.New("service: password appears in a public breach corpus")
 	// ErrReauth is returned when a sensitive action lacks recent confirmation.
 	ErrReauth = errors.New("service: re-authentication required")
+	// ErrAgentCommandDenied is returned when an agent asks for a command that is
+	// not on its server-side allowlist.
+	ErrAgentCommandDenied = errors.New("service: agent command denied")
+	// ErrPromotionApprovalRequired is returned when a protected target needs an
+	// approval request instead of a direct promotion.
+	ErrPromotionApprovalRequired = errors.New("service: promotion approval required")
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$`)
@@ -60,7 +66,8 @@ type Service struct {
 	// BreachCheck is optional. When set, passwords are checked with k-anonymity.
 	BreachCheck func(ctx context.Context, password string) (bool, error)
 	// SSOClient is used for OIDC discovery, token exchange, and JWKS fetches.
-	SSOClient *http.Client
+	SSOClient      *http.Client
+	AWSSTSEndpoint string
 	// AuditSink asynchronously delivers audit events to external systems.
 	AuditSink     AuditSink
 	WebhookClient *http.Client
@@ -851,6 +858,10 @@ type OrgSettings struct {
 	SSOIdPMetadata       string                `json:"sso_idp_metadata,omitempty"`
 	SSOSPCertificate     string                `json:"sso_sp_certificate,omitempty"`
 	SSOSPPrivateKey      []byte                `json:"sso_sp_private_key,omitempty"`
+	GitHubWebhookSecret  []byte                `json:"github_webhook_secret,omitempty"`
+	PreviewEnabled       bool                  `json:"preview_enabled,omitempty"`
+	PreviewRetentionDays int                   `json:"preview_retention_days,omitempty"`
+	DuplicateDetection   bool                  `json:"duplicate_detection,omitempty"`
 }
 
 // EnvironmentTemplate seeds new projects.
@@ -880,6 +891,10 @@ type OrgSettingsPatch struct {
 	SSOAllowedDomains    *[]string
 	SSORole              *string
 	SSOIdPMetadata       *string
+	GitHubWebhookSecret  *string
+	PreviewEnabled       *bool
+	PreviewRetentionDays *int
+	DuplicateDetection   *bool
 }
 
 // ParseOrgSettings decodes an org settings document, tolerating unknown fields.
@@ -1016,6 +1031,36 @@ func (s *Service) UpdateOrgSettings(ctx context.Context, actor authz.Actor, orgS
 	if patch.SSOIdPMetadata != nil {
 		settings.SSOIdPMetadata = strings.TrimSpace(*patch.SSOIdPMetadata)
 	}
+	if patch.GitHubWebhookSecret != nil {
+		if *patch.GitHubWebhookSecret == "" {
+			settings.GitHubWebhookSecret = nil
+		} else {
+			ciphertext, err := s.encryptOrgSecret(org, "github-preview", "webhook_secret", *patch.GitHubWebhookSecret)
+			if err != nil {
+				return nil, settings, err
+			}
+			settings.GitHubWebhookSecret = ciphertext
+		}
+	}
+	if patch.PreviewEnabled != nil {
+		settings.PreviewEnabled = *patch.PreviewEnabled
+	}
+	if patch.DuplicateDetection != nil {
+		settings.DuplicateDetection = *patch.DuplicateDetection
+	}
+	if patch.PreviewRetentionDays != nil {
+		days := *patch.PreviewRetentionDays
+		if days < 1 || days > 90 {
+			return nil, settings, fmt.Errorf("%w: preview retention must be between 1 and 90 days", ErrValidation)
+		}
+		settings.PreviewRetentionDays = days
+	}
+	if settings.PreviewEnabled && len(settings.GitHubWebhookSecret) == 0 {
+		return nil, settings, fmt.Errorf("%w: preview environments require a GitHub webhook secret", ErrValidation)
+	}
+	if settings.PreviewEnabled && settings.PreviewRetentionDays == 0 {
+		settings.PreviewRetentionDays = 7
+	}
 	if patch.SSORole != nil {
 		role := strings.TrimSpace(*patch.SSORole)
 		if role == "" {
@@ -1111,6 +1156,9 @@ func (s *Service) UpdateOrgSettings(ctx context.Context, actor authz.Actor, orgS
 	raw["sso_idp_metadata"] = settings.SSOIdPMetadata
 	raw["sso_sp_certificate"] = settings.SSOSPCertificate
 	raw["sso_sp_private_key"] = settings.SSOSPPrivateKey
+	raw["github_webhook_secret"] = settings.GitHubWebhookSecret
+	raw["preview_enabled"] = settings.PreviewEnabled
+	raw["preview_retention_days"] = settings.PreviewRetentionDays
 	encoded, err := json.Marshal(raw)
 	if err != nil {
 		return nil, settings, err

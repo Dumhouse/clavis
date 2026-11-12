@@ -14,7 +14,9 @@
     "format:check": "prettier --check .",
     "gen:api": "openapi-typescript ${CLAVIS_OPENAPI_URL:-http://127.0.0.1:18081/api/v1/openapi.json} -o src/api/schema.d.ts",
     "check:contrast": "node scripts/check-contrast.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "check:hints": "node scripts/check-hints.mjs",
+    "shots": "make -C .. build && node scripts/capture-screenshots.mjs",
     "e2e": "cd .. && make build && cd web && playwright test",
     "e2e:local": "PLAYWRIGHT_CHANNEL=chrome pnpm e2e"
   },
@@ -33,6 +35,7 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/vite": "^4.3.5",

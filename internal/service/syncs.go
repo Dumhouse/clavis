@@ -34,24 +34,31 @@ import (
 // ErrSyncUnconfirmed requires an explicit confirmation before the first push.
 var ErrSyncUnconfirmed = errors.New("service: sync requires first-run confirmation")
 
+// ErrEnvironmentFrozen blocks changes during a freeze window.
+var ErrEnvironmentFrozen = errors.New("service: environment is frozen")
+
 type syncConfig struct {
-	Endpoint      string `json:"endpoint,omitempty"`
-	Secret        []byte `json:"secret,omitempty"`
-	BaseURL       string `json:"base_url,omitempty"`
-	Project       string `json:"project,omitempty"`
-	Token         []byte `json:"token,omitempty"`
-	Protected     bool   `json:"protected,omitempty"`
-	Masked        bool   `json:"masked,omitempty"`
-	GitHubRepo    string `json:"github_repo,omitempty"`
-	GitHubEnv     string `json:"github_environment,omitempty"`
-	GitHubScope   string `json:"github_scope,omitempty"`
-	VercelProject string `json:"vercel_project,omitempty"`
-	VercelTeamID  string `json:"vercel_team_id,omitempty"`
-	AWSRegion     string `json:"aws_region,omitempty"`
-	AWSAccessKey  string `json:"aws_access_key,omitempty"`
-	AWSSecret     []byte `json:"aws_secret,omitempty"`
-	AWSService    string `json:"aws_service,omitempty"`
-	AWSPrefix     string `json:"aws_prefix,omitempty"`
+	Endpoint           string `json:"endpoint,omitempty"`
+	Secret             []byte `json:"secret,omitempty"`
+	BaseURL            string `json:"base_url,omitempty"`
+	Project            string `json:"project,omitempty"`
+	Token              []byte `json:"token,omitempty"`
+	Protected          bool   `json:"protected,omitempty"`
+	Masked             bool   `json:"masked,omitempty"`
+	GitHubRepo         string `json:"github_repo,omitempty"`
+	GitHubEnv          string `json:"github_environment,omitempty"`
+	GitHubScope        string `json:"github_scope,omitempty"`
+	GitHubAppID        string `json:"github_app_id,omitempty"`
+	GitHubInstallation string `json:"github_installation_id,omitempty"`
+	GitHubPrivateKey   []byte `json:"github_private_key,omitempty"`
+	DeleteMissing      bool   `json:"delete_missing,omitempty"`
+	VercelProject      string `json:"vercel_project,omitempty"`
+	VercelTeamID       string `json:"vercel_team_id,omitempty"`
+	AWSRegion          string `json:"aws_region,omitempty"`
+	AWSAccessKey       string `json:"aws_access_key,omitempty"`
+	AWSSecret          []byte `json:"aws_secret,omitempty"`
+	AWSService         string `json:"aws_service,omitempty"`
+	AWSPrefix          string `json:"aws_prefix,omitempty"`
 	// AWSSessionToken is the legacy plaintext field, read only for sync
 	// configs saved before the token was encrypted.
 	AWSSessionToken    string `json:"aws_session_token,omitempty"`
@@ -65,39 +72,53 @@ type syncConfig struct {
 	CFProject          string `json:"cf_project,omitempty"`
 	CFScript           string `json:"cf_script,omitempty"`
 	CFMode             string `json:"cf_mode,omitempty"`
+	VaultMount         string `json:"vault_mount,omitempty"`
+	VaultPath          string `json:"vault_path,omitempty"`
+	VaultVersion       int    `json:"vault_version,omitempty"`
+	ForgejoRepo        string `json:"forgejo_repo,omitempty"`
+	ForgejoScope       string `json:"forgejo_scope,omitempty"`
 }
 
 // SyncInput creates a sync definition.
 type SyncInput struct {
-	EnvironmentSlug   string
-	Provider          string
-	Endpoint          string
-	Secret            string
-	BaseURL           string
-	GitLabProject     string
-	Token             string
-	Protected         bool
-	Masked            bool
-	GitHubRepo        string
-	GitHubEnvironment string
-	GitHubScope       string
-	VercelProject     string
-	VercelTeamID      string
-	AWSRegion         string
-	AWSAccessKey      string
-	AWSSecretKey      string
-	AWSSessionToken   string
-	AWSService        string
-	AWSPrefix         string
-	GCPProject        string
-	GCPServiceAccount string
-	GCPPrefix         string
-	NetlifyAccount    string
-	NetlifySite       string
-	CloudflareAccount string
-	CloudflareProject string
-	CloudflareScript  string
-	CloudflareMode    string
+	EnvironmentSlug    string
+	Provider           string
+	Endpoint           string
+	Secret             string
+	BaseURL            string
+	GitLabProject      string
+	Token              string
+	Protected          bool
+	Masked             bool
+	GitHubRepo         string
+	GitHubEnvironment  string
+	GitHubScope        string
+	GitHubAppID        string
+	GitHubInstallation string
+	GitHubPrivateKey   string
+	VercelProject      string
+	VercelTeamID       string
+	AWSRegion          string
+	AWSAccessKey       string
+	AWSSecretKey       string
+	AWSSessionToken    string
+	AWSService         string
+	AWSPrefix          string
+	GCPProject         string
+	GCPServiceAccount  string
+	GCPPrefix          string
+	NetlifyAccount     string
+	NetlifySite        string
+	CloudflareAccount  string
+	CloudflareProject  string
+	CloudflareScript   string
+	CloudflareMode     string
+	VaultMount         string
+	VaultPath          string
+	VaultVersion       int
+	ForgejoRepo        string
+	ForgejoScope       string
+	DeleteMissing      bool
 }
 
 // SyncView is a sync plus its environment slug.
@@ -139,11 +160,11 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" {
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" && provider != "forgejo" {
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	id := uuid.NewString()
-	config := syncConfig{Protected: in.Protected, Masked: in.Masked}
+	config := syncConfig{Protected: in.Protected, Masked: in.Masked, DeleteMissing: in.DeleteMissing}
 	endpoint := strings.TrimSpace(in.Endpoint)
 	switch provider {
 	case "http":
@@ -158,6 +179,15 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			}
 			config.Secret = ciphertext
 		}
+	case "forgejo":
+		if err := validateForgejoConfig(&config, in); err != nil {
+			return nil, err
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
 	case "netlify":
 		config.NetlifyAccount = strings.TrimSpace(in.NetlifyAccount)
 		config.NetlifySite = strings.TrimSpace(in.NetlifySite)
@@ -196,6 +226,28 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.cloudflare.com"
+		}
+		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+		if err != nil {
+			return nil, err
+		}
+		config.Token = ciphertext
+	case "vault":
+		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
+		config.VaultMount = strings.Trim(strings.TrimSpace(in.VaultMount), "/")
+		config.VaultPath = strings.Trim(strings.TrimSpace(in.VaultPath), "/")
+		config.VaultVersion = in.VaultVersion
+		if config.VaultVersion == 0 {
+			config.VaultVersion = 2
+		}
+		if config.VaultVersion != 1 && config.VaultVersion != 2 {
+			return nil, fmt.Errorf("%w: Vault KV version must be 1 or 2", ErrValidation)
+		}
+		if config.VaultMount == "" {
+			config.VaultMount = "secret"
+		}
+		if config.BaseURL == "" || in.Token == "" {
+			return nil, fmt.Errorf("%w: Vault address and token are required", ErrValidation)
 		}
 		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
 		if err != nil {
@@ -284,14 +336,25 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.github.com"
 		}
-		if in.Token == "" {
-			return nil, fmt.Errorf("%w: GitHub token is required", ErrValidation)
+		config.GitHubAppID = strings.TrimSpace(in.GitHubAppID)
+		config.GitHubInstallation = strings.TrimSpace(in.GitHubInstallation)
+		if in.Token == "" && (config.GitHubAppID == "" || config.GitHubInstallation == "" || strings.TrimSpace(in.GitHubPrivateKey) == "") {
+			return nil, fmt.Errorf("%w: GitHub requires a token or App ID, installation ID, and private key", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
-			return nil, err
+		if in.Token != "" {
+			ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
+			if err != nil {
+				return nil, err
+			}
+			config.Token = ciphertext
 		}
-		config.Token = ciphertext
+		if in.GitHubPrivateKey != "" {
+			ciphertext, err := s.encryptOrgSecret(org, id, "sync_app_key", in.GitHubPrivateKey)
+			if err != nil {
+				return nil, err
+			}
+			config.GitHubPrivateKey = ciphertext
+		}
 	default:
 		config.Project = strings.TrimSpace(in.GitLabProject)
 		if config.Project == "" {
@@ -441,6 +504,12 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "cloudflare" {
 		destination = "cloudflare:" + config.CFMode + " " + config.CFAccount
 	}
+	if sync.Provider == "forgejo" {
+		destination = forgejoDestination(config)
+	}
+	if sync.Provider == "vault" {
+		destination = "vault:" + config.BaseURL + "/" + config.VaultMount + "/" + config.VaultPath
+	}
 	preview := &SyncPreview{
 		SyncID: sync.ID, Destination: destination, Environment: env.Slug,
 		Keys: keys, Count: len(keys), Confirmed: sync.Confirmed,
@@ -461,6 +530,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		return &SyncRunResult{Preview: preview}, ErrSyncUnconfirmed
 	}
 
+	if freeze, freezeErr := s.Store.ActiveFreeze(ctx, env.ID, s.Now().UTC()); freezeErr == nil && freeze != nil {
+		return nil, fmt.Errorf("%w: %s until %s", ErrEnvironmentFrozen, freeze.Reason, freeze.EndsAt.Format(time.RFC3339))
+	}
 	now := s.Now().UTC()
 	run := &store.SyncRun{
 		ID: uuid.NewString(), SyncID: sync.ID, ProjectID: project.ID, Status: "running",
@@ -485,6 +557,10 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postNetlify(ctx, org, sync, config, env, values, kinds)
 	case "cloudflare":
 		err2 = s.postCloudflare(ctx, org, sync, config, env, values, kinds)
+	case "vault":
+		err2 = s.postVault(ctx, org, sync, config, values)
+	case "forgejo":
+		err2 = s.postForgejo(ctx, org, sync, config, values, kinds)
 	default:
 		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
 		if err != nil {
@@ -720,11 +796,32 @@ func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sy
 			return fmt.Errorf("gitlab: setting %s returned %d: %s", key, response.StatusCode, detail)
 		}
 	}
+	if config.DeleteMissing {
+		for remoteKey := range existing {
+			if _, ok := values[remoteKey]; ok {
+				continue
+			}
+			request, err := http.NewRequestWithContext(ctx, http.MethodDelete,
+				variablesURL+"/"+url.PathEscape(remoteKey), nil)
+			if err != nil {
+				return err
+			}
+			request.Header.Set("PRIVATE-TOKEN", token)
+			response, err := client.Do(request)
+			if err != nil {
+				return fmt.Errorf("gitlab: delete %s failed: %w", remoteKey, err)
+			}
+			_ = response.Body.Close()
+			if response.StatusCode >= 300 && response.StatusCode != http.StatusNotFound {
+				return fmt.Errorf("gitlab: delete %s returned %d", remoteKey, response.StatusCode)
+			}
+		}
+	}
 	return nil
 }
 
 func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.githubSyncToken(ctx, org, sync, config)
 	if err != nil {
 		return err
 	}
@@ -842,6 +939,44 @@ func (s *Service) postGitHub(ctx context.Context, org *store.Org, sync *store.Sy
 		}
 		if status < 200 || status >= 300 {
 			return githubStatusError("variable "+name, status, body)
+		}
+	}
+	if config.DeleteMissing {
+		for name := range existing {
+			if _, keep := values[name]; keep {
+				continue
+			}
+			status, body, err := githubRequest(ctx, client, http.MethodDelete,
+				actions+"/variables/"+url.PathEscape(name), token, nil)
+			if err != nil {
+				return fmt.Errorf("github: delete variable %s failed: %w", name, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return githubStatusError("delete variable "+name, status, body)
+			}
+		}
+		status, body, err := githubRequest(ctx, client, http.MethodGet, actions+"/secrets?per_page=100", token, nil)
+		if err == nil && status == http.StatusOK {
+			var listing struct {
+				Secrets []struct {
+					Name string `json:"name"`
+				} `json:"secrets"`
+			}
+			if json.Unmarshal(body, &listing) == nil {
+				for _, remote := range listing.Secrets {
+					if _, keep := values[remote.Name]; keep {
+						continue
+					}
+					status, body, err := githubRequest(ctx, client, http.MethodDelete,
+						actions+"/secrets/"+url.PathEscape(remote.Name), token, nil)
+					if err != nil {
+						return fmt.Errorf("github: delete secret %s failed: %w", remote.Name, err)
+					}
+					if status >= 300 && status != http.StatusNotFound {
+						return githubStatusError("delete secret "+remote.Name, status, body)
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -976,6 +1111,21 @@ func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sy
 			return vercelStatusError("set "+key, status, body)
 		}
 	}
+	if config.DeleteMissing {
+		for remoteKey, id := range existing {
+			if _, keep := values[remoteKey]; keep {
+				continue
+			}
+			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
+				base+"/v10/projects/"+project+"/env/"+url.PathEscape(id)+query, token, nil)
+			if err != nil {
+				return fmt.Errorf("vercel: delete %s failed: %w", remoteKey, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return vercelStatusError("delete "+remoteKey, status, body)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1022,6 +1172,51 @@ func vercelStatusError(operation string, status int, body []byte) error {
 	default:
 		return fmt.Errorf("vercel: %s returned %d: %s", operation, status, detail)
 	}
+}
+
+func (s *Service) postVault(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) error {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return err
+	}
+	client := s.ssoHTTPClient()
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		target := strings.Trim(config.VaultPath, "/")
+		if target != "" {
+			target += "/"
+		}
+		target += key
+		endpoint := strings.TrimRight(config.BaseURL, "/") + "/v1/" + config.VaultMount
+		if config.VaultVersion == 2 {
+			endpoint += "/data"
+		}
+		endpoint += "/" + target
+		payload, err := json.Marshal(map[string]any{"data": map[string]string{"value": values[key]}})
+		if err != nil {
+			return err
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+		if err != nil {
+			return err
+		}
+		request.Header.Set("X-Vault-Token", token)
+		request.Header.Set("Content-Type", "application/json")
+		response, err := client.Do(request)
+		if err != nil {
+			return fmt.Errorf("vault: request failed: %w", err)
+		}
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		_ = response.Body.Close()
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return fmt.Errorf("vault: %s returned %d: %s", target, response.StatusCode, strings.TrimSpace(string(body)))
+		}
+	}
+	return nil
 }
 
 func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values, kinds map[string]string) error {
@@ -1087,34 +1282,42 @@ func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync,
 }
 
 func (s *Service) awsJSONCall(ctx context.Context, client *http.Client, endpoint, target, service string, config syncConfig, secretKey string, payload []byte) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	status, body, err := awsJSONResponse(ctx, client, endpoint, target, service, config, secretKey, payload)
 	if err != nil {
 		return err
 	}
-	request.Header.Set("Content-Type", "application/x-amz-json-1.1")
-	request.Header.Set("X-Amz-Target", target)
-	signAWSJSON(request, payload, service, config, secretKey)
-	response, err := client.Do(request)
-	if err != nil {
-		return fmt.Errorf("aws: request failed: %w; check the region, endpoint, and network policy", err)
-	}
-	defer func() { _ = response.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-	if response.StatusCode >= 200 && response.StatusCode < 300 {
+	if status >= 200 && status < 300 {
 		return nil
 	}
 	detail := strings.TrimSpace(string(body))
 	if len(detail) > 300 {
 		detail = detail[:300]
 	}
-	switch response.StatusCode {
+	switch status {
 	case http.StatusForbidden, http.StatusUnauthorized:
 		return fmt.Errorf("aws: credentials rejected; check the access key, secret, and IAM permissions")
 	case http.StatusBadRequest:
 		return fmt.Errorf("aws: %s: %s", target, detail)
 	default:
-		return fmt.Errorf("aws: %s returned %d: %s", target, response.StatusCode, detail)
+		return fmt.Errorf("aws: %s returned %d: %s", target, status, detail)
 	}
+}
+
+func awsJSONResponse(ctx context.Context, client *http.Client, endpoint, target, service string, config syncConfig, secretKey string, payload []byte) (int, []byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-amz-json-1.1")
+	request.Header.Set("X-Amz-Target", target)
+	signAWSJSON(request, payload, service, config, secretKey)
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, fmt.Errorf("aws: request failed: %w; check the region, endpoint, and network policy", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	return response.StatusCode, body, nil
 }
 
 func signAWSJSON(req *http.Request, payload []byte, service string, config syncConfig, secretKey string) {
@@ -1411,6 +1614,21 @@ func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.S
 			return netlifyStatusError("set "+key, status, body)
 		}
 	}
+	if config.DeleteMissing {
+		for remoteKey := range existing {
+			if _, keep := values[remoteKey]; keep {
+				continue
+			}
+			status, body, err := githubLikeRequest(ctx, client, http.MethodDelete,
+				envURL+"/"+url.PathEscape(remoteKey)+query, token, nil)
+			if err != nil {
+				return fmt.Errorf("netlify: delete %s failed: %w", remoteKey, err)
+			}
+			if status >= 300 && status != http.StatusNotFound {
+				return netlifyStatusError("delete "+remoteKey, status, body)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1553,4 +1771,242 @@ func cloudflareStatusError(operation string, status int, body []byte) error {
 	default:
 		return fmt.Errorf("cloudflare: %s returned %d: %s", operation, status, detail)
 	}
+}
+
+// SyncDrift is the result of comparing local values to a provider.
+type SyncDrift struct {
+	Supported bool
+	Keys      []string
+	CheckedAt time.Time
+	Detail    string
+}
+
+// CheckSyncDrift compares the environment's effective values with the remote
+// provider where the provider exposes readable values.
+func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, id string) (*SyncDrift, error) {
+	org, project, err := s.projectForWrite(ctx, actor, orgSlug, projectSlug, authz.SyncsManage)
+	if err != nil {
+		return nil, err
+	}
+	sync, err := s.Store.GetSync(ctx, project.ID, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	env, err := s.Store.GetEnvironmentByID(ctx, sync.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	var config syncConfig
+	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
+		return nil, err
+	}
+	values, kinds, err := s.syncValues(ctx, org, project, env)
+	if err != nil {
+		return nil, err
+	}
+	now := s.Now().UTC()
+	result := &SyncDrift{CheckedAt: now, Keys: []string{}}
+	var keys []string
+	switch sync.Provider {
+	case "gitlab":
+		keys, err = s.driftGitLab(ctx, org, sync, config, values)
+		result.Detail = "GitLab variable values compared"
+	case "aws":
+		keys, err = s.driftAWS(ctx, org, sync, config, project, env, values)
+		result.Detail = "AWS values compared"
+	case "gcp":
+		keys, err = s.driftGCP(ctx, org, sync, config, project, env, values)
+		result.Detail = "GCP secret versions compared"
+	case "netlify":
+		keys, err = s.driftNetlify(ctx, org, sync, config, env, values)
+		result.Detail = "Netlify variables compared"
+	case "vercel":
+		keys, err = s.driftVercel(ctx, org, sync, config, values)
+		result.Detail = "Vercel variables compared"
+	case "github":
+		keys, err = s.driftGitHub(ctx, org, sync, config, values, kinds)
+		result.Detail = "GitHub variables compared; secrets checked for presence"
+	case "forgejo":
+		keys, err = s.driftForgejo(ctx, org, sync, config, values, kinds)
+		result.Detail = "Forgejo variables compared; secrets checked for presence"
+	case "cloudflare":
+		if config.CFMode == "pages" {
+			keys, err = s.driftCloudflare(ctx, org, sync, config, env, values)
+			result.Detail = "Cloudflare Pages variables compared"
+		} else {
+			result.Detail = "Cloudflare Workers secrets are write-only"
+		}
+	default:
+		result.Detail = "Drift detection is not available for this provider yet"
+	}
+	if err != nil {
+		return nil, err
+	}
+	if result.Detail != "" && !strings.Contains(result.Detail, "not available") {
+		result.Supported = true
+		result.Keys = keys
+	}
+	if result.Keys == nil {
+		result.Keys = []string{}
+	}
+	if result.Supported {
+		encoded, _ := json.Marshal(result.Keys)
+		if err := s.Store.UpdateSyncDrift(ctx, sync.ID, string(encoded), now); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+func (s *Service) driftGitLab(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) ([]string, error) {
+	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	if err != nil {
+		return nil, err
+	}
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	base := strings.TrimRight(config.BaseURL, "/")
+	endpoint := base + "/api/v4/projects/" + url.PathEscape(config.Project) + "/variables?per_page=100"
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("PRIVATE-TOKEN", token)
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("gitlab drift: request failed: %w", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("gitlab drift: list returned %d", response.StatusCode)
+	}
+	var variables []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(body, &variables); err != nil {
+		return nil, fmt.Errorf("gitlab drift: invalid response")
+	}
+	remote := make(map[string]string, len(variables))
+	for _, variable := range variables {
+		remote[variable.Key] = variable.Value
+	}
+	keys := make([]string, 0)
+	for key, value := range values {
+		remoteValue, ok := remote[key]
+		if !ok || remoteValue != value {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys, nil
+}
+
+// UpdateSyncBehavior toggles provider behavior without recreating the sync.
+func (s *Service) UpdateSyncBehavior(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, id string, deleteMissing bool, meta AuditMeta) (*SyncView, error) {
+	org, project, err := s.projectForWrite(ctx, actor, orgSlug, projectSlug, authz.SyncsManage)
+	if err != nil {
+		return nil, err
+	}
+	sync, err := s.Store.GetSync(ctx, project.ID, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	var config syncConfig
+	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
+		return nil, err
+	}
+	config.DeleteMissing = deleteMissing
+	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token, AWSSecret and AWSSessionTokenEnc hold org-key ciphertext
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Store.UpdateSyncConfig(ctx, project.ID, id, string(encoded)); err != nil {
+		return nil, err
+	}
+	sync.Config = string(encoded)
+	env, _ := s.Store.GetEnvironmentByID(ctx, sync.EnvironmentID)
+	envSlug := ""
+	if env != nil {
+		envSlug = env.Slug
+	}
+	if err := s.record(ctx, toAuditActor(actor), org.ID, "sync.behavior",
+		audit.Resource{Type: "sync", ID: sync.ID, ProjectID: project.ID, EnvID: sync.EnvironmentID},
+		audit.Details{Environment: envSlug, Reason: fmt.Sprintf("delete_missing=%t", deleteMissing)}, meta); err != nil {
+		s.Logger.Error("audit sync.behavior failed", "sync_id", sync.ID, "error", err)
+	}
+	return &SyncView{Sync: sync, Environment: envSlug}, nil
+}
+
+func (s *Service) githubSyncToken(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig) (string, error) {
+	if len(config.Token) > 0 {
+		return s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	}
+	keyPEM, err := s.decryptOrgSecret(org, sync.ID, "sync_app_key", config.GitHubPrivateKey)
+	if err != nil {
+		return "", err
+	}
+	block, _ := pem.Decode([]byte(keyPEM))
+	if block == nil {
+		return "", fmt.Errorf("github: invalid App private key")
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		if rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
+			parsed = rsaKey
+		} else {
+			return "", fmt.Errorf("github: invalid App private key")
+		}
+	}
+	key, ok := parsed.(*rsa.PrivateKey)
+	if !ok {
+		return "", fmt.Errorf("github: App private key must be RSA")
+	}
+	now := time.Now().Unix()
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	claims, _ := json.Marshal(map[string]any{"iss": config.GitHubAppID, "iat": now - 60, "exp": now + 540})
+	payload := base64.RawURLEncoding.EncodeToString(claims)
+	digest := sha256.Sum256([]byte(header + "." + payload))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+	if err != nil {
+		return "", err
+	}
+	assertion := header + "." + payload + "." + base64.RawURLEncoding.EncodeToString(signature)
+	base := strings.TrimRight(config.BaseURL, "/")
+	endpoint := base + "/app/installations/" + url.PathEscape(config.GitHubInstallation) + "/access_tokens"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Authorization", "Bearer "+assertion)
+	request.Header.Set("Accept", "application/vnd.github+json")
+	client := s.WebhookClient
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("github: App token request failed: %w", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("github: App token request returned %d; check the App ID, installation ID, and private key", response.StatusCode)
+	}
+	var result struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil || result.Token == "" {
+		return "", fmt.Errorf("github: App token response was invalid")
+	}
+	return result.Token, nil
 }

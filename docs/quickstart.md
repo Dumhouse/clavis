@@ -44,6 +44,11 @@ before it reaches SQLite. Revealing it writes an audit event.
 Secrets are versioned automatically. Updating creates a new immutable version;
 rollback creates another version rather than rewriting history.
 
+<img class="only-dark" src="./assets/screenshots/secrets-dark.jpg" alt="Secrets grid with development, staging, and production columns" />
+<img class="only-light" src="./assets/screenshots/secrets-light.jpg" alt="Secrets grid with development, staging, and production columns" />
+
+More screens in the [screenshot tour](screenshots.md).
+
 ## 4. Use the API
 
 The API is versioned under `/api/v1` and documented by the OpenAPI 3.1
@@ -72,7 +77,8 @@ curl -sS -b cookies.txt \
   "$BASE/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
 ```
 
-Machine tokens and OIDC workload identity arrive later in M1.
+Machine tokens and workload identity are available; see [ci.md](ci.md) for CI
+setup and [agents.md](agents.md) for agent identities.
 
 ## 5. Run with secrets
 
@@ -94,16 +100,15 @@ clavis run -- npm run dev
 their base64/URL-encoded forms) in stdout/stderr. Masking is a convenience, not
 a boundary: prefer short-lived dynamic credentials for agents.
 
-In CI, set `CLAVIS_TOKEN` to a CLI token instead of using the browser flow.
-For machines, create an identity under **Identities** (or via the API), scope it
-to a project/environment, and use its `clv_mt_…` token:
+That is all local setup needs: `clavis login` stores the session token in the OS
+keychain, and `clavis init` commits the project context to `.clavis.yaml`.
 
-```sh
-export CLAVIS_SERVER=https://clavis.example.com
-export CLAVIS_ORG=acme CLAVIS_PROJECT=web-app CLAVIS_ENV=staging
-export CLAVIS_TOKEN=clv_mt_…
-clavis run -- npm test
-```
+**In CI**, there is no browser to complete the login. Create a machine identity
+under **Agents & machines**, scope it to a project and environment, and set its
+`clv_mt_…` token as `CLAVIS_TOKEN` in the CI secret store. If the repository
+commits `.clavis.yaml`, that token is the only variable a job needs (plus
+`CLAVIS_SERVER` when the instance is not on localhost). See [ci.md](ci.md) for
+GitHub Actions, GitLab, explicit scope variables, and workload OIDC.
 
 ### Docker and Compose
 
@@ -133,9 +138,25 @@ As an Owner or Admin, open **Members → Invite member**, choose a role and
 expiry, and copy the single-use link. Invites can be restricted to an email
 address. The same operation is available through the API.
 
-## Configuration
+## Postgres
 
-Environment variables override `clavis.yaml`:
+```yaml
+database:
+  driver: postgres
+  dsn: postgres://clavis:secret@db:5432/clavis?sslmode=require
+```
+
+Postgres runs the same migrations, queries, sessions, audit chain, and workers as
+SQLite. Multiple replicas are supported: SSE events fan out over Postgres
+`LISTEN/NOTIFY`, and job workers claim with `SKIP LOCKED`. Split process roles
+with `clavis server --role=api` and `clavis server --role=worker`.
+
+## Server configuration
+
+These configure the server binary; environment variables override `clavis.yaml`.
+Do not confuse `CLAVIS_SERVER_ADDR` (listen address) with `CLAVIS_SERVER` (the
+CLI's target). CLI context variables are covered in [ci.md](ci.md) and
+[cli.md](cli.md).
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -143,9 +164,16 @@ Environment variables override `clavis.yaml`:
 | `CLAVIS_SERVER_BASE_URL` | derived | Public URL used in docs and cookies |
 | `CLAVIS_DATA_DIR` | `./data` | Data directory for defaults |
 | `CLAVIS_DB_PATH` | `<data>/clavis.db` | SQLite file |
+| `CLAVIS_DB_DSN` | — | Postgres DSN when `database.driver=postgres` |
 | `CLAVIS_KEY_PROVIDER` | `file` | `file` or `env` root key |
 | `CLAVIS_ROOT_KEY_FILE` | `<data>/root.key` | File provider path |
 | `CLAVIS_ROOT_KEY` | — | Base64 32-byte key for the `env` provider |
+| `CLAVIS_AWS_REGION` | — | Region for `aws-kms` |
+| `CLAVIS_AWS_KMS_KEY_ID` | — | AWS KMS key ARN/ID |
+| `CLAVIS_AWS_ACCESS_KEY` | — | AWS access key for KMS |
+| `CLAVIS_AWS_SECRET_KEY` | — | AWS secret key for KMS |
+| `CLAVIS_GCP_KMS_KEY` | — | GCP KMS crypto key resource name |
+| `CLAVIS_GCP_SERVICE_ACCOUNT_FILE` | — | Service account JSON for GCP KMS |
 | `CLAVIS_DEV` | `false` | Dev cookies at `http://localhost` and Vite proxy |
 | `CLAVIS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CLAVIS_EMAIL_ENABLED` | `false` | Send password resets and invite emails |
@@ -155,9 +183,13 @@ Environment variables override `clavis.yaml`:
 | `CLAVIS_BREACH_CHECK` | `false` | Check new passwords against the HIBP range API (k-anonymity) |
 | `CLAVIS_BREACH_CHECK_URL` | HIBP range API | Override the breach-check endpoint |
 | `CLAVIS_RATE_LIMIT_PER_MINUTE` | `600` | Per-identity API rate limit; `0` disables |
+| `CLAVIS_BACKUP_ENABLED` | `false` | Write encrypted database backups from the server |
+| `CLAVIS_BACKUP_DIR` | `<data>/backups` | Backup output directory |
+| `CLAVIS_BACKUP_INTERVAL` | `24h` | Time between scheduled backups |
+| `CLAVIS_BACKUP_KEEP` | `7` | Number of backup files to retain |
 | `CLAVIS_TRUSTED_PROXIES` | — | Comma-separated IPs/CIDRs of reverse proxies whose `X-Forwarded-For`/`X-Real-IP` are trusted. Unset: those headers are ignored and the socket peer is the client IP (rate limits, audit log). Set it when running behind a proxy. |
 
-See [deploy/clavis.example.yaml](../deploy/clavis.example.yaml).
+See [deploy/clavis.example.yaml](https://github.com/dumhouse/clavis/blob/main/deploy/clavis.example.yaml).
 
 ## Troubleshooting
 

@@ -1,0 +1,6 @@
+# Place this file in the Helm repository root and replace repositoryID after
+# registering the repository in Artifact Hub.
+repositoryID: "REPLACE_WITH_ARTIFACT_HUB_REPOSITORY_ID"
+owners:
+  - name: dumhouse
+    email: maintainers@clavis.dev

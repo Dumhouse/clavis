@@ -7,7 +7,7 @@ Apache-2.0 and there is no enterprise edition.
 
 - Read [docs/vision.md](docs/vision.md), [docs/security.md](docs/security.md),
   and [docs/architecture.md](docs/architecture.md).
-- Check the milestone task lists in [tasks/](tasks/). Pick a task or open an
+- Check the milestone task lists in [project/tasks/](project/tasks/). Pick a task or open an
   issue describing what you want to change.
 - Security-sensitive work (crypto, authn, authz, audit) needs two reviewers.
 
@@ -15,6 +15,10 @@ Apache-2.0 and there is no enterprise edition.
 
 Requirements: Go (version in `go.mod`), Node.js (version in `web/.nvmrc`),
 pnpm, and optionally `golangci-lint`, `lefthook`, and `sqlc`.
+
+The web app pins pnpm 12 in `web/package.json`. The standalone pnpm installer
+(`~/Library/pnpm`) can't switch to pnpm 12 on macOS arm64 yet; install it with
+`npm install -g pnpm@12` or `corepack enable` instead.
 
 ```sh
 make tools     # optional: install local developer tools

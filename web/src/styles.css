@@ -49,7 +49,7 @@
   --row-h: 50px;
   --font: 'Geist Variable', 'Geist', Inter, -apple-system, system-ui, sans-serif;
   --font-head: var(--font);
-  --fs: 13px;
+  --fs: 15px;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -65,17 +65,17 @@
   --text: #09090b;
   --muted: #52525b;
   --dim: #6f6f78;
-  --accent: #059669;
+  --accent: #047857;
   --accent-fg: #ffffff;
-  --accent-soft: rgb(5 150 105 / 0.07);
-  --accent-line: rgb(5 150 105 / 0.4);
-  --accent-text: #047857;
+  --accent-soft: rgb(4 120 87 / 0.07);
+  --accent-line: rgb(4 120 87 / 0.4);
+  --accent-text: #065f46;
   --logo-grad: linear-gradient(140deg, #34d399, #0d9488);
   --violet-fg: #6d28d9;
   --violet-bg: #f3effe;
   --blue-fg: #1d4ed8;
   --blue-bg: #eef4ff;
-  --amber-fg: #b45309;
+  --amber-fg: #92400e;
   --amber-bg: #fef6e7;
   --red: #dc2626;
   --red-bg: #fef0f0;
@@ -91,7 +91,7 @@
   --row-h: 56px;
   --font: 'Manrope Variable', 'Manrope', 'Geist Variable', system-ui, sans-serif;
   --font-head: var(--font);
-  --fs: 13.5px;
+  --fs: 15.5px;
 }
 
 :root[data-style='warm'][data-theme='dark'] {
@@ -127,12 +127,12 @@
   --text: #2a241f;
   --muted: #6b6058;
   --dim: #776c61;
-  --accent: #2f8f6d;
+  --accent: #1f6b4f;
   --accent-fg: #ffffff;
-  --accent-soft: rgb(47 143 109 / 0.08);
-  --accent-line: rgb(47 143 109 / 0.4);
-  --accent-text: #256f55;
-  --amber-fg: #a94c08;
+  --accent-soft: rgb(31 107 79 / 0.08);
+  --accent-line: rgb(31 107 79 / 0.4);
+  --accent-text: #1f6b4f;
+  --amber-fg: #8a3f06;
   --logo-grad: linear-gradient(140deg, #5cc49a, #2f8f6d);
   --shadow: 0 18px 50px rgb(60 40 20 / 0.1), 0 2px 8px rgb(60 40 20 / 0.05);
 }
@@ -173,6 +173,26 @@
   --font-sans: var(--font);
   --font-head: var(--font-head);
   --font-mono: var(--font-mono);
+
+  /* Type scale. Every UI size comes from here; no arbitrary px sizes. */
+  --text-3xs: 11px;
+  --text-3xs--line-height: 15px;
+  --text-2xs: 12px;
+  --text-2xs--line-height: 17px;
+  --text-xs: 13px;
+  --text-xs--line-height: 19px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 15px;
+  --text-base--line-height: 22px;
+  --text-md: 17px;
+  --text-md--line-height: 24px;
+  --text-lg: 19px;
+  --text-lg--line-height: 26px;
+  --text-xl: 22px;
+  --text-xl--line-height: 29px;
+  --text-2xl: 27px;
+  --text-2xl--line-height: 33px;
 
   --radius-app: var(--r);
   --radius-app-sm: var(--r-sm);
@@ -224,6 +244,18 @@
   }
 }
 
+/* Side panels: thin scrollbar that only shows while the panel is hovered or
+   focused. The gutter is reserved so content does not shift when it appears. */
+@utility scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  &:hover,
+  &:focus-within {
+    scrollbar-color: var(--border) transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -251,7 +283,7 @@
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
   background: color-mix(in srgb, currentColor 11%, transparent);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -267,4 +299,176 @@
 }
 .env-production {
   color: var(--amber-fg);
+}
+
+/* Modal dialogs use the native <dialog> element: the browser provides the
+   top layer, focus containment, inert background and Escape handling. */
+dialog.app-modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+}
+dialog.app-modal[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+dialog.app-modal[data-variant='sheet'][open] {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+dialog.app-modal::backdrop {
+  background: var(--scrim);
+}
+dialog.app-modal[open] > * {
+  animation: modal-in 140ms ease-out;
+}
+dialog.app-modal[data-variant='sheet'][open] > * {
+  animation: sheet-in 180ms ease-out;
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.toast-in {
+  animation: toast-in 160ms ease-out;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Unified form controls ------------------------------------------------
+ * Native selects and checkboxes are styled here rather than per component so
+ * every screen gets the same height, padding, focus ring, and chevron. These
+ * rules are intentionally unlayered so they win over utility height classes.
+ */
+select {
+  appearance: none;
+  height: 36px;
+  padding: 0 34px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-sm, 14px);
+  line-height: 1;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8b95' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--accent-line);
+}
+
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent-line);
+}
+
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+input[type='checkbox'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  cursor: pointer;
+  vertical-align: -3px;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+input[type='checkbox']:hover:not(:disabled) {
+  border-color: var(--accent-line);
+}
+
+input[type='checkbox']:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+input[type='checkbox']:checked::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  border: solid var(--accent-fg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type='checkbox']:indeterminate {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+input[type='checkbox']:indeterminate::after {
+  content: '';
+  width: 8px;
+  height: 2px;
+  background: var(--accent-fg);
+}
+
+input[type='checkbox']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

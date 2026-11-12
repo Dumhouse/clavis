@@ -20,20 +20,24 @@ import (
 )
 
 func newServerCommand(opts *Options) *cobra.Command {
-	var configPath string
+	var configPath, role string
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Run the Clavis server",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runServer(cmd, opts, configPath)
+			if role != "all" && role != "api" && role != "worker" {
+				return fmt.Errorf("--role must be all, api, or worker")
+			}
+			return runServer(cmd, opts, configPath, role)
 		},
 	}
 	cmd.Flags().StringVarP(&configPath, "config", "c", "", "path to clavis.yaml")
+	cmd.Flags().StringVar(&role, "role", "all", "process role: all, api, or worker")
 	return cmd
 }
 
-func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
+func runServer(cmd *cobra.Command, opts *Options, configPath, role string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
@@ -46,13 +50,20 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if dir := filepath.Dir(cfg.Database.Path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return fmt.Errorf("server: create data directory: %w", err)
+	if cfg.Database.Driver == "sqlite" {
+		if dir := filepath.Dir(cfg.Database.Path); dir != "" && dir != "." {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return fmt.Errorf("server: create data directory: %w", err)
+			}
 		}
 	}
 
-	st, err := store.Open(ctx, cfg.Database.Path)
+	var st *store.Store
+	if cfg.Database.Driver == "postgres" {
+		st, err = store.OpenPostgres(ctx, cfg.Database.DSN)
+	} else {
+		st, err = store.Open(ctx, cfg.Database.Path)
+	}
 	if err != nil {
 		return err
 	}
@@ -63,6 +74,10 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 	}()
 	if err := st.Migrate(ctx); err != nil {
 		return err
+	}
+	if role == "worker" {
+		queue := jobs.New(st, logger, jobs.WithWorkerID("worker-"+hostname()))
+		return queue.Run(ctx)
 	}
 
 	provider, err := rootKeyProvider(cfg)
@@ -85,12 +100,14 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 		return err
 	}
 
-	queue := jobs.New(st, logger, jobs.WithWorkerID("api-"+hostname()))
-	go func() {
-		if err := queue.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			logger.Error("job worker stopped", "error", err)
-		}
-	}()
+	if role != "api" {
+		queue := jobs.New(st, logger, jobs.WithWorkerID("api-"+hostname()))
+		go func() {
+			if err := queue.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("job worker stopped", "error", err)
+			}
+		}()
+	}
 
 	return srv.Run(ctx)
 }
@@ -98,9 +115,20 @@ func runServer(cmd *cobra.Command, opts *Options, configPath string) error {
 func rootKeyProvider(cfg *config.Config) (crypto.Provider, error) {
 	switch cfg.Keys.Provider {
 	case "file":
+		if _, err := os.Stat(cfg.Keys.RootKeyFile + ".sealed"); err == nil {
+			return nil, fmt.Errorf("root key is sealed; run `clavis admin unseal` before starting the server")
+		}
 		return crypto.NewFileProvider(cfg.Keys.RootKeyFile, true), nil
 	case "env":
 		return crypto.NewEnvProvider(cfg.Keys.RootKeyEnv), nil
+	case "aws-kms", "gcp-kms":
+		return crypto.NewKMSProvider(crypto.KMSConfig{
+			Path: cfg.Keys.RootKeyFile, Provider: cfg.Keys.Provider,
+			AWSRegion: cfg.Keys.AWSRegion, AWSKeyID: cfg.Keys.AWSKeyID,
+			AWSAccessKey: cfg.Keys.AWSAccessKey, AWSSecretKey: cfg.Keys.AWSSecretKey,
+			AWSSession: cfg.Keys.AWSSession, AWSEndpoint: cfg.Keys.AWSEndpoint,
+			GCPKey: cfg.Keys.GCPKey, GCPSAFile: cfg.Keys.GCPKeyFile, GCPEndpoint: cfg.Keys.GCPEndpoint,
+		}), nil
 	default:
 		return nil, fmt.Errorf("server: unsupported root key provider %q", cfg.Keys.Provider)
 	}

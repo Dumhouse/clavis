@@ -108,6 +108,10 @@ func (s *Store) ClaimJob(ctx context.Context, worker string, lease time.Duration
 		return nil, fmt.Errorf("store: claim job: worker is required")
 	}
 	now := time.Now().UTC()
+	skipLocked := ""
+	if s.dialect == "postgres" {
+		skipLocked = " FOR UPDATE SKIP LOCKED"
+	}
 	job, err := scanJob(s.db.QueryRowContext(ctx, `UPDATE jobs
 		SET status = 'running',
 		    locked_by = ?,
@@ -120,7 +124,7 @@ func (s *Store) ClaimJob(ctx context.Context, worker string, lease time.Duration
 			  AND run_at <= ?
 			  AND (locked_until IS NULL OR locked_until < ?)
 			ORDER BY run_at ASC, created_at ASC
-			LIMIT 1
+			LIMIT 1`+skipLocked+`
 		)
 		RETURNING `+jobColumns,
 		worker, formatTime(now.Add(lease)), formatTime(now), formatTime(now), formatTime(now)))

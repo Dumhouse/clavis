@@ -27,6 +27,14 @@ type IdentityInput struct {
 	Environment   string
 	ExpiresInDays int
 	OIDC          *OIDCTrust
+	AWS           *AWSTrust
+}
+
+// AWSTrust verifies AWS SigV4 identities through STS GetCallerIdentity.
+type AWSTrust struct {
+	Account       string `json:"account,omitempty"`
+	ARNPattern    string `json:"arn_pattern,omitempty"`
+	UserIDPattern string `json:"user_id_pattern,omitempty"`
 }
 
 // OIDCTrust describes how a workload identity proves itself.
@@ -41,6 +49,7 @@ type IdentityResult struct {
 	Identity *store.Identity
 	Token    string
 	Record   *store.AccessToken
+	Scope    TokenScope
 }
 
 // TokenScope is the decoded scope of an identity token.
@@ -55,13 +64,21 @@ type IdentityView struct {
 	Identity *store.Identity
 	Tokens   []store.AccessToken
 	Scope    TokenScope
-	OIDC     *OIDCTrust
+	// ActiveSessions counts unexpired delegated agent sessions (clavis mcp --agent).
+	ActiveSessions int
+	OIDC           *OIDCTrust
+	AWS            *AWSTrust
 }
 
 type tokenScopes struct {
-	Role        string `json:"role"`
-	ProjectID   string `json:"project_id,omitempty"`
-	Environment string `json:"environment,omitempty"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions,omitempty"`
+	ProjectID   string   `json:"project_id,omitempty"`
+	Environment string   `json:"environment,omitempty"`
+	// Set on delegated agent sessions started by `clavis mcp --agent`.
+	DelegatedBy string `json:"delegated_by,omitempty"`
+	ParentKind  string `json:"parent_kind,omitempty"`
+	ParentID    string `json:"parent_id,omitempty"`
 }
 
 // CreateIdentity creates an identity and one scoped token.
@@ -87,14 +104,28 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 	if in.Type != "machine" && in.Type != "agent" {
 		return nil, fmt.Errorf("%w: identity type must be machine or agent", ErrValidation)
 	}
-	if in.Role == "" {
-		in.Role = authz.RoleDeveloper
-	}
-	if !s.CanGrantRole(ctx, actor, org.ID, in.Role, scope) {
-		return nil, fmt.Errorf("%w: you cannot grant a role with more permissions than you hold", ErrForbidden)
-	}
-	if _, ok := s.RolePermissions(ctx, org.ID, in.Role); !ok {
-		return nil, fmt.Errorf("%w: unknown role", ErrValidation)
+	var agentPermissions []authz.Permission
+	if in.Type == "agent" {
+		// Agents are intentionally limited to discovering keys and using them.
+		// They cannot read values, write, delete, manage, or change their own
+		// allowlist.
+		in.Role = "Agent"
+		agentPermissions = []authz.Permission{authz.SecretsReadNames, authz.SecretsUse}
+		for _, perm := range agentPermissions {
+			if !s.Engine.Authorize(actor, perm, scope, s.Now()).Allowed {
+				return nil, fmt.Errorf("%w: you cannot grant an agent permissions you do not hold", ErrForbidden)
+			}
+		}
+	} else {
+		if in.Role == "" {
+			in.Role = authz.RoleDeveloper
+		}
+		if !s.CanGrantRole(ctx, actor, org.ID, in.Role, scope) {
+			return nil, fmt.Errorf("%w: you cannot grant a role with more permissions than you hold", ErrForbidden)
+		}
+		if _, ok := s.RolePermissions(ctx, org.ID, in.Role); !ok {
+			return nil, fmt.Errorf("%w: unknown role", ErrValidation)
+		}
 	}
 
 	projectID := ""
@@ -113,14 +144,24 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		environment = "*"
 	}
 	ttlDays := in.ExpiresInDays
-	if ttlDays <= 0 {
-		ttlDays = 90
-	}
-	if ttlDays > 365 {
-		ttlDays = 365
+	if in.Type == "agent" {
+		if ttlDays <= 0 {
+			ttlDays = 1
+		}
+		if ttlDays > 7 {
+			ttlDays = 7
+		}
+	} else {
+		if ttlDays <= 0 {
+			ttlDays = 90
+		}
+		if ttlDays > 365 {
+			ttlDays = 365
+		}
 	}
 
 	trustJSON := "{}"
+	awsTrustJSON := "{}"
 	if in.OIDC != nil {
 		if err := validateOIDCTrust(in.OIDC); err != nil {
 			return nil, err
@@ -131,6 +172,16 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		}
 		trustJSON = string(encoded)
 	}
+	if in.AWS != nil {
+		if err := validateAWSTrust(in.AWS); err != nil {
+			return nil, err
+		}
+		encoded, err := json.Marshal(in.AWS)
+		if err != nil {
+			return nil, err
+		}
+		awsTrustJSON = string(encoded)
+	}
 	identity := &store.Identity{
 		ID:              uuid.NewString(),
 		OrgID:           org.ID,
@@ -138,6 +189,7 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		Type:            in.Type,
 		TokenTTLSeconds: ttlDays * 24 * 3600,
 		OIDCTrust:       trustJSON,
+		AWSTrust:        awsTrustJSON,
 	}
 	if err := s.Store.CreateIdentity(ctx, identity); err != nil {
 		if errors.Is(err, store.ErrConflict) {
@@ -146,9 +198,13 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		return nil, err
 	}
 
-	token, record, err := s.newToken(ctx, identity, tokenScopes{
+	scopes := tokenScopes{
 		Role: in.Role, ProjectID: projectID, Environment: environment,
-	}, time.Duration(ttlDays)*24*time.Hour)
+	}
+	for _, perm := range agentPermissions {
+		scopes.Permissions = append(scopes.Permissions, string(perm))
+	}
+	token, record, err := s.newToken(ctx, identity, scopes, time.Duration(ttlDays)*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +213,8 @@ func (s *Service) CreateIdentity(ctx context.Context, actor authz.Actor, orgSlug
 		audit.Details{Environment: environment, Reason: in.Role}, meta); err != nil {
 		s.Logger.Error("audit identity.create failed", "identity_id", identity.ID, "error", err)
 	}
-	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+	return &IdentityResult{Identity: identity, Token: token, Record: record,
+		Scope: TokenScope{Role: in.Role, ProjectID: projectID, Environment: environment}}, nil
 }
 
 func (s *Service) newToken(ctx context.Context, identity *store.Identity, scopes tokenScopes, ttl time.Duration) (string, *store.AccessToken, error) {
@@ -202,22 +259,42 @@ func (s *Service) ListIdentities(ctx context.Context, actor authz.Actor, orgSlug
 	}
 	out := make([]IdentityView, 0, len(identities))
 	for i := range identities {
-		tokens, err := s.Store.ListTokensForIdentity(ctx, identities[i].ID)
+		all, err := s.Store.ListTokensForIdentity(ctx, identities[i].ID)
 		if err != nil {
 			return nil, err
+		}
+		// Delegated agent sessions are counted, not listed as tokens.
+		tokens := make([]store.AccessToken, 0, len(all))
+		activeSessions := 0
+		now := s.Now().UTC()
+		for _, token := range all {
+			var decoded tokenScopes
+			if json.Unmarshal([]byte(token.Scopes), &decoded) == nil && decoded.DelegatedBy != "" {
+				if token.ExpiresAt == nil || now.Before(*token.ExpiresAt) {
+					activeSessions++
+				}
+				continue
+			}
+			tokens = append(tokens, token)
 		}
 		scope := TokenScope{}
 		if len(tokens) > 0 && tokens[0].Scopes != "" {
 			var decoded tokenScopes
 			if err := json.Unmarshal([]byte(tokens[0].Scopes), &decoded); err == nil {
-				scope = TokenScope(decoded)
+				scope = TokenScope{Role: decoded.Role, ProjectID: decoded.ProjectID, Environment: decoded.Environment}
 			}
 		}
-		view := IdentityView{Identity: &identities[i], Tokens: tokens, Scope: scope}
+		view := IdentityView{Identity: &identities[i], Tokens: tokens, Scope: scope, ActiveSessions: activeSessions}
 		if identities[i].OIDCTrust != "" && identities[i].OIDCTrust != "{}" {
 			var trust OIDCTrust
 			if json.Unmarshal([]byte(identities[i].OIDCTrust), &trust) == nil {
 				view.OIDC = &trust
+			}
+		}
+		if identities[i].AWSTrust != "" && identities[i].AWSTrust != "{}" {
+			var trust AWSTrust
+			if json.Unmarshal([]byte(identities[i].AWSTrust), &trust) == nil {
+				view.AWS = &trust
 			}
 		}
 		out = append(out, view)
@@ -248,16 +325,32 @@ func (s *Service) RotateIdentityToken(ctx context.Context, actor authz.Actor, or
 		if err := json.Unmarshal([]byte(existing[0].Scopes), &scopes); err != nil {
 			return nil, fmt.Errorf("service: decode token scopes: %w", err)
 		}
+		scopes = scopes.withoutDelegation()
+	}
+	if identity.Type == "agent" {
+		scopes.Role = "Agent"
+		if len(scopes.Permissions) == 0 {
+			scopes.Permissions = []string{string(authz.SecretsReadNames), string(authz.SecretsUse)}
+		}
 	}
 	if _, err := s.Store.DeleteTokensForIdentity(ctx, identity.ID); err != nil {
 		return nil, err
 	}
 	days := expiresInDays
-	if days <= 0 {
-		days = 90
-	}
-	if days > 365 {
-		days = 365
+	if identity.Type == "agent" {
+		if days <= 0 {
+			days = 1
+		}
+		if days > 7 {
+			days = 7
+		}
+	} else {
+		if days <= 0 {
+			days = 90
+		}
+		if days > 365 {
+			days = 365
+		}
 	}
 	token, record, err := s.newToken(ctx, identity, scopes, time.Duration(days)*24*time.Hour)
 	if err != nil {
@@ -268,7 +361,8 @@ func (s *Service) RotateIdentityToken(ctx context.Context, actor authz.Actor, or
 		audit.Details{Reason: scopes.Role}, meta); err != nil {
 		s.Logger.Error("audit identity.rotate failed", "identity_id", identity.ID, "error", err)
 	}
-	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+	return &IdentityResult{Identity: identity, Token: token, Record: record,
+		Scope: TokenScope{Role: scopes.Role, ProjectID: scopes.ProjectID, Environment: scopes.Environment}}, nil
 }
 
 // RevokeIdentity deletes an identity and all of its tokens.
@@ -277,6 +371,7 @@ func (s *Service) RevokeIdentity(ctx context.Context, actor authz.Actor, orgSlug
 	if err != nil {
 		return err
 	}
+	s.RevokeLeasesForIdentity(ctx, identityID)
 	if err := s.Store.DeleteIdentity(ctx, org.ID, identityID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
@@ -310,6 +405,9 @@ func (s *Service) AuthenticateMachineToken(ctx context.Context, raw, ip string) 
 			return authz.Actor{}, authn.ErrUnauthenticated
 		}
 	}
+	if scopes.DelegatedBy != "" && (identity.Type != "agent" || !s.delegationActive(ctx, record.OrgID, scopes)) {
+		return authz.Actor{}, authn.ErrUnauthenticated
+	}
 	subjectKind := authz.SubjectMachine
 	if identity.Type == "agent" {
 		subjectKind = authz.SubjectAgent
@@ -325,6 +423,7 @@ func (s *Service) AuthenticateMachineToken(ctx context.Context, raw, ip string) 
 				ProjectID:   scopes.ProjectID,
 				Environment: scopes.Environment,
 			},
+			Permissions: tokenPermissions(scopes.Permissions),
 		}},
 	}
 	if err := s.Store.TouchAccessToken(ctx, record.ID, ip); err != nil {
@@ -345,6 +444,20 @@ func (s *Service) tokenOrg(ctx context.Context, actor authz.Actor, orgSlug strin
 		return nil, err
 	}
 	return org, nil
+}
+
+func tokenPermissions(raw []string) []authz.Permission {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]authz.Permission, 0, len(raw))
+	for _, value := range raw {
+		perm := authz.Permission(value)
+		if perm.Valid() {
+			out = append(out, perm)
+		}
+	}
+	return out
 }
 
 func validateOIDCTrust(trust *OIDCTrust) error {
@@ -435,4 +548,17 @@ func (s *Service) ExchangeOIDC(ctx context.Context, orgSlug, identityName, rawTo
 		s.Logger.Error("audit identity.oidc_login failed", "identity_id", identity.ID, "error", err)
 	}
 	return &IdentityResult{Identity: identity, Token: token, Record: record}, nil
+}
+
+func validateAWSTrust(trust *AWSTrust) error {
+	trust.Account = strings.TrimSpace(trust.Account)
+	trust.ARNPattern = strings.TrimSpace(trust.ARNPattern)
+	trust.UserIDPattern = strings.TrimSpace(trust.UserIDPattern)
+	if trust.Account == "" && trust.ARNPattern == "" && trust.UserIDPattern == "" {
+		return fmt.Errorf("%w: at least one AWS trust condition is required", ErrValidation)
+	}
+	if trust.Account != "" && (len(trust.Account) != 12 || strings.Trim(trust.Account, "0123456789") != "") {
+		return fmt.Errorf("%w: AWS account must be 12 digits", ErrValidation)
+	}
+	return nil
 }

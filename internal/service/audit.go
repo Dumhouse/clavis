@@ -6,6 +6,7 @@ import (
 
 	"github.com/dumhouse/clavis/internal/audit"
 	"github.com/dumhouse/clavis/internal/authz"
+	"github.com/dumhouse/clavis/internal/crypto"
 	"github.com/dumhouse/clavis/internal/store"
 )
 
@@ -46,4 +47,103 @@ func (s *Service) RecordAuthEvent(ctx context.Context, user *store.User, action,
 			s.Logger.Error("append auth event failed", "org_id", membership.Org.ID, "action", action, "error", err)
 		}
 	}
+}
+
+// AuditLabel is human-readable context for an audit event: the project and
+// environment slugs and, for secret events, the decrypted key name. Key names
+// are only filled in when the caller may read names in that scope.
+type AuditLabel struct {
+	Project     string
+	Environment string
+	Key         string
+}
+
+// AuditLabels resolves labels for events. Lookups are cached per request and
+// failures leave fields empty: labels are a convenience, never an error.
+func (s *Service) AuditLabels(ctx context.Context, actor authz.Actor, orgSlug string, events []audit.Event) map[string]AuditLabel {
+	labels := make(map[string]AuditLabel, len(events))
+	org, err := s.Store.GetOrgBySlug(ctx, orgSlug)
+	if err != nil {
+		return labels
+	}
+	projects := map[string]*store.Project{}
+	envs := map[string]*store.Environment{}
+	keys := map[string]crypto.Key{}
+	defer func() {
+		for _, key := range keys {
+			key.Zero()
+		}
+	}()
+	project := func(id string) *store.Project {
+		if p, ok := projects[id]; ok {
+			return p
+		}
+		p, err := s.Store.GetProjectByID(ctx, id)
+		if err != nil || p.OrgID != org.ID {
+			p = nil
+		}
+		projects[id] = p
+		return p
+	}
+	environment := func(id string) *store.Environment {
+		if e, ok := envs[id]; ok {
+			return e
+		}
+		e, err := s.Store.GetEnvironmentByID(ctx, id)
+		if err != nil {
+			e = nil
+		}
+		envs[id] = e
+		return e
+	}
+	for _, event := range events {
+		var label AuditLabel
+		if event.Resource.ProjectID == "" {
+			continue
+		}
+		p := project(event.Resource.ProjectID)
+		if p == nil {
+			continue
+		}
+		label.Project = p.Slug
+		if event.Resource.EnvID != "" {
+			if e := environment(event.Resource.EnvID); e != nil {
+				label.Environment = e.Slug
+			}
+		}
+		if event.Resource.Type == "secret" && event.Resource.ID != "" {
+			label.Key = s.auditKeyName(ctx, actor, org, p, event.Resource.ID, environment, keys)
+		}
+		labels[event.ID] = label
+	}
+	return labels
+}
+
+func (s *Service) auditKeyName(ctx context.Context, actor authz.Actor, org *store.Org, project *store.Project, itemID string, environment func(string) *store.Environment, keys map[string]crypto.Key) string {
+	item, err := s.Store.GetItemByIDAny(ctx, itemID)
+	if err != nil {
+		return ""
+	}
+	env := environment(item.EnvironmentID)
+	if env == nil || env.ProjectID != project.ID {
+		return ""
+	}
+	if s.Authorize(actor, authz.SecretsReadNames, secretScope(org, project, env)) != nil {
+		return ""
+	}
+	valueKey, ok := keys[project.ID]
+	if !ok {
+		var indexKey crypto.Key
+		valueKey, indexKey, err = s.ProjectKeys(ctx, org, project)
+		if err != nil {
+			return ""
+		}
+		indexKey.Zero()
+		keys[project.ID] = valueKey
+	}
+	name, err := s.decryptKey(valueKey, org, project, env, item)
+	if err != nil {
+		return ""
+	}
+	return name
 }

@@ -1,0 +1,40 @@
+name: Bug report
+description: Something is broken or surprising.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include secret values, tokens, or customer data.
+  - type: input
+    id: version
+    attributes:
+      label: Clavis version
+      placeholder: v1.0.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [server, web UI, CLI, operator, CSI driver, sync, importer, docs, other]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps with synthetic values.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Include the request ID. Redact secrets and tokens.

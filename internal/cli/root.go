@@ -19,6 +19,7 @@ type Options struct {
 	Project   string
 	Env       string
 	Path      string
+	Overlay   string
 	Output    *Output
 }
 
@@ -54,6 +55,7 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.PersistentFlags().StringVar(&opts.Project, "project", opts.Project, "project slug")
 	root.PersistentFlags().StringVar(&opts.Env, "env", opts.Env, "environment slug")
 	root.PersistentFlags().StringVar(&opts.Path, "path", opts.Path, "folder path (default /)")
+	root.PersistentFlags().StringVar(&opts.Overlay, "overlay", opts.Overlay, "tenant/region overlay slug")
 
 	root.AddCommand(newVersionCommand(opts))
 	root.AddCommand(newServerCommand(opts))
@@ -68,9 +70,23 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newRunCommand(opts))
 	root.AddCommand(newExportCommand(opts))
 	root.AddCommand(newImportCommand(opts))
+	root.AddCommand(newCheckCommand(opts))
+	root.AddCommand(newPromoteCommand(opts))
+	root.AddCommand(newShellCommand(opts))
+	root.AddCommand(newAuditCommand(opts))
+	root.AddCommand(newScanCommand(opts))
+	root.AddCommand(newShareCommand(opts))
+	root.AddCommand(newLeaseCommand(opts))
+	root.AddCommand(newHealthCommand(opts))
+	root.AddCommand(newUpgradeCommand(opts))
+	root.AddCommand(newRotationCommand(opts))
+	root.AddCommand(newSchemaCommand(opts))
+	root.AddCommand(newCodegenCommand(opts))
 	root.AddCommand(newAdminCommand(opts))
 	root.AddCommand(newMembersCommand(opts))
 	root.AddCommand(newIdentitiesCommand(opts))
+	root.AddCommand(newAgentsCommand(opts))
+	root.AddCommand(newMCPCommand(opts))
 	root.AddCommand(newSyncsCommand(opts))
 	root.AddCommand(newSetsCommand(opts))
 	root.AddCommand(newAccessCommand(opts))

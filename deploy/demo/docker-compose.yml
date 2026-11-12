@@ -1,0 +1,11 @@
+services:
+  clavis:
+    image: ghcr.io/dumhouse/clavis:latest
+    ports: ["8080:8080"]
+    environment:
+      CLAVIS_SERVER_BASE_URL: http://localhost:8080
+      CLAVIS_SERVER_DEV: "true"
+    volumes:
+      - demo-data:/data
+volumes:
+  demo-data:

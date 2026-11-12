@@ -42,7 +42,7 @@ func (s *Service) BatchSecrets(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.authorizeSecretAccess(actor, org, project, env, authz.SecretsWrite); err != nil {
 		return nil, err
 	}
-	if err := s.enforceCLIProduction(org, env, meta); err != nil {
+	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 		return nil, err
 	}
 	items, err := s.Store.ListItems(ctx, env.ID)
@@ -52,6 +52,10 @@ func (s *Service) BatchSecrets(ctx context.Context, actor authz.Actor, orgSlug, 
 	currentETag := etagForItems(items)
 	if normalizeETag(ifMatch) == "" || normalizeETag(ifMatch) != normalizeETag(currentETag) {
 		return nil, ErrPrecondition
+	}
+	schemaEntries, err := s.schemaEntries(ctx, project.ID)
+	if err != nil {
+		return nil, err
 	}
 
 	valueKey, indexKey, err := s.ProjectKeys(ctx, org, project)
@@ -84,6 +88,9 @@ func (s *Service) BatchSecrets(ctx context.Context, actor authz.Actor, orgSlug, 
 		}
 		seen[change.Key] = true
 		if err := validateSecretInput(&change, true); err != nil {
+			return nil, err
+		}
+		if err := validateAgainstSchemaEntries(schemaEntries, &change); err != nil {
 			return nil, err
 		}
 		ownerGroupID, _, err := s.resolveOwnerGroup(ctx, org.ID, change.OwnerGroupID)

@@ -7,6 +7,8 @@ import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { confirmAction } from '@/components/ui/dialogs'
+import { Input, Select } from '@/components/ui/field'
 
 type Group = components['schemas']['GroupBody']
 type Member = components['schemas']['MemberBody']
@@ -69,7 +71,11 @@ export function Groups() {
   const deleteGroup = useMutation({
     mutationFn: async (group: Group) => {
       if (!org) throw new Error('No organization.')
-      if (!window.confirm(`Delete the group “${group.name}”? Its project grants are removed too.`))
+      if (
+        !(await confirmAction(
+          `Delete the group “${group.name}”? Its project grants are removed too.`,
+        ))
+      )
         return
       const result = await api.DELETE('/api/v1/orgs/{org}/groups/{id}', {
         params: { path: { org: org.slug, id: group.id } },
@@ -116,13 +122,13 @@ export function Groups() {
     <section className="rounded-app border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
         <Users className="size-4 text-muted" />
-        <h2 className="text-[13px] font-semibold">Groups</h2>
-        <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+        <h2 className="text-base font-semibold">Groups</h2>
+        <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
           {groups.data?.length ?? 0}
         </span>
         <form onSubmit={submit} className="ml-auto flex items-center gap-2">
-          <input
-            className="h-8 w-40 rounded-app-sm border border-border bg-bg px-2.5 text-[12px] text-text focus:border-accent-line focus:outline-none"
+          <Input
+            className="h-8 w-40"
             placeholder="New group name"
             value={name}
             onChange={(event) => {
@@ -146,17 +152,17 @@ export function Groups() {
         </form>
       </div>
 
-      <p className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <p className="border-b border-border-soft px-4 py-2 text-xs text-dim">
         Groups collect people so you can grant a project role once. Members inherit the group’s
         grants.
       </p>
 
       {groups.isError && (
-        <p className="px-4 py-3 text-[11.5px] text-danger">
+        <p className="px-4 py-3 text-xs text-danger">
           {groups.error instanceof Error ? groups.error.message : 'Could not load groups.'}
         </p>
       )}
-      {error && <p className="px-4 py-3 text-[11.5px] text-danger">{error}</p>}
+      {error && <p className="px-4 py-3 text-xs text-danger">{error}</p>}
 
       <div className="divide-y divide-border-soft">
         {(groups.data ?? []).map((group) => (
@@ -177,12 +183,12 @@ export function Groups() {
           />
         ))}
         {(groups.data?.length ?? 0) === 0 && !groups.isLoading && (
-          <p className="px-4 py-5 text-[12px] text-muted">
+          <p className="px-4 py-5 text-sm text-muted">
             No groups yet. Create one, then grant it project access.
           </p>
         )}
         {groups.isLoading && (
-          <p className="flex items-center gap-2 px-4 py-5 text-[12px] text-muted">
+          <p className="flex items-center gap-2 px-4 py-5 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading groups…
           </p>
         )}
@@ -213,8 +219,8 @@ function GroupRow({
   return (
     <div className="px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[12.5px] font-medium text-text">{group.name}</p>
-        <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+        <p className="text-sm font-medium text-text">{group.name}</p>
+        <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
           {group.members?.length ?? 0}
         </span>
         <Button
@@ -233,7 +239,7 @@ function GroupRow({
         {(group.members ?? []).map((member) => (
           <span
             key={member.user_id}
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-bg py-0.5 pl-2 pr-1 text-[11px] text-muted"
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-bg py-0.5 pl-2 pr-1 text-xs text-muted"
           >
             {member.name || member.email}
             <button
@@ -250,14 +256,14 @@ function GroupRow({
           </span>
         ))}
         {(group.members?.length ?? 0) === 0 && (
-          <span className="text-[11px] text-dim">No members yet.</span>
+          <span className="text-xs text-dim">No members yet.</span>
         )}
       </div>
 
       {candidates.length > 0 && (
         <div className="mt-2 flex items-center gap-2">
-          <select
-            className="h-7 rounded-app-sm border border-border bg-bg px-1.5 text-[11.5px] text-text focus:border-accent-line focus:outline-none"
+          <Select
+            className="h-7 px-1.5 text-xs"
             value={selected}
             onChange={(event) => {
               setSelected(event.target.value)
@@ -269,7 +275,7 @@ function GroupRow({
                 {member.name || member.email}
               </option>
             ))}
-          </select>
+          </Select>
           <Button
             variant="secondary"
             size="sm"

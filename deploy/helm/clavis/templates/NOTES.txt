@@ -1,0 +1,24 @@
+Clavis is installed.
+
+1. Get the setup URL:
+{{- if .Values.ingress.enabled }}
+   https://{{ (index .Values.ingress.hosts 0).host }}/
+{{- else if contains "NodePort" .Values.service.type }}
+   export NODE_PORT=$(kubectl get svc {{ include "clavis.fullname" . }} -o jsonpath="{.spec.ports[0].nodePort}")
+   echo "http://<node-ip>:$NODE_PORT"
+{{- else if contains "LoadBalancer" .Values.service.type }}
+   kubectl get svc {{ include "clavis.fullname" . }} -o jsonpath="{.status.loadBalancer.ingress[0].ip}"
+{{- else }}
+   kubectl port-forward svc/{{ include "clavis.fullname" . }} 8080:{{ .Values.service.port }}
+   echo "http://localhost:8080"
+{{- end }}
+
+2. The one-time setup token is written to:
+   /data/setup-token inside the pod/PVC.
+
+   kubectl exec deploy/{{ include "clavis.fullname" . }} -- cat /data/setup-token
+
+3. Back up the root key. With keys.provider=file it lives at:
+   {{ .Values.keys.rootKeyFile }}
+
+   Lose it and encrypted data cannot be recovered.

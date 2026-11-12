@@ -51,6 +51,8 @@ func newSyncsCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newSyncsCreateCommand(opts))
 	cmd.AddCommand(newSyncsRunCommand(opts))
 	cmd.AddCommand(newSyncsLogsCommand(opts))
+	cmd.AddCommand(newSyncsDriftCommand(opts))
+	cmd.AddCommand(newSyncsBehaviorCommand(opts))
 	return cmd
 }
 
@@ -104,10 +106,14 @@ func newSyncsListCommand(opts *Options) *cobra.Command {
 func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var endpoint, secret, provider, baseURL, gitlabProject, token string
 	var githubRepo, githubEnvironment, githubScope, vercelProject, vercelTeamID string
+	var githubAppID, githubInstallation, githubPrivateKey string
 	var awsRegion, awsAccessKey, awsSecretKey, awsSessionToken, awsService, awsPrefix string
 	var gcpProject, gcpServiceAccount, gcpPrefix string
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
-	var protected, masked bool
+	var vaultMount, vaultPath string
+	var forgejoURL, forgejoRepo, forgejoScope string
+	var vaultVersion int
+	var protected, masked, deleteMissing bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
 		Short: "Create a generic HTTP sync",
@@ -122,12 +128,27 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if strings.HasPrefix(githubPrivateKey, "@") {
+				data, err := os.ReadFile(strings.TrimPrefix(githubPrivateKey, "@"))
+				if err != nil {
+					return err
+				}
+				githubPrivateKey = string(data)
+			}
 			if strings.HasPrefix(gcpServiceAccount, "@") {
 				data, err := os.ReadFile(strings.TrimPrefix(gcpServiceAccount, "@"))
 				if err != nil {
 					return err
 				}
 				gcpServiceAccount = string(data)
+			}
+			// --gitlab-url has a gitlab.com default; only send it for GitLab
+			// (or when set explicitly) so other providers use their own default.
+			if provider != "gitlab" && !cmd.Flags().Changed("gitlab-url") {
+				baseURL = ""
+			}
+			if provider == "forgejo" {
+				baseURL = forgejoURL
 			}
 			var created syncJSON
 			body := map[string]any{
@@ -146,6 +167,9 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"netlify_account": netlifyAccount, "netlify_site": netlifySite,
 				"cloudflare_account": cfAccount, "cloudflare_project": cfProject,
 				"cloudflare_script": cfScript, "cloudflare_mode": cfMode,
+				"vault_mount": vaultMount, "vault_path": vaultPath, "vault_version": vaultVersion,
+				"forgejo_repo": forgejoRepo, "forgejo_scope": forgejoScope,
+				"delete_missing": deleteMissing,
 			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
@@ -160,7 +184,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&endpoint, "endpoint", "", "receiver URL for generic HTTP")
 	cmd.Flags().StringVar(&secret, "secret", "", "HMAC signing secret for generic HTTP")
-	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http or gitlab")
+	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http, gitlab, github, forgejo, vercel, aws, gcp, netlify, cloudflare, or vault")
 	cmd.Flags().StringVar(&baseURL, "gitlab-url", "https://gitlab.com", "GitLab base URL")
 	cmd.Flags().StringVar(&gitlabProject, "gitlab-project", "", "GitLab project path or ID")
 	cmd.Flags().StringVar(&token, "gitlab-token", "", "GitLab access token with api scope")
@@ -170,6 +194,13 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&githubEnvironment, "github-environment", "", "GitHub environment name")
 	cmd.Flags().StringVar(&githubScope, "github-scope", "repo", "GitHub scope: repo, environment, or org")
 	cmd.Flags().StringVar(&token, "github-token", "", "GitHub token with Actions secrets/variables write access")
+	cmd.Flags().StringVar(&githubAppID, "github-app-id", "", "GitHub App ID")
+	cmd.Flags().StringVar(&githubInstallation, "github-installation-id", "", "GitHub App installation ID")
+	cmd.Flags().StringVar(&githubPrivateKey, "github-private-key", "", "GitHub App private key PEM or @file")
+	cmd.Flags().StringVar(&forgejoURL, "forgejo-url", "https://codeberg.org", "Forgejo or Gitea base URL")
+	cmd.Flags().StringVar(&forgejoRepo, "forgejo-repo", "", "Forgejo repository (owner/name) or organization for org scope")
+	cmd.Flags().StringVar(&forgejoScope, "forgejo-scope", "repo", "Forgejo scope: repo or org")
+	cmd.Flags().StringVar(&token, "forgejo-token", "", "Forgejo access token with write:repository (or write:organization)")
 	cmd.Flags().StringVar(&token, "vercel-token", "", "Vercel access token")
 	cmd.Flags().StringVar(&vercelProject, "vercel-project", "", "Vercel project ID or name")
 	cmd.Flags().StringVar(&vercelTeamID, "vercel-team", "", "Vercel team ID")
@@ -187,8 +218,14 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&token, "netlify-token", "", "Netlify personal access token")
 	cmd.Flags().StringVar(&cfAccount, "cloudflare-account", "", "Cloudflare account ID")
 	cmd.Flags().StringVar(&cfMode, "cloudflare-mode", "workers", "Cloudflare mode: workers or pages")
+	cmd.Flags().StringVar(&vaultMount, "vault-mount", "secret", "Vault KV mount")
+	cmd.Flags().StringVar(&vaultPath, "vault-path", "", "Vault path prefix (one secret per key)")
+	cmd.Flags().IntVar(&vaultVersion, "vault-version", 2, "Vault KV version: 1 or 2")
+	cmd.Flags().StringVar(&baseURL, "vault-url", "", "Vault/OpenBao address")
+	cmd.Flags().StringVar(&token, "vault-token", "", "Vault/OpenBao token")
 	cmd.Flags().StringVar(&cfProject, "cloudflare-project", "", "Cloudflare Pages project")
 	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
+	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
 	cmd.Flags().StringVar(&token, "cloudflare-token", "", "Cloudflare API token")
 	return cmd
 }
@@ -266,4 +303,77 @@ func newSyncsLogsCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newSyncsDriftCommand(opts *Options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "drift ID",
+		Short: "Check provider drift for a sync",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := opts.output()
+			resolved, err := opts.syncContext()
+			if err != nil {
+				return err
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			var result struct {
+				Supported bool     `json:"supported"`
+				Keys      []string `json:"keys"`
+				Detail    string   `json:"detail"`
+			}
+			path := syncsBase(resolved) + "/" + url.PathEscape(args[0]) + "/drift"
+			if err := c.Post(cmd.Context(), path, map[string]string{}, &result); err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(result)
+			}
+			if !result.Supported {
+				out.Info("%s", result.Detail)
+				return nil
+			}
+			if len(result.Keys) == 0 {
+				out.Success("No drift detected.")
+				return nil
+			}
+			out.Errorf("Drift in %d key(s): %s", len(result.Keys), strings.Join(result.Keys, ", "))
+			return &ExitError{Code: ExitGeneral, Err: fmt.Errorf("drift detected"), Silent: true}
+		},
+	}
+}
+
+func newSyncsBehaviorCommand(opts *Options) *cobra.Command {
+	var deleteMissing bool
+	cmd := &cobra.Command{
+		Use:   "behavior ID",
+		Short: "Update sync behavior toggles",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := opts.output()
+			resolved, err := opts.syncContext()
+			if err != nil {
+				return err
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			var updated syncJSON
+			path := syncsBase(resolved) + "/" + url.PathEscape(args[0])
+			if err := c.Patch(cmd.Context(), path, map[string]bool{"delete_missing": deleteMissing}, &updated); err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(updated)
+			}
+			out.Success("Updated sync %s (delete_missing=%t).", args[0], deleteMissing)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
+	return cmd
 }

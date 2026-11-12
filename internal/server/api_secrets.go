@@ -23,6 +23,7 @@ type resolveSecretsInput struct {
 	Project string `path:"project"`
 	Env     string `path:"env"`
 	Channel string `query:"channel" enum:"ui,cli,export,api" default:"api"`
+	Overlay string `query:"overlay" maxLength:"60"`
 }
 
 type overrideInput struct {
@@ -42,6 +43,7 @@ type listSecretsInput struct {
 	Env     string `path:"env"`
 	Reveal  bool   `query:"reveal" doc:"Decrypt values (requires secrets:read-values)"`
 	Channel string `query:"channel" enum:"ui,cli,export,api" default:"ui"`
+	Overlay string `query:"overlay" maxLength:"60"`
 }
 
 type getSecretInput struct {
@@ -52,6 +54,7 @@ type getSecretInput struct {
 	Reveal  bool   `query:"reveal"`
 	Reason  string `query:"reason" maxLength:"1024" doc:"Why the value is being revealed (audited)"`
 	Channel string `query:"channel" enum:"ui,cli,export,api" default:"ui"`
+	Overlay string `query:"overlay" maxLength:"60"`
 }
 
 type createSecretInput struct {
@@ -59,16 +62,17 @@ type createSecretInput struct {
 	Project string `path:"project"`
 	Env     string `path:"env"`
 	Body    struct {
-		Key          string   `json:"key" minLength:"1" maxLength:"256"`
-		Value        string   `json:"value" maxLength:"1048576"`
-		Kind         string   `json:"kind,omitempty" enum:"secret,variable,file" default:"secret"`
-		Comment      string   `json:"comment,omitempty" maxLength:"4096"`
-		Folder       string   `json:"folder,omitempty" maxLength:"512"`
-		Notes        string   `json:"notes,omitempty" maxLength:"16384"`
-		ProviderURL  string   `json:"provider_url,omitempty" maxLength:"2048"`
-		OwnerGroupID string   `json:"owner_group_id,omitempty" maxLength:"60"`
-		Tags         []string `json:"tags,omitempty" maxItems:"20"`
-		Message      string   `json:"message,omitempty" maxLength:"512"`
+		Key          string     `json:"key" minLength:"1" maxLength:"256"`
+		Value        string     `json:"value" maxLength:"1048576"`
+		Kind         string     `json:"kind,omitempty" enum:"secret,variable,file" default:"secret"`
+		Comment      string     `json:"comment,omitempty" maxLength:"4096"`
+		Folder       string     `json:"folder,omitempty" maxLength:"512"`
+		Notes        string     `json:"notes,omitempty" maxLength:"16384"`
+		ProviderURL  string     `json:"provider_url,omitempty" maxLength:"2048"`
+		OwnerGroupID string     `json:"owner_group_id,omitempty" maxLength:"60"`
+		Tags         []string   `json:"tags,omitempty" maxItems:"20"`
+		ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+		Message      string     `json:"message,omitempty" maxLength:"512"`
 	}
 }
 
@@ -78,15 +82,17 @@ type updateSecretInput struct {
 	Env     string `path:"env"`
 	Key     string `path:"key"`
 	Body    struct {
-		Value        string   `json:"value" maxLength:"1048576"`
-		Kind         string   `json:"kind,omitempty" enum:"secret,variable,file" default:"secret"`
-		Comment      string   `json:"comment,omitempty" maxLength:"4096"`
-		Folder       string   `json:"folder,omitempty" maxLength:"512"`
-		Notes        string   `json:"notes,omitempty" maxLength:"16384"`
-		ProviderURL  string   `json:"provider_url,omitempty" maxLength:"2048"`
-		OwnerGroupID string   `json:"owner_group_id,omitempty" maxLength:"60"`
-		Tags         []string `json:"tags,omitempty" maxItems:"20"`
-		Message      string   `json:"message,omitempty" maxLength:"512"`
+		Value        string     `json:"value" maxLength:"1048576"`
+		Kind         string     `json:"kind,omitempty" enum:"secret,variable,file" default:"secret"`
+		Comment      string     `json:"comment,omitempty" maxLength:"4096"`
+		Folder       string     `json:"folder,omitempty" maxLength:"512"`
+		Notes        string     `json:"notes,omitempty" maxLength:"16384"`
+		ProviderURL  string     `json:"provider_url,omitempty" maxLength:"2048"`
+		OwnerGroupID string     `json:"owner_group_id,omitempty" maxLength:"60"`
+		Tags         []string   `json:"tags,omitempty" maxItems:"20"`
+		ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+		Message      string     `json:"message,omitempty" maxLength:"512"`
+		KeepValue    bool       `json:"keep_value,omitempty" doc:"Keep the current value and ignore value; edits metadata without revealing it"`
 	}
 }
 
@@ -157,7 +163,7 @@ func (s *Server) registerSecretRoutes() error {
 		Summary: "List secrets", Tags: []string{"secrets"},
 	}, func(ctx context.Context, in *listSecretsInput) (*secretsOutput, error) {
 		actor, _ := actorFrom(ctx)
-		secrets, etag, err := s.svc.ListSecrets(ctx, actor, in.Org, in.Project, in.Env, in.Reveal, in.Channel, metaFrom(ctx))
+		secrets, etag, err := s.svc.ListSecretsWithOverlay(ctx, actor, in.Org, in.Project, in.Env, in.Overlay, in.Reveal, in.Channel, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
 		}
@@ -187,6 +193,7 @@ func (s *Server) registerSecretRoutes() error {
 			ProviderURL:   in.Body.ProviderURL,
 			OwnerGroupID:  in.Body.OwnerGroupID,
 			Tags:          in.Body.Tags,
+			ExpiresAt:     in.Body.ExpiresAt,
 			ChangeMessage: in.Body.Message,
 		}, metaFrom(ctx))
 		if err != nil {
@@ -204,7 +211,7 @@ func (s *Server) registerSecretRoutes() error {
 		Summary: "Get a secret", Tags: []string{"secrets"},
 	}, func(ctx context.Context, in *getSecretInput) (*secretOutput, error) {
 		actor, _ := actorFrom(ctx)
-		secret, err := s.svc.GetSecret(ctx, actor, in.Org, in.Project, in.Env, in.Key, in.Reveal, in.Reason, in.Channel, metaFrom(ctx))
+		secret, err := s.svc.GetSecretWithOverlay(ctx, actor, in.Org, in.Project, in.Env, in.Key, in.Overlay, in.Reveal, in.Reason, in.Channel, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
 		}
@@ -229,7 +236,9 @@ func (s *Server) registerSecretRoutes() error {
 			ProviderURL:   in.Body.ProviderURL,
 			OwnerGroupID:  in.Body.OwnerGroupID,
 			Tags:          in.Body.Tags,
+			ExpiresAt:     in.Body.ExpiresAt,
 			ChangeMessage: in.Body.Message,
+			KeepValue:     in.Body.KeepValue,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
@@ -443,7 +452,7 @@ func (s *Server) registerSecretRoutes() error {
 		Summary: "Resolve ${KEY} references", Tags: []string{"secrets"},
 	}, func(ctx context.Context, in *resolveSecretsInput) (*secretsOutput, error) {
 		actor, _ := actorFrom(ctx)
-		secrets, etag, err := s.svc.ResolveSecrets(ctx, actor, in.Org, in.Project, in.Env, in.Channel, metaFrom(ctx))
+		secrets, etag, err := s.svc.ResolveSecretsWithOverlay(ctx, actor, in.Org, in.Project, in.Env, in.Overlay, in.Channel, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
 		}

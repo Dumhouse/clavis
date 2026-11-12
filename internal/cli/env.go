@@ -33,6 +33,10 @@ func newEnvCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newEnvListCommand(opts))
 	cmd.AddCommand(newEnvCreateCommand(opts))
 	cmd.AddCommand(newEnvDiffCommand(opts))
+	cmd.AddCommand(newEnvBranchCommand(opts))
+	cmd.AddCommand(newEnvFreezeCommand(opts))
+	cmd.AddCommand(newEnvFreezesCommand(opts))
+	cmd.AddCommand(newEnvUnfreezeCommand(opts))
 	return cmd
 }
 

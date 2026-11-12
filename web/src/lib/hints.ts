@@ -43,8 +43,9 @@ export const pageHints: Record<string, PageHints> = {
       { cmd: 'clavis run -- npm run dev', description: 'Inject secrets and mask output' },
     ],
     tips: [
-      'Reveals are audited with the key’s blind index — never the plaintext value.',
-      'Missing cells show a dashed outline; click to add the key to that environment.',
+      'Every reveal is audited with the key name and your reason — never the value.',
+      'Empty cells show “+ Add”; click one to set the key in that environment.',
+      'Click a key name for its history, metadata, and per-environment values.',
       'Paste a whole .env to review a diff before applying it.',
     ],
   },
@@ -94,8 +95,8 @@ export const pageHints: Record<string, PageHints> = {
     ],
   },
   '/identities': {
-    title: 'Identities',
-    keys: [{ keys: 'N', label: 'New identity' }],
+    title: 'Agents & machines',
+    keys: [{ keys: 'N', label: 'Add agent or machine' }],
     cmds: [
       { cmd: 'clavis identities ls', description: 'List machine and agent identities' },
       { cmd: 'clavis identities revoke', description: 'Revoke an identity' },
@@ -122,7 +123,7 @@ export const pageHints: Record<string, PageHints> = {
   '/health': {
     title: 'Health',
     keys: [],
-    cmds: [{ cmd: 'clavis server', description: 'Run the server and health endpoints' }],
+    cmds: [{ cmd: 'clavis health', description: 'Print the same findings in a terminal or CI' }],
     tips: [
       'Health is computed from real usage, not a checklist.',
       'Duplicate-value checks are opt-in per project.',

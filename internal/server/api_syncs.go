@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -13,13 +14,16 @@ import (
 )
 
 type syncBody struct {
-	ID           string     `json:"id"`
-	Environment  string     `json:"environment"`
-	Provider     string     `json:"provider"`
-	Status       string     `json:"status"`
-	Confirmed    bool       `json:"confirmed"`
-	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID             string     `json:"id"`
+	Environment    string     `json:"environment"`
+	Provider       string     `json:"provider"`
+	Status         string     `json:"status"`
+	Confirmed      bool       `json:"confirmed"`
+	DriftKeys      []string   `json:"drift_keys"`
+	DriftCheckedAt *time.Time `json:"drift_checked_at,omitempty"`
+	DeleteMissing  bool       `json:"delete_missing"`
+	LastSyncedAt   *time.Time `json:"last_synced_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type syncsOutput struct {
@@ -36,35 +40,44 @@ type createSyncInput struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	Body    struct {
-		Environment       string `json:"environment" minLength:"1" maxLength:"60"`
-		Provider          string `json:"provider,omitempty"`
-		Endpoint          string `json:"endpoint,omitempty" maxLength:"2048"`
-		Secret            string `json:"secret,omitempty" maxLength:"500"`
-		BaseURL           string `json:"base_url,omitempty" maxLength:"500"`
-		GitLabProject     string `json:"gitlab_project,omitempty" maxLength:"500"`
-		Token             string `json:"token,omitempty" maxLength:"1000"`
-		Protected         bool   `json:"protected,omitempty"`
-		Masked            bool   `json:"masked,omitempty"`
-		GitHubRepo        string `json:"github_repo,omitempty" maxLength:"500"`
-		GitHubEnvironment string `json:"github_environment,omitempty" maxLength:"200"`
-		GitHubScope       string `json:"github_scope,omitempty" enum:"repo,environment,org"`
-		VercelProject     string `json:"vercel_project,omitempty" maxLength:"500"`
-		VercelTeamID      string `json:"vercel_team_id,omitempty" maxLength:"200"`
-		AWSRegion         string `json:"aws_region,omitempty" maxLength:"60"`
-		AWSAccessKey      string `json:"aws_access_key,omitempty" maxLength:"200"`
-		AWSSecretKey      string `json:"aws_secret_key,omitempty" maxLength:"500"`
-		AWSSessionToken   string `json:"aws_session_token,omitempty" maxLength:"2000"`
-		AWSService        string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
-		AWSPrefix         string `json:"aws_prefix,omitempty" maxLength:"500"`
-		GCPProject        string `json:"gcp_project,omitempty" maxLength:"200"`
-		GCPServiceAccount string `json:"gcp_service_account,omitempty" maxLength:"20000"`
-		GCPPrefix         string `json:"gcp_prefix,omitempty" maxLength:"200"`
-		NetlifyAccount    string `json:"netlify_account,omitempty" maxLength:"200"`
-		NetlifySite       string `json:"netlify_site,omitempty" maxLength:"200"`
-		CloudflareAccount string `json:"cloudflare_account,omitempty" maxLength:"200"`
-		CloudflareProject string `json:"cloudflare_project,omitempty" maxLength:"200"`
-		CloudflareScript  string `json:"cloudflare_script,omitempty" maxLength:"200"`
-		CloudflareMode    string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
+		Environment        string `json:"environment" minLength:"1" maxLength:"60"`
+		Provider           string `json:"provider,omitempty"`
+		Endpoint           string `json:"endpoint,omitempty" maxLength:"2048"`
+		Secret             string `json:"secret,omitempty" maxLength:"500"`
+		BaseURL            string `json:"base_url,omitempty" maxLength:"500"`
+		GitLabProject      string `json:"gitlab_project,omitempty" maxLength:"500"`
+		Token              string `json:"token,omitempty" maxLength:"1000"`
+		Protected          bool   `json:"protected,omitempty"`
+		Masked             bool   `json:"masked,omitempty"`
+		GitHubRepo         string `json:"github_repo,omitempty" maxLength:"500"`
+		GitHubEnvironment  string `json:"github_environment,omitempty" maxLength:"200"`
+		GitHubScope        string `json:"github_scope,omitempty" enum:"repo,environment,org"`
+		VercelProject      string `json:"vercel_project,omitempty" maxLength:"500"`
+		VercelTeamID       string `json:"vercel_team_id,omitempty" maxLength:"200"`
+		DeleteMissing      bool   `json:"delete_missing,omitempty"`
+		GitHubAppID        string `json:"github_app_id,omitempty" maxLength:"100"`
+		GitHubInstallation string `json:"github_installation_id,omitempty" maxLength:"100"`
+		GitHubPrivateKey   string `json:"github_private_key,omitempty" maxLength:"20000"`
+		AWSRegion          string `json:"aws_region,omitempty" maxLength:"60"`
+		AWSAccessKey       string `json:"aws_access_key,omitempty" maxLength:"200"`
+		AWSSecretKey       string `json:"aws_secret_key,omitempty" maxLength:"500"`
+		AWSSessionToken    string `json:"aws_session_token,omitempty" maxLength:"2000"`
+		AWSService         string `json:"aws_service,omitempty" enum:"ssm,secretsmanager"`
+		AWSPrefix          string `json:"aws_prefix,omitempty" maxLength:"500"`
+		GCPProject         string `json:"gcp_project,omitempty" maxLength:"200"`
+		GCPServiceAccount  string `json:"gcp_service_account,omitempty" maxLength:"20000"`
+		GCPPrefix          string `json:"gcp_prefix,omitempty" maxLength:"200"`
+		NetlifyAccount     string `json:"netlify_account,omitempty" maxLength:"200"`
+		NetlifySite        string `json:"netlify_site,omitempty" maxLength:"200"`
+		CloudflareAccount  string `json:"cloudflare_account,omitempty" maxLength:"200"`
+		CloudflareProject  string `json:"cloudflare_project,omitempty" maxLength:"200"`
+		CloudflareScript   string `json:"cloudflare_script,omitempty" maxLength:"200"`
+		CloudflareMode     string `json:"cloudflare_mode,omitempty" enum:"workers,pages"`
+		VaultMount         string `json:"vault_mount,omitempty" maxLength:"100"`
+		VaultPath          string `json:"vault_path,omitempty" maxLength:"500"`
+		VaultVersion       int    `json:"vault_version,omitempty" enum:"1,2"`
+		ForgejoRepo        string `json:"forgejo_repo,omitempty" maxLength:"500" doc:"owner/name for repo scope, or the organization for org scope"`
+		ForgejoScope       string `json:"forgejo_scope,omitempty" enum:"repo,org"`
 	}
 }
 
@@ -72,6 +85,15 @@ type syncPath struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	ID      string `path:"id"`
+}
+
+type updateSyncInput struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	ID      string `path:"id"`
+	Body    struct {
+		DeleteMissing bool `json:"delete_missing"`
+	}
 }
 
 type runSyncInput struct {
@@ -154,7 +176,10 @@ func (s *Server) registerSyncRoutes() error {
 			GitHubRepo: in.Body.GitHubRepo, GitHubEnvironment: in.Body.GitHubEnvironment,
 			GitHubScope:   in.Body.GitHubScope,
 			VercelProject: in.Body.VercelProject, VercelTeamID: in.Body.VercelTeamID,
-			AWSRegion: in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
+			DeleteMissing: in.Body.DeleteMissing,
+			GitHubAppID:   in.Body.GitHubAppID, GitHubInstallation: in.Body.GitHubInstallation,
+			GitHubPrivateKey: in.Body.GitHubPrivateKey,
+			AWSRegion:        in.Body.AWSRegion, AWSAccessKey: in.Body.AWSAccessKey,
 			AWSSecretKey: in.Body.AWSSecretKey, AWSSessionToken: in.Body.AWSSessionToken,
 			AWSService: in.Body.AWSService, AWSPrefix: in.Body.AWSPrefix,
 			GCPProject: in.Body.GCPProject, GCPServiceAccount: in.Body.GCPServiceAccount,
@@ -162,6 +187,8 @@ func (s *Server) registerSyncRoutes() error {
 			NetlifyAccount: in.Body.NetlifyAccount, NetlifySite: in.Body.NetlifySite,
 			CloudflareAccount: in.Body.CloudflareAccount, CloudflareProject: in.Body.CloudflareProject,
 			CloudflareScript: in.Body.CloudflareScript, CloudflareMode: in.Body.CloudflareMode,
+			VaultMount: in.Body.VaultMount, VaultPath: in.Body.VaultPath, VaultVersion: in.Body.VaultVersion,
+			ForgejoRepo: in.Body.ForgejoRepo, ForgejoScope: in.Body.ForgejoScope,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
@@ -228,13 +255,61 @@ func (s *Server) registerSyncRoutes() error {
 		}
 		return out, nil
 	})
+	type driftOutput struct {
+		Body struct {
+			Supported bool      `json:"supported"`
+			Keys      []string  `json:"keys"`
+			CheckedAt time.Time `json:"checked_at"`
+			Detail    string    `json:"detail"`
+		}
+	}
+	if err := s.registry.Declare(http.MethodPost, base+"/{id}/drift", authz.SyncsManage, "check sync drift"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "check-sync-drift", Method: http.MethodPost, Path: base + "/{id}/drift",
+		Summary: "Check for drift", Tags: []string{"syncs"},
+	}, func(ctx context.Context, in *syncPath) (*driftOutput, error) {
+		actor, _ := actorFrom(ctx)
+		result, err := s.svc.CheckSyncDrift(ctx, actor, in.Org, in.Project, in.ID)
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &driftOutput{}
+		out.Body.Supported = result.Supported
+		out.Body.Keys = result.Keys
+		out.Body.CheckedAt = result.CheckedAt
+		out.Body.Detail = result.Detail
+		return out, nil
+	})
+	if err := s.registry.Declare(http.MethodPatch, base+"/{id}", authz.SyncsManage, "update sync behavior"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "update-sync", Method: http.MethodPatch, Path: base + "/{id}",
+		Summary: "Update sync behavior", Tags: []string{"syncs"},
+	}, func(ctx context.Context, in *updateSyncInput) (*syncOutput, error) {
+		actor, _ := actorFrom(ctx)
+		view, err := s.svc.UpdateSyncBehavior(ctx, actor, in.Org, in.Project, in.ID, in.Body.DeleteMissing, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &syncOutput{Body: syncFromView(*view)}, nil
+	})
 	return nil
 }
 
 func syncFromView(view service.SyncView) syncBody {
+	keys := []string{}
+	_ = json.Unmarshal([]byte(view.Sync.DriftKeys), &keys)
+	var cfg struct {
+		DeleteMissing bool `json:"delete_missing"`
+	}
+	_ = json.Unmarshal([]byte(view.Sync.Config), &cfg)
 	return syncBody{
 		ID: view.Sync.ID, Environment: view.Environment, Provider: view.Sync.Provider,
 		Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
+		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt, DeleteMissing: cfg.DeleteMissing,
 		LastSyncedAt: view.Sync.LastSyncedAt, CreatedAt: view.Sync.CreatedAt,
 	}
 }

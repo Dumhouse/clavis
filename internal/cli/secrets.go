@@ -2,9 +2,13 @@ package cli
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -88,8 +92,16 @@ func newSecretsListCommand(opts *Options) *cobra.Command {
 			}
 			var result secretsListResponse
 			path := secretsBase(resolved)
+			query := url.Values{}
 			if reveal {
-				path += "?reveal=true&channel=cli"
+				query.Set("reveal", "true")
+				query.Set("channel", "cli")
+			}
+			if opts.Overlay != "" {
+				query.Set("overlay", opts.Overlay)
+			}
+			if len(query) > 0 {
+				path += "?" + query.Encode()
 			}
 			if err := c.Get(cmd.Context(), path, &result); err != nil {
 				return err
@@ -154,7 +166,11 @@ func newSecretsGetCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			var secret secretJSON
-			if err := c.Get(cmd.Context(), secretPath(resolved, args[0])+"?reveal=true&reason=cli&channel=cli", &secret); err != nil {
+			path := secretPath(resolved, args[0]) + "?reveal=true&reason=cli&channel=cli"
+			if opts.Overlay != "" {
+				path += "&overlay=" + url.QueryEscape(opts.Overlay)
+			}
+			if err := c.Get(cmd.Context(), path, &secret); err != nil {
 				return err
 			}
 			if opts.JSON {
@@ -432,7 +448,7 @@ func newSecretsGenerateCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&genType, "type", "password", "password, apikey, hex, base64, or uuid")
+	cmd.Flags().StringVar(&genType, "type", "password", "password, apikey, hex, base64, uuid, jwt, ed25519, or rsa")
 	cmd.Flags().IntVar(&length, "length", 32, "length for password/apikey/hex/base64 types")
 	cmd.Flags().StringVar(&kind, "kind", "secret", "secret, variable, or file")
 	cmd.Flags().StringVar(&message, "message", "Generated", "why this changed")
@@ -463,8 +479,34 @@ func generateValue(genType string, length int) (string, error) {
 		return randomFrom("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", length)
 	case "password":
 		return randomFrom("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}", length)
+	case "jwt":
+		b := make([]byte, 32)
+		if _, err := rand.Read(b); err != nil {
+			return "", err
+		}
+		return base64.RawURLEncoding.EncodeToString(b), nil
+	case "ed25519":
+		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return "", err
+		}
+		der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			return "", err
+		}
+		return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})), nil
+	case "rsa":
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return "", err
+		}
+		der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			return "", err
+		}
+		return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})), nil
 	default:
-		return "", fmt.Errorf("unknown type %q (password, apikey, hex, base64, uuid)", genType)
+		return "", fmt.Errorf("unknown type %q (password, apikey, hex, base64, uuid, jwt, ed25519, rsa)", genType)
 	}
 }
 

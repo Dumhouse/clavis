@@ -31,6 +31,81 @@ jobs:
         with:
           version: v2.15.0
 
+  postgres:
+    name: Go tests (Postgres)
+    runs-on: ubuntu-26.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: clavis
+          POSTGRES_PASSWORD: clavis
+          POSTGRES_DB: clavis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clavis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CLAVIS_TEST_POSTGRES: postgres://clavis:clavis@localhost:5432/clavis_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/server ./internal/cli ./internal/jobs ./internal/store
+
+  operator:
+    name: Kubernetes operator
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: operator/go.mod
+          cache: true
+          cache-dependency-path: operator/go.sum
+      - run: go test ./...
+        working-directory: operator
+      - run: go build ./...
+        working-directory: operator
+
+  csi:
+    name: CSI driver
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: csi/go.mod
+          cache: true
+          cache-dependency-path: csi/go.sum
+      - run: go test ./...
+        working-directory: csi
+      - run: go build ./...
+        working-directory: csi
+
+  docs:
+    name: Docs site
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: docs
+      - run: pnpm build
+        working-directory: docs
+
   web:
     name: Web
     runs-on: ubuntu-26.04
@@ -49,6 +124,7 @@ jobs:
       - run: pnpm --dir web check:contrast
       - run: pnpm --dir web check:hints
       - run: pnpm --dir web build
+      - run: pnpm --dir web check:bundle
 
   build:
     name: Build binary

@@ -56,6 +56,7 @@ type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Database DatabaseConfig `yaml:"database"`
 	Keys     KeysConfig     `yaml:"keys"`
+	Backup   BackupConfig   `yaml:"backup"`
 	Log      LogConfig      `yaml:"log"`
 	Email    EmailConfig    `yaml:"email"`
 	Security SecurityConfig `yaml:"security"`
@@ -121,15 +122,35 @@ type ServerConfig struct {
 
 // DatabaseConfig controls the data store.
 type DatabaseConfig struct {
-	Driver string `yaml:"driver"` // sqlite (postgres arrives in M3)
+	Driver string `yaml:"driver"` // sqlite | postgres
 	Path   string `yaml:"path"`
+	DSN    string `yaml:"dsn"`
+}
+
+// BackupConfig controls scheduled encrypted backups.
+type BackupConfig struct {
+	Enabled  bool     `yaml:"enabled"`
+	Dir      string   `yaml:"dir"`
+	Interval Duration `yaml:"interval"`
+	Keep     int      `yaml:"keep"`
 }
 
 // KeysConfig controls the root key provider.
 type KeysConfig struct {
-	Provider    string `yaml:"provider"` // file | env
+	Provider    string `yaml:"provider"` // file | env | aws-kms | gcp-kms
 	RootKeyFile string `yaml:"root_key_file"`
 	RootKeyEnv  string `yaml:"root_key_env"`
+
+	AWSRegion    string `yaml:"aws_region"`
+	AWSKeyID     string `yaml:"aws_kms_key_id"`
+	AWSAccessKey string `yaml:"aws_access_key"`
+	AWSSecretKey string `yaml:"aws_secret_key"`
+	AWSSession   string `yaml:"aws_session_token"`
+	AWSEndpoint  string `yaml:"aws_kms_endpoint"`
+
+	GCPKey      string `yaml:"gcp_kms_key"`
+	GCPKeyFile  string `yaml:"gcp_service_account_file"`
+	GCPEndpoint string `yaml:"gcp_kms_endpoint"`
 }
 
 // LogConfig controls structured logging.
@@ -153,6 +174,7 @@ func Default() *Config {
 			RateLimitPerMinute: 600,
 		},
 		Database: DatabaseConfig{Driver: "sqlite"},
+		Backup:   BackupConfig{Interval: Duration(24 * time.Hour), Keep: 7},
 		Keys: KeysConfig{
 			Provider:   "file",
 			RootKeyEnv: "CLAVIS_ROOT_KEY",
@@ -201,6 +223,9 @@ func (c *Config) applyDerived() {
 	}
 	if c.Keys.RootKeyFile == "" {
 		c.Keys.RootKeyFile = filepath.Join(c.dataDir(), "root.key")
+	}
+	if c.Backup.Dir == "" {
+		c.Backup.Dir = filepath.Join(c.dataDir(), "backups")
 	}
 	if c.Server.BaseURL == "" {
 		addr := c.Server.Addr
@@ -284,9 +309,20 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_SERVER_BASE_URL", &c.Server.BaseURL)
 	setString("CLAVIS_DB_DRIVER", &c.Database.Driver)
 	setString("CLAVIS_DB_PATH", &c.Database.Path)
+	setString("CLAVIS_DB_DSN", &c.Database.DSN)
+	setString("CLAVIS_BACKUP_DIR", &c.Backup.Dir)
 	setString("CLAVIS_KEY_PROVIDER", &c.Keys.Provider)
 	setString("CLAVIS_ROOT_KEY_FILE", &c.Keys.RootKeyFile)
 	setString("CLAVIS_ROOT_KEY_ENV", &c.Keys.RootKeyEnv)
+	setString("CLAVIS_AWS_REGION", &c.Keys.AWSRegion)
+	setString("CLAVIS_AWS_KMS_KEY_ID", &c.Keys.AWSKeyID)
+	setString("CLAVIS_AWS_ACCESS_KEY", &c.Keys.AWSAccessKey)
+	setString("CLAVIS_AWS_SECRET_KEY", &c.Keys.AWSSecretKey)
+	setString("CLAVIS_AWS_SESSION_TOKEN", &c.Keys.AWSSession)
+	setString("CLAVIS_AWS_KMS_ENDPOINT", &c.Keys.AWSEndpoint)
+	setString("CLAVIS_GCP_KMS_KEY", &c.Keys.GCPKey)
+	setString("CLAVIS_GCP_SERVICE_ACCOUNT_FILE", &c.Keys.GCPKeyFile)
+	setString("CLAVIS_GCP_KMS_ENDPOINT", &c.Keys.GCPEndpoint)
 	setString("CLAVIS_LOG_LEVEL", &c.Log.Level)
 	setString("CLAVIS_LOG_FORMAT", &c.Log.Format)
 	setString("CLAVIS_EMAIL_HOST", &c.Email.Host)
@@ -306,14 +342,17 @@ func applyEnv(c *Config) error {
 
 	for _, err := range []error{
 		setBool("CLAVIS_DEV", &c.Server.Dev),
+		setBool("CLAVIS_BACKUP_ENABLED", &c.Backup.Enabled),
 		setBool("CLAVIS_METRICS_PUBLIC", &c.Server.MetricsPublic),
 		setDuration("CLAVIS_READ_TIMEOUT", &c.Server.ReadTimeout),
 		setDuration("CLAVIS_WRITE_TIMEOUT", &c.Server.WriteTimeout),
 		setDuration("CLAVIS_IDLE_TIMEOUT", &c.Server.IdleTimeout),
 		setDuration("CLAVIS_SHUTDOWN_TIMEOUT", &c.Server.ShutdownTimeout),
+		setDuration("CLAVIS_BACKUP_INTERVAL", &c.Backup.Interval),
 		setInt64("CLAVIS_MAX_BODY_BYTES", &c.Server.MaxBodyBytes),
 		setBool("CLAVIS_EMAIL_ENABLED", &c.Email.Enabled),
 		setInt("CLAVIS_EMAIL_PORT", &c.Email.Port),
+		setInt("CLAVIS_BACKUP_KEEP", &c.Backup.Keep),
 		setInt("CLAVIS_RATE_LIMIT_PER_MINUTE", &c.Server.RateLimitPerMinute),
 		setBool("CLAVIS_BREACH_CHECK", &c.Security.BreachCheck),
 	} {
@@ -393,15 +432,28 @@ func (c *Config) Validate() error {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("config: server.base_url scheme must be http or https")
 	}
+	if c.Backup.Enabled {
+		if c.Backup.Interval.Duration() <= 0 {
+			return fmt.Errorf("config: backup.interval must be positive")
+		}
+		if c.Backup.Keep < 1 {
+			return fmt.Errorf("config: backup.keep must be at least 1")
+		}
+		if c.Backup.Dir == "" {
+			return fmt.Errorf("config: backup.dir is required when backups are enabled")
+		}
+	}
 	switch c.Database.Driver {
 	case "sqlite":
+		if c.Database.Path == "" {
+			return fmt.Errorf("config: database.path is required for sqlite")
+		}
 	case "postgres":
-		return fmt.Errorf("config: database.driver postgres is not supported until M3")
+		if c.Database.DSN == "" {
+			return fmt.Errorf("config: database.dsn is required for postgres")
+		}
 	default:
-		return fmt.Errorf("config: unknown database.driver %q (supported: sqlite)", c.Database.Driver)
-	}
-	if c.Database.Path == "" {
-		return fmt.Errorf("config: database.path is required")
+		return fmt.Errorf("config: unknown database.driver %q (supported: sqlite, postgres)", c.Database.Driver)
 	}
 	switch c.Keys.Provider {
 	case "file":
@@ -412,8 +464,16 @@ func (c *Config) Validate() error {
 		if c.Keys.RootKeyEnv == "" {
 			return fmt.Errorf("config: keys.root_key_env is required for the env provider")
 		}
+	case "aws-kms":
+		if c.Keys.RootKeyFile == "" || c.Keys.AWSRegion == "" || c.Keys.AWSKeyID == "" || c.Keys.AWSAccessKey == "" || c.Keys.AWSSecretKey == "" {
+			return fmt.Errorf("config: aws-kms requires root_key_file, aws_region, aws_kms_key_id, aws_access_key, and aws_secret_key")
+		}
+	case "gcp-kms":
+		if c.Keys.RootKeyFile == "" || c.Keys.GCPKey == "" || c.Keys.GCPKeyFile == "" {
+			return fmt.Errorf("config: gcp-kms requires root_key_file, gcp_kms_key, and gcp_service_account_file")
+		}
 	default:
-		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env)", c.Keys.Provider)
+		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env, aws-kms, gcp-kms)", c.Keys.Provider)
 	}
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":

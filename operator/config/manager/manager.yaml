@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clavis-operator
+  namespace: clavis-system
+  labels:
+    app.kubernetes.io/name: clavis-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clavis-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clavis-operator
+    spec:
+      serviceAccountName: clavis-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: manager
+          image: ghcr.io/dumhouse/clavis-operator:latest
+          args: ["--leader-elect"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: health
+              containerPort: 8081
+          livenessProbe:
+            httpGet: {path: /healthz, port: health}
+          readinessProbe:
+            httpGet: {path: /readyz, port: health}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}

@@ -1,0 +1,30 @@
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      rate:
+        description: Requests per second
+        default: "1000"
+      duration:
+        description: Test duration
+        default: "60s"
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: grafana/setup-k6-action@v1
+      - run: k6 run project/loadtest/reads.js
+        env:
+          BASE_URL: ${{ secrets.CLAVIS_LOADTEST_URL }}
+          TOKEN: ${{ secrets.CLAVIS_LOADTEST_TOKEN }}
+          ORG: ${{ vars.CLAVIS_LOADTEST_ORG }}
+          PROJECT: ${{ vars.CLAVIS_LOADTEST_PROJECT }}
+          ENV: ${{ vars.CLAVIS_LOADTEST_ENV }}
+          RATE: ${{ inputs.rate }}
+          DURATION: ${{ inputs.duration }}

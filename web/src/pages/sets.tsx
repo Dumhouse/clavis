@@ -7,12 +7,14 @@ import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { confirmAction } from '@/components/ui/dialogs'
+import { Input, Select } from '@/components/ui/field'
 
 type SharedSet = components['schemas']['SharedSetBody']
 type Project = components['schemas']['ProjectBody']
 
 const inputClass =
-  'h-8 rounded-app-sm border border-border bg-bg px-2 text-[12px] text-text focus:border-accent-line focus:outline-none'
+  'h-8 rounded-app-sm border border-border bg-bg px-2 text-sm text-text focus:border-accent-line focus:outline-none'
 
 export function SharedSetsPage() {
   const { org } = useCurrentOrg()
@@ -92,7 +94,7 @@ export function SharedSetsPage() {
   const remove = useMutation({
     mutationFn: async (set: SharedSet) => {
       if (!org) throw new Error('No organization.')
-      if (!window.confirm(`Delete “${set.name}” and all its imports?`)) return
+      if (!(await confirmAction(`Delete “${set.name}” and all its imports?`))) return
       const result = await api.DELETE('/api/v1/orgs/{org}/sets/{slug}', {
         params: { path: { org: org.slug, slug: set.slug } },
       })
@@ -135,16 +137,19 @@ export function SharedSetsPage() {
       <header>
         <div className="flex items-center gap-2">
           <Layers className="size-5 text-muted" />
-          <h1 className="font-head text-[24px] font-semibold tracking-tight">Shared sets</h1>
+          <h1 className="font-head text-2xl font-semibold tracking-tight">Shared sets</h1>
         </div>
-        <p className="mt-1 text-[13px] text-muted">
-          Org-level secret sets imported by environments. Local values always win; imported sets
-          resolve through <code className="font-mono">{'${set:KEY}'}</code>.
+        <p className="mt-1 max-w-3xl text-base text-muted">
+          Reusable secrets shared across projects and environments. Import a set into an
+          environment; local values always win, and{' '}
+          <code className="font-mono">{'${set:KEY}'}</code> resolves the set value when no local
+          override exists. Sets are org-level, so updating a value applies everywhere it is
+          imported.
         </p>
       </header>
 
       {error && (
-        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-[11.5px] text-danger">{error}</p>
+        <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-xs text-danger">{error}</p>
       )}
 
       <section className="rounded-app border border-border bg-surface px-4 py-3">
@@ -156,10 +161,9 @@ export function SharedSetsPage() {
           className="flex flex-wrap items-end gap-2"
         >
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Name</span>
-            <input
+            <span className="mb-1 block text-xs font-medium text-muted">Name</span>
+            <Input
               required
-              className={inputClass}
               value={name}
               onChange={(event) => {
                 setName(event.target.value)
@@ -168,9 +172,8 @@ export function SharedSetsPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11.5px] font-medium text-muted">Slug</span>
-            <input
-              className={inputClass}
+            <span className="mb-1 block text-xs font-medium text-muted">Slug</span>
+            <Input
               value={slug}
               onChange={(event) => {
                 setSlug(event.target.value)
@@ -185,10 +188,9 @@ export function SharedSetsPage() {
       </section>
 
       <section className="rounded-app border border-border bg-surface px-4 py-3">
-        <p className="mb-2 text-[12px] font-semibold">Import into an environment</p>
+        <p className="mb-2 text-sm font-semibold">Import into an environment</p>
         <div className="flex flex-wrap items-end gap-2">
-          <select
-            className={inputClass}
+          <Select
             value={importSet}
             onChange={(event) => {
               setImportSet(event.target.value)
@@ -200,9 +202,8 @@ export function SharedSetsPage() {
                 {set.name}
               </option>
             ))}
-          </select>
-          <select
-            className={inputClass}
+          </Select>
+          <Select
             value={importProject}
             onChange={(event) => {
               setImportProject(event.target.value)
@@ -215,9 +216,8 @@ export function SharedSetsPage() {
                 {item.name}
               </option>
             ))}
-          </select>
-          <select
-            className={inputClass}
+          </Select>
+          <Select
             value={importEnv}
             onChange={(event) => {
               setImportEnv(event.target.value)
@@ -229,7 +229,7 @@ export function SharedSetsPage() {
                 {env.name}
               </option>
             ))}
-          </select>
+          </Select>
           <Button
             variant="secondary"
             size="sm"
@@ -259,12 +259,12 @@ export function SharedSetsPage() {
           />
         ))}
         {sets.isLoading && (
-          <p className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-5 text-[12px] text-muted">
+          <p className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-5 text-sm text-muted">
             <Loader2 className="size-4 animate-spin" /> Loading shared sets…
           </p>
         )}
         {!sets.isLoading && (sets.data?.length ?? 0) === 0 && (
-          <p className="rounded-app border border-dashed border-border bg-panel px-4 py-6 text-[12px] text-muted">
+          <p className="rounded-app border border-dashed border-border bg-panel px-4 py-6 text-sm text-muted">
             No shared sets yet.
           </p>
         )}
@@ -319,9 +319,9 @@ function SetCard({
   return (
     <section className="rounded-app border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <h2 className="text-[13px] font-semibold">{set.name}</h2>
-        <code className="font-mono text-[10.5px] text-dim">{set.slug}</code>
-        <span className="rounded-full bg-elev px-1.5 text-[10.5px] text-muted">
+        <h2 className="text-base font-semibold">{set.name}</h2>
+        <code className="font-mono text-2xs text-dim">{set.slug}</code>
+        <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">
           {set.items?.length ?? 0} keys
         </span>
         <Button
@@ -334,7 +334,7 @@ function SetCard({
           <Trash2 className="size-3.5" />
         </Button>
       </div>
-      <div className="border-b border-border-soft px-4 py-2 text-[11px] text-dim">
+      <div className="border-b border-border-soft px-4 py-2 text-xs text-dim">
         {(set.imports ?? []).length === 0
           ? 'Not imported by any environment.'
           : `Used by ${(set.imports ?? [])
@@ -344,9 +344,9 @@ function SetCard({
       <div className="divide-y divide-border-soft">
         {(set.items ?? []).map((item) => (
           <div key={item.key} className="flex items-center gap-3 px-4 py-2">
-            <code className="flex-1 font-mono text-[11.5px]">{item.key}</code>
-            <span className="text-[10.5px] text-dim">{item.kind}</span>
-            <span className="text-[10.5px] text-dim">v{item.version}</span>
+            <code className="flex-1 font-mono text-xs">{item.key}</code>
+            <span className="text-2xs text-dim">{item.kind}</span>
+            <span className="text-2xs text-dim">v{item.version}</span>
             <Button
               variant="ghost"
               size="icon"
@@ -366,7 +366,7 @@ function SetCard({
         }}
         className="flex flex-wrap items-end gap-2 border-t border-border px-4 py-3"
       >
-        <input
+        <Input
           required
           className={inputClass + ' font-mono'}
           placeholder="KEY"
@@ -375,7 +375,7 @@ function SetCard({
             setKey(event.target.value.toUpperCase().replace(/[^A-Z0-9_.-]/g, '_'))
           }}
         />
-        <input
+        <Input
           required
           className={inputClass + ' min-w-48 flex-1'}
           placeholder="Value"
@@ -384,8 +384,7 @@ function SetCard({
             setValue(event.target.value)
           }}
         />
-        <select
-          className={inputClass}
+        <Select
           value={kind}
           onChange={(event) => {
             setKind(event.target.value)
@@ -394,7 +393,7 @@ function SetCard({
           <option value="secret">Secret</option>
           <option value="variable">Variable</option>
           <option value="file">File</option>
-        </select>
+        </Select>
         <Button type="submit" variant="secondary" size="sm">
           <Plus className="size-3.5" /> Add
         </Button>

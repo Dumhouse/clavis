@@ -1,0 +1,6 @@
+name: clavis CodeQL config
+
+# project/design/mockups is static, non-shipped design HTML used for review;
+# it is never served by the application.
+paths-ignore:
+  - project/design/mockups

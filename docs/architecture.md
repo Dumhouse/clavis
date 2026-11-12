@@ -89,12 +89,15 @@ clavis/
 ├── web/                   # React SPA (built output embedded via go:embed)
 ├── operator/              # Kubernetes operator (separate Go module)
 ├── integrations/
-│   ├── github-action/
-│   ├── terraform-provider/
-│   └── vscode/
+│   └── eso/               # External Secrets Operator webhook
 ├── deploy/                # Dockerfile, docker-compose, Helm chart
-├── docs/                  # these planning docs → later the docs site source
-└── tasks/                 # milestone task lists
+├── docs/                  # documentation and the VitePress site
+└── project/               # planning and launch material
+    ├── tasks/             # milestone task lists
+    ├── launch/            # launch copy, listings, community prep
+    ├── security/          # audit scope and disclosure material
+    ├── design/            # UI mockups
+    └── loadtest/          # k6 load tests
 ```
 
 One binary contains both server and CLI. `brew install clavis` gives developers the CLI; `docker run clavis/clavis server` runs the server. Same version, no drift.

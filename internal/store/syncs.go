@@ -12,17 +12,19 @@ import (
 
 // Sync pushes an environment's resolved secrets to an external provider.
 type Sync struct {
-	ID            string
-	ProjectID     string
-	EnvironmentID string
-	Path          string
-	Provider      string
-	Config        string
-	Status        string
-	Confirmed     bool
-	LastSyncedAt  *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID             string
+	ProjectID      string
+	EnvironmentID  string
+	Path           string
+	Provider       string
+	Config         string
+	Status         string
+	Confirmed      bool
+	DriftKeys      string
+	DriftCheckedAt *time.Time
+	LastSyncedAt   *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // SyncRun is one execution attempt.
@@ -67,15 +69,16 @@ func (s *Store) CreateSync(ctx context.Context, sync *Sync) error {
 }
 
 const syncColumns = `id, project_id, environment_id, path, provider, config, status,
-	confirmed, last_synced_at, created_at, updated_at`
+	confirmed, drift_keys, drift_checked_at, last_synced_at, created_at, updated_at`
 
 func scanSync(row rowScanner) (*Sync, error) {
 	var sync Sync
 	var confirmed int
-	var lastSynced sql.NullString
+	var lastSynced, driftChecked sql.NullString
 	var createdAt, updatedAt string
 	if err := row.Scan(&sync.ID, &sync.ProjectID, &sync.EnvironmentID, &sync.Path, &sync.Provider,
-		&sync.Config, &sync.Status, &confirmed, &lastSynced, &createdAt, &updatedAt); err != nil {
+		&sync.Config, &sync.Status, &confirmed, &sync.DriftKeys, &driftChecked,
+		&lastSynced, &createdAt, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -83,6 +86,9 @@ func scanSync(row rowScanner) (*Sync, error) {
 	}
 	sync.Confirmed = confirmed != 0
 	var err error
+	if sync.DriftCheckedAt, err = parseNullableTime(driftChecked); err != nil {
+		return nil, err
+	}
 	if sync.LastSyncedAt, err = parseNullableTime(lastSynced); err != nil {
 		return nil, err
 	}
@@ -129,6 +135,26 @@ func (s *Store) UpdateSyncStatus(ctx context.Context, id, status string, syncedA
 		return fmt.Errorf("store: update sync: %w", err)
 	}
 	return expectOne(res, "update sync")
+}
+
+// UpdateSyncConfig replaces the provider configuration JSON.
+func (s *Store) UpdateSyncConfig(ctx context.Context, projectID, id, config string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE syncs SET config = ?, updated_at = ?
+		WHERE id = ? AND project_id = ?`, config, formatTime(time.Now().UTC()), id, projectID)
+	if err != nil {
+		return fmt.Errorf("store: update sync config: %w", err)
+	}
+	return expectOne(res, "update sync config")
+}
+
+// UpdateSyncDrift records a drift check result.
+func (s *Store) UpdateSyncDrift(ctx context.Context, id, keys string, checkedAt time.Time) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE syncs SET drift_keys = ?, drift_checked_at = ? WHERE id = ?`,
+		keys, formatTime(checkedAt), id)
+	if err != nil {
+		return fmt.Errorf("store: update sync drift: %w", err)
+	}
+	return expectOne(res, "update sync drift")
 }
 
 // DeleteSync removes a sync and its runs.

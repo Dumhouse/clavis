@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,6 +34,13 @@ func newExportCommand(opts *Options) *cobra.Command {
 			path := secretsBase(resolved)
 			if !variablesOnly {
 				path += ":resolve?channel=export"
+			}
+			if opts.Overlay != "" {
+				if !variablesOnly {
+					path += "&overlay=" + url.QueryEscape(opts.Overlay)
+				} else {
+					path += "?overlay=" + url.QueryEscape(opts.Overlay)
+				}
 			}
 			if err := c.Get(cmd.Context(), path, &result); err != nil {
 				return err

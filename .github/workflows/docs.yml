@@ -1,0 +1,56 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - brand/**
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        id: pages
+      - run: pnpm install --frozen-lockfile
+        working-directory: docs
+      - run: pnpm build
+        working-directory: docs
+        env:
+          DOCS_BASE: /${{ github.event.repository.name }}/
+          DOCS_HOSTNAME: ${{ steps.pages.outputs.origin }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-26.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

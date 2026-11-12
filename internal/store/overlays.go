@@ -16,6 +16,7 @@ type Overlay struct {
 	EnvironmentID string
 	Slug          string
 	Name          string
+	Kind          string
 	CreatedAt     time.Time
 }
 
@@ -32,9 +33,9 @@ func (s *Store) GetOrCreateOverlay(ctx context.Context, envID, userID, name stri
 		ID: uuid.NewString(), EnvironmentID: envID, Slug: userID, Name: name,
 		CreatedAt: time.Now().UTC(),
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO overlays (id, environment_id, slug, name, created_at)
-		VALUES (?,?,?,?,?)`, overlay.ID, overlay.EnvironmentID, overlay.Slug, overlay.Name,
-		formatTime(overlay.CreatedAt))
+	_, err = s.db.ExecContext(ctx, `INSERT INTO overlays (id, environment_id, slug, name, kind, created_at)
+		VALUES (?,?,?,?,?,?)`, overlay.ID, overlay.EnvironmentID, overlay.Slug, overlay.Name,
+		"personal", formatTime(overlay.CreatedAt))
 	if err != nil {
 		if isUniqueViolation(err) {
 			return s.GetOverlay(ctx, envID, userID)
@@ -48,9 +49,9 @@ func (s *Store) GetOrCreateOverlay(ctx context.Context, envID, userID, name stri
 func (s *Store) GetOverlay(ctx context.Context, envID, userID string) (*Overlay, error) {
 	var overlay Overlay
 	var createdAt string
-	err := s.db.QueryRowContext(ctx, `SELECT id, environment_id, slug, name, created_at
+	err := s.db.QueryRowContext(ctx, `SELECT id, environment_id, slug, name, kind, created_at
 		FROM overlays WHERE environment_id = ? AND slug = ?`, envID, userID).
-		Scan(&overlay.ID, &overlay.EnvironmentID, &overlay.Slug, &overlay.Name, &createdAt)
+		Scan(&overlay.ID, &overlay.EnvironmentID, &overlay.Slug, &overlay.Name, &overlay.Kind, &createdAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -86,4 +87,62 @@ func (s *Store) ListOverlayItems(ctx context.Context, overlayID string) ([]Item,
 func (s *Store) GetOverlayItemByBlindIndex(ctx context.Context, overlayID, blind string) (*Item, error) {
 	return scanItem(s.db.QueryRowContext(ctx, `SELECT `+itemColumns+` FROM items
 		WHERE overlay_id = ? AND deleted_at IS NULL AND key_blind_index = ?`, overlayID, blind))
+}
+
+// CreateEnvironmentOverlay creates a tenant/region overlay.
+func (s *Store) CreateEnvironmentOverlay(ctx context.Context, overlay *Overlay) error {
+	overlay.Kind = "environment"
+	_, err := s.db.ExecContext(ctx, `INSERT INTO overlays (id, environment_id, slug, name, kind, created_at)
+		VALUES (?,?,?,?,?,?)`, overlay.ID, overlay.EnvironmentID, overlay.Slug, overlay.Name,
+		overlay.Kind, formatTime(overlay.CreatedAt))
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrConflict
+		}
+		return fmt.Errorf("store: create environment overlay: %w", err)
+	}
+	return nil
+}
+
+// ListEnvironmentOverlays returns tenant/region overlays for an environment.
+func (s *Store) ListEnvironmentOverlays(ctx context.Context, envID string) ([]Overlay, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, environment_id, slug, name, kind, created_at
+		FROM overlays WHERE environment_id = ? AND kind = 'environment' ORDER BY slug`, envID)
+	if err != nil {
+		return nil, fmt.Errorf("store: list environment overlays: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Overlay
+	for rows.Next() {
+		var overlay Overlay
+		var createdAt string
+		if err := rows.Scan(&overlay.ID, &overlay.EnvironmentID, &overlay.Slug, &overlay.Name,
+			&overlay.Kind, &createdAt); err != nil {
+			return nil, err
+		}
+		if overlay.CreatedAt, err = parseTime(createdAt); err != nil {
+			return nil, err
+		}
+		out = append(out, overlay)
+	}
+	return out, rows.Err()
+}
+
+// GetEnvironmentOverlay loads one tenant/region overlay by slug.
+func (s *Store) GetEnvironmentOverlay(ctx context.Context, envID, slug string) (*Overlay, error) {
+	var overlay Overlay
+	var createdAt string
+	err := s.db.QueryRowContext(ctx, `SELECT id, environment_id, slug, name, kind, created_at
+		FROM overlays WHERE environment_id = ? AND slug = ? AND kind = 'environment'`, envID, slug).
+		Scan(&overlay.ID, &overlay.EnvironmentID, &overlay.Slug, &overlay.Name, &overlay.Kind, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("store: get environment overlay: %w", err)
+	}
+	if overlay.CreatedAt, err = parseTime(createdAt); err != nil {
+		return nil, err
+	}
+	return &overlay, nil
 }

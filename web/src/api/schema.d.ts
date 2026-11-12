@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/api/v1/access-approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply a signed access approval */
+        post: operations["apply-access-approval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/aws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange an AWS signed identity */
+        post: operations["exchange-aws"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/device/approve": {
         parameters: {
             query?: never;
@@ -568,6 +602,23 @@ export interface paths {
         patch: operations["update-org"];
         trace?: never;
     };
+    "/api/v1/orgs/{org}/access-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Access review report */
+        get: operations["access-review"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/access/explain": {
         parameters: {
             query?: never;
@@ -740,6 +791,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Organization health report */
+        get: operations["health-report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/identities": {
         parameters: {
             query?: never;
@@ -770,6 +838,61 @@ export interface paths {
         post?: never;
         /** Revoke an identity */
         delete: operations["revoke-identity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/identities/{id}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an agent command allowlist */
+        get: operations["get-agent-commands"];
+        /** Replace an agent command allowlist */
+        put: operations["set-agent-commands"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/identities/{id}/commands:check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check an agent command against its allowlist */
+        post: operations["check-agent-command"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/identities/{id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a delegated agent session
+         * @description Returns a one-hour agent token tied to the caller's own session or personal access token. `{id}` may be the identity ID or name.
+         */
+        post: operations["start-agent-session"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -861,6 +984,41 @@ export interface paths {
         patch: operations["update-member"];
         trace?: never;
     };
+    "/api/v1/orgs/{org}/members/{user}/offboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read offboarding progress */
+        get: operations["offboarding-report"];
+        put?: never;
+        /** Start an offboarding review */
+        post: operations["start-offboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/members/{user}/offboarding/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark an offboarding task rotated or safe */
+        post: operations["mark-offboarding-task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects": {
         parameters: {
             query?: never;
@@ -916,6 +1074,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/access-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List access requests */
+        get: operations["list-access-requests"];
+        put?: never;
+        /** Request temporary access */
+        post: operations["create-access-request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/access-requests/break-glass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grant immediate break-glass access */
+        post: operations["break-glass"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/access-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve an access request */
+        post: operations["approve-access-request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/access-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject an access request */
+        post: operations["reject-access-request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/access/{id}": {
         parameters: {
             query?: never;
@@ -928,6 +1155,59 @@ export interface paths {
         post?: never;
         /** Revoke project access */
         delete: operations["revoke-project-access"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/dynamic-configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List dynamic secret configs */
+        get: operations["list-dynamic-configs"];
+        put?: never;
+        /** Create a dynamic secret config */
+        post: operations["create-dynamic-config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/dynamic-configs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a dynamic secret config */
+        delete: operations["delete-dynamic-config"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/dynamic-configs/{id}/leases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List leases */
+        get: operations["list-leases"];
+        put?: never;
+        /** Create dynamic credentials */
+        post: operations["create-lease"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1015,6 +1295,214 @@ export interface paths {
         post?: never;
         /** Delete a folder */
         delete: operations["delete-folder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/freezes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List environment freezes */
+        get: operations["list-freezes"];
+        put?: never;
+        /** Schedule an environment freeze */
+        post: operations["create-freeze"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/freezes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an environment freeze */
+        delete: operations["delete-freeze"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/overlays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant/region overlays */
+        get: operations["list-overlays"];
+        put?: never;
+        /** Create a tenant/region overlay */
+        post: operations["create-overlay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/overlays/{overlay}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List overlay values */
+        get: operations["list-overlay-secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/overlays/{overlay}/secrets/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set an overlay value */
+        put: operations["set-overlay-secret"];
+        post?: never;
+        /** Delete an overlay value */
+        delete: operations["delete-overlay-secret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List rotation policies */
+        get: operations["list-rotations"];
+        put?: never;
+        /** Create a rotation policy */
+        post: operations["create-rotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read rotation status for manual secrets */
+        get: operations["rotation-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a rotation policy */
+        delete: operations["delete-rotation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable or disable a rotation policy */
+        post: operations["toggle-rotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a rotation now */
+        post: operations["run-rotation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List rotation runs */
+        get: operations["list-rotation-runs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secret-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask a human to add a missing secret */
+        post: operations["request-secret"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1109,6 +1597,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:agent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolve secrets for an allowed agent command */
+        get: operations["agent-secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:batch": {
         parameters: {
             query?: never;
@@ -1124,6 +1629,23 @@ export interface paths {
         head?: never;
         /** Apply atomic secret changes */
         patch: operations["batch-secrets"];
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:eso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resolved secrets for External Secrets Operator */
+        get: operations["eso-secrets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:resolve": {
@@ -1178,6 +1700,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an encrypted one-time share link */
+        post: operations["create-share"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/snapshots": {
         parameters: {
             query?: never;
@@ -1208,6 +1747,177 @@ export interface paths {
         /** Restore an environment snapshot */
         post: operations["restore-snapshot"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments:branch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or refresh a branch environment */
+        post: operations["ensure-branch-environment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/leases/{id}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew a lease */
+        post: operations["renew-lease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/leases/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke a lease */
+        post: operations["revoke-lease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/promotion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List promotion requests */
+        get: operations["list-promotion-requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/promotion-requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a promotion request */
+        post: operations["approve-promotion-request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/promotion-requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a promotion request */
+        post: operations["reject-promotion-request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply or request an environment promotion */
+        post: operations["apply-promotion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/promotions:plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan an environment promotion */
+        post: operations["plan-promotion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a project's secret schema */
+        get: operations["get-schema"];
+        /** Replace a project's secret schema */
+        put: operations["replace-schema"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/schema/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete one schema entry */
+        delete: operations["delete-schema-entry"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1260,6 +1970,24 @@ export interface paths {
         post?: never;
         /** Delete a sync */
         delete: operations["delete-sync"];
+        options?: never;
+        head?: never;
+        /** Update sync behavior */
+        patch: operations["update-sync"];
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check for drift */
+        post: operations["check-sync-drift"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1365,6 +2093,23 @@ export interface paths {
         post?: never;
         /** Revoke a SCIM token */
         delete: operations["revoke-scim-token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search secret key names across projects */
+        get: operations["search-keys"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1564,6 +2309,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shares/{id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim an encrypted share link */
+        post: operations["claim-share"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/version": {
         parameters: {
             query?: never;
@@ -1585,11 +2347,73 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AWSStruct: {
+            account?: string;
+            arn_pattern?: string;
+            user_id_pattern?: string;
+        };
         AcceptInviteInputBody: {
             /** Format: email */
             email: string;
             name: string;
             password: string;
+        };
+        AccessApprovalInputBody: {
+            token: string;
+        };
+        AccessRequestBody: {
+            applied_binding_id?: string;
+            approvals: string[] | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            decided_at?: string;
+            /** Format: int64 */
+            duration_seconds: number;
+            environment: string;
+            /** Format: date-time */
+            expires_at?: string;
+            id: string;
+            reason: string;
+            requester_id: string;
+            /** Format: int64 */
+            required_approvals: number;
+            role: string;
+            status: string;
+        };
+        AccessRequestsOutputBody: {
+            requests: components["schemas"]["AccessRequestBody"][] | null;
+        };
+        AccessReviewRowBody: {
+            email?: string;
+            name: string;
+            role?: string;
+            subject_id: string;
+            subject_kind: string;
+        };
+        AgentAllowlistBody: {
+            commands: string[] | null;
+            identity_id: string;
+            name: string;
+        };
+        AgentCommandCheckInputBody: {
+            command: string;
+        };
+        AgentCommandCheckOutputBody: {
+            allowed: boolean;
+            command: string;
+        };
+        AgentCommandsInputBody: {
+            commands: string[] | null;
+        };
+        AgentSessionOutputBody: {
+            environment: string;
+            /** Format: date-time */
+            expires_at: string;
+            identity: string;
+            identity_id: string;
+            /** @description Agent token; keep it in memory only */
+            token: string;
         };
         AuditActor: {
             id: string;
@@ -1599,6 +2423,7 @@ export interface components {
         AuditDetail: {
             channel?: string;
             command?: string;
+            commands?: string[] | null;
             /** Format: int64 */
             count?: number;
             environment?: string;
@@ -1606,6 +2431,8 @@ export interface components {
             path?: string;
             reason?: string;
             request_id?: string;
+            requested_key?: string;
+            schema_key?: string;
             /** Format: int64 */
             version?: number;
         };
@@ -1628,8 +2455,12 @@ export interface components {
         };
         AuditRes: {
             env_id?: string;
+            environment?: string;
             id?: string;
+            /** @description Decrypted key name, when the caller may read names */
+            key?: string;
             name?: string;
+            project?: string;
             project_id?: string;
             type: string;
         };
@@ -1641,6 +2472,16 @@ export interface components {
             last_seq: number;
             problem?: string;
             public_key?: string;
+        };
+        AwsExchangeInputBody: {
+            amz_date: string;
+            authorization: string;
+            content_sha256?: string;
+            content_type?: string;
+            host?: string;
+            identity: string;
+            org: string;
+            security_token?: string;
         };
         BatchChange: {
             comment?: string;
@@ -1687,6 +2528,26 @@ export interface components {
             subject_id: string;
             subject_kind: string;
         };
+        BranchEnvironmentInputBody: {
+            branch: string;
+        };
+        BreakGlassInputBody: {
+            /**
+             * Format: int64
+             * @default 3600
+             */
+            duration_seconds: number;
+            environment: string;
+            reason: string;
+            /** @default Admin */
+            role: string;
+        };
+        BreakGlassOutputBody: {
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            role: string;
+        };
         CheckpointBody: {
             /** Format: date-time */
             created_at: string;
@@ -1699,10 +2560,44 @@ export interface components {
         CheckpointsOutputBody: {
             checkpoints: components["schemas"]["CheckpointBody"][] | null;
         };
+        ClaimShareInputBody: {
+            password?: string;
+        };
+        ClaimShareOutputBody: {
+            ciphertext: string;
+            nonce: string;
+        };
         CloneEnvironmentInputBody: {
             include_values?: boolean;
             name: string;
             slug: string;
+        };
+        CreateAccessRequestInputBody: {
+            /**
+             * Format: int64
+             * @default 3600
+             */
+            duration_seconds: number;
+            environment: string;
+            reason: string;
+            /**
+             * Format: int64
+             * @default 1
+             */
+            required_approvals: number;
+            /** @default Developer */
+            role: string;
+        };
+        CreateDynamicConfigInputBody: {
+            config: {
+                [key: string]: unknown;
+            };
+            /** Format: int64 */
+            default_ttl_seconds?: number;
+            /** @enum {string} */
+            engine: "postgres" | "aws";
+            /** Format: int64 */
+            max_ttl_seconds?: number;
         };
         CreateEnvironmentInputBody: {
             name: string;
@@ -1712,6 +2607,13 @@ export interface components {
         };
         CreateFolderInputBody: {
             path: string;
+        };
+        CreateFreezeInputBody: {
+            /** Format: date-time */
+            ends_at: string;
+            reason: string;
+            /** Format: date-time */
+            starts_at?: string;
         };
         CreateGrantInputBody: {
             environment?: string;
@@ -1732,18 +2634,15 @@ export interface components {
             name: string;
         };
         CreateIdentityInputBody: {
+            aws?: components["schemas"]["AWSStruct"];
             /** @description Environment glob, e.g. dev or * */
             environment?: string;
-            /**
-             * Format: int64
-             * @default 90
-             */
-            expires_in_days: number;
+            /** Format: int64 */
+            expires_in_days?: number;
             name: string;
             oidc?: components["schemas"]["OIDCStruct"];
             project?: string;
-            /** @default Developer */
-            role: string;
+            role?: string;
             /**
              * @default machine
              * @enum {string}
@@ -1761,9 +2660,17 @@ export interface components {
             /** @default Developer */
             role: string;
         };
+        CreateLeaseInputBody: {
+            /** Format: int64 */
+            ttl_seconds?: number;
+        };
         CreateOrgInputBody: {
             name: string;
             slug?: string;
+        };
+        CreateOverlayInputBody: {
+            name?: string;
+            slug: string;
         };
         CreatePersonalTokenInputBody: {
             environment?: string;
@@ -1780,8 +2687,22 @@ export interface components {
             name: string;
             permissions: string[] | null;
         };
+        CreateRotationInputBody: {
+            config: {
+                [key: string]: unknown;
+            };
+            /** @default true */
+            enabled: boolean;
+            /** Format: int64 */
+            interval_seconds: number;
+            key: string;
+            /** @enum {string} */
+            provider: "postgres" | "aws" | "webhook";
+        };
         CreateSecretInputBody: {
             comment?: string;
+            /** Format: date-time */
+            expires_at?: string;
             folder?: string;
             key: string;
             /**
@@ -1795,6 +2716,21 @@ export interface components {
             provider_url?: string;
             tags?: string[] | null;
             value: string;
+        };
+        CreateShareInputBody: {
+            ciphertext: string;
+            /**
+             * Format: int64
+             * @default 1
+             */
+            max_views: number;
+            nonce: string;
+            password?: string;
+            /**
+             * Format: int64
+             * @default 24
+             */
+            ttl_hours: number;
         };
         CreateSharedSetInputBody: {
             name: string;
@@ -1817,12 +2753,20 @@ export interface components {
             cloudflare_mode?: "workers" | "pages";
             cloudflare_project?: string;
             cloudflare_script?: string;
+            delete_missing?: boolean;
             endpoint?: string;
             environment: string;
+            /** @description owner/name for repo scope, or the organization for org scope */
+            forgejo_repo?: string;
+            /** @enum {string} */
+            forgejo_scope?: "repo" | "org";
             gcp_prefix?: string;
             gcp_project?: string;
             gcp_service_account?: string;
+            github_app_id?: string;
             github_environment?: string;
+            github_installation_id?: string;
+            github_private_key?: string;
             github_repo?: string;
             /** @enum {string} */
             github_scope?: "repo" | "environment" | "org";
@@ -1834,6 +2778,13 @@ export interface components {
             provider?: string;
             secret?: string;
             token?: string;
+            vault_mount?: string;
+            vault_path?: string;
+            /**
+             * Format: int64
+             * @enum {integer}
+             */
+            vault_version?: 1 | 2;
             vercel_project?: string;
             vercel_team_id?: string;
         };
@@ -1882,6 +2833,26 @@ export interface components {
             status: string;
             token?: string;
             user?: components["schemas"]["UserBody"];
+        };
+        DriftOutputBody: {
+            /** Format: date-time */
+            checked_at: string;
+            detail: string;
+            keys: string[] | null;
+            supported: boolean;
+        };
+        DynamicConfigBody: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: int64 */
+            default_ttl_seconds: number;
+            engine: string;
+            id: string;
+            /** Format: int64 */
+            max_ttl_seconds: number;
+        };
+        DynamicConfigsOutputBody: {
+            configs: components["schemas"]["DynamicConfigBody"][] | null;
         };
         EnvBody: {
             color: string;
@@ -1964,6 +2935,19 @@ export interface components {
             /** Format: email */
             email: string;
         };
+        FreezeBody: {
+            active: boolean;
+            created_by: string;
+            /** Format: date-time */
+            ends_at: string;
+            id: string;
+            reason: string;
+            /** Format: date-time */
+            starts_at: string;
+        };
+        FreezesOutputBody: {
+            freezes: components["schemas"]["FreezeBody"][] | null;
+        };
         GrantBody: {
             /** Format: date-time */
             created_at: string;
@@ -2001,10 +2985,34 @@ export interface components {
         GroupsOutputBody: {
             groups: components["schemas"]["GroupBody"][] | null;
         };
+        HealthFindingBody: {
+            category: string;
+            env?: string;
+            key?: string;
+            level: string;
+            message: string;
+            project?: string;
+            subject?: string;
+        };
+        HealthOutputBody: {
+            /** Format: int64 */
+            checked: number;
+            findings: components["schemas"]["HealthFindingBody"][] | null;
+            /** Format: int64 */
+            score: number;
+        };
         IdentitiesOutputBody: {
             identities: components["schemas"]["IdentityBody"][] | null;
         };
         IdentityBody: {
+            /**
+             * Format: int64
+             * @description Unexpired agent sessions started with clavis mcp --agent
+             */
+            active_sessions: number;
+            allowed_commands?: string[] | null;
+            aws_account?: string;
+            aws_arn?: string;
             /** Format: date-time */
             created_at: string;
             environment?: string;
@@ -2053,6 +3061,32 @@ export interface components {
             org_slug: string;
             role: string;
         };
+        KeyMatchBody: {
+            environments: string[] | null;
+            key: string;
+            project: string;
+            project_name: string;
+        };
+        LeaseBody: {
+            config_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            identity_id?: string;
+            /** Format: date-time */
+            revoked_at?: string;
+        };
+        LeaseOutputBody: {
+            lease: components["schemas"]["LeaseBody"];
+            secrets: {
+                [key: string]: string;
+            };
+        };
+        LeasesOutputBody: {
+            leases: components["schemas"]["LeaseBody"][] | null;
+        };
         ListOrgsOutputBody: {
             orgs: components["schemas"]["OrgBody"][] | null;
         };
@@ -2070,6 +3104,10 @@ export interface components {
             orgs?: components["schemas"]["OrgBody"][] | null;
             preferences?: components["schemas"]["PreferencesBody"];
             user?: components["schemas"]["UserBody"];
+        };
+        MarkOffboardingInputBody: {
+            /** @enum {string} */
+            status: "rotated" | "safe";
         };
         MatrixOutputBody: {
             permissions: string[] | null;
@@ -2125,6 +3163,27 @@ export interface components {
             };
             issuer: string;
         };
+        OffboardingBody: {
+            /** Format: int64 */
+            done: number;
+            email?: string;
+            /** Format: int64 */
+            exported: number;
+            name?: string;
+            tasks: components["schemas"]["OffboardingTaskBody"][] | null;
+            /** Format: int64 */
+            total: number;
+            user_id: string;
+        };
+        OffboardingTaskBody: {
+            environment: string;
+            id: string;
+            key: string;
+            project: string;
+            status: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         OidcExchangeInputBody: {
             identity: string;
             org: string;
@@ -2147,14 +3206,48 @@ export interface components {
             block_cli_writes?: boolean;
             /** @enum {string} */
             default_appearance?: "classic" | "warm";
+            duplicate_detection?: boolean;
             environment_templates?: components["schemas"]["EnvironmentTemplate"][];
+            github_webhook_secret?: string;
             ip_allowlist?: string[];
+            preview_enabled?: boolean;
+            /** Format: int64 */
+            preview_retention_days?: number;
             require_mfa?: boolean;
             /** Format: int64 */
             session_absolute_days?: number;
             /** Format: int64 */
             session_idle_hours?: number;
             sso?: components["schemas"]["SsoInput"];
+        };
+        OverlayBody: {
+            created_at: string;
+            id: string;
+            name: string;
+            slug: string;
+        };
+        OverlaySecretBody: {
+            key: string;
+            kind: string;
+            revealed: boolean;
+            updated_at?: string;
+            value?: string;
+            /** Format: int64 */
+            version: number;
+        };
+        OverlaySecretInputBody: {
+            /**
+             * @default secret
+             * @enum {string}
+             */
+            kind: "secret" | "variable" | "file";
+            value: string;
+        };
+        OverlaySecretsOutputBody: {
+            secrets: components["schemas"]["OverlaySecretBody"][] | null;
+        };
+        OverlaysOutputBody: {
+            overlays: components["schemas"]["OverlayBody"][] | null;
         };
         OverrideInputBody: {
             comment?: string;
@@ -2263,6 +3356,59 @@ export interface components {
         ProjectsOutputBody: {
             projects: components["schemas"]["ProjectBody"][] | null;
         };
+        PromotionApplyInputBody: {
+            keys: string[] | null;
+            message?: string;
+            /** @description Create an approval request instead of writing */
+            request?: boolean;
+            /** @default true */
+            snapshot: boolean;
+            source: string;
+            target: string;
+        };
+        PromotionEntryBody: {
+            key: string;
+            kind?: string;
+            schema_error?: string;
+            source_inherited?: boolean;
+            source_kind?: string;
+            status: string;
+            target_inherited?: boolean;
+            target_kind?: string;
+        };
+        PromotionPlanInputBody: {
+            source: string;
+            target: string;
+        };
+        PromotionPlanOutputBody: {
+            approval_required: boolean;
+            entries: components["schemas"]["PromotionEntryBody"][] | null;
+            source: string;
+            source_type: string;
+            target: string;
+            target_protected: boolean;
+            target_type: string;
+        };
+        PromotionRequestBody: {
+            decided_at?: string;
+            decided_by?: string;
+            id: string;
+            keys: string[] | null;
+            requested_at: string;
+            requested_by: string;
+            source: string;
+            status: string;
+            target: string;
+        };
+        PromotionRequestsOutputBody: {
+            requests: components["schemas"]["PromotionRequestBody"][] | null;
+        };
+        PromotionResultOutputBody: {
+            /** Format: int64 */
+            applied: number;
+            request?: components["schemas"]["PromotionRequestBody"];
+            snapshot_id?: string;
+        };
         ReauthInputBody: {
             password: string;
         };
@@ -2273,6 +3419,13 @@ export interface components {
         };
         RenameGroupInputBody: {
             name: string;
+        };
+        RenewLeaseInputBody: {
+            /** Format: int64 */
+            ttl_seconds?: number;
+        };
+        ReplaceSchemaInputBody: {
+            schema: components["schemas"]["SchemaEntryBody"][] | null;
         };
         ResetPasswordInputBody: {
             password: string;
@@ -2295,6 +3448,59 @@ export interface components {
             /** Format: int64 */
             version: number;
         };
+        RotationEnabledInputBody: {
+            enabled: boolean;
+        };
+        RotationPoliciesOutputBody: {
+            policies: components["schemas"]["RotationPolicyBody"][] | null;
+        };
+        RotationPolicyBody: {
+            enabled: boolean;
+            environment: string;
+            id: string;
+            /** Format: int64 */
+            interval_seconds: number;
+            key: string;
+            last_error?: string;
+            /** Format: date-time */
+            last_run_at?: string;
+            last_status?: string;
+            /** Format: date-time */
+            next_run_at: string;
+            provider: string;
+        };
+        RotationRunBody: {
+            /** Format: date-time */
+            finished_at?: string;
+            id: string;
+            message?: string;
+            phase: string;
+            /** Format: date-time */
+            started_at: string;
+            status: string;
+        };
+        RotationRunsOutputBody: {
+            runs: components["schemas"]["RotationRunBody"][] | null;
+        };
+        RotationStatusOutputBody: {
+            environment: string;
+            /** Format: int64 */
+            managed: number;
+            stale: components["schemas"]["RotationStatusSecretBody"][] | null;
+            /** Format: int64 */
+            stale_days: number;
+            /** Format: int64 */
+            unmanaged: number;
+        };
+        RotationStatusSecretBody: {
+            /** Format: int64 */
+            age_days: number;
+            key: string;
+            owner_group_id?: string;
+            owner_group_name?: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         RunSyncInputBody: {
             confirm?: boolean;
             dry_run?: boolean;
@@ -2302,6 +3508,30 @@ export interface components {
         RunSyncOutputBody: {
             preview?: components["schemas"]["SyncPreviewBody"];
             run: components["schemas"]["SyncRunBody"];
+        };
+        SchemaEntryBody: {
+            description?: string;
+            enum?: string[] | null;
+            example?: string;
+            key: string;
+            /**
+             * @default secret
+             * @enum {string}
+             */
+            kind: "secret" | "variable" | "file";
+            pattern?: string;
+            /** @description Whether the key is required, keyed by environment type */
+            required?: {
+                [key: string]: boolean;
+            };
+            /**
+             * @default string
+             * @enum {string}
+             */
+            type: "string" | "url" | "int" | "bool" | "json" | "enum";
+        };
+        SchemaOutputBody: {
+            schema: components["schemas"]["SchemaEntryBody"][] | null;
         };
         ScimTokenBody: {
             /** Format: date-time */
@@ -2318,8 +3548,13 @@ export interface components {
         ScimTokensOutputBody: {
             tokens: components["schemas"]["ScimTokenBody"][] | null;
         };
+        SearchOutputBody: {
+            keys: components["schemas"]["KeyMatchBody"][] | null;
+        };
         SecretBody: {
             comment?: string;
+            /** Format: date-time */
+            expires_at?: string;
             folder?: string;
             inherited?: boolean;
             key: string;
@@ -2337,6 +3572,10 @@ export interface components {
             value?: string;
             /** Format: int64 */
             version: number;
+        };
+        SecretRequestBodyBody: {
+            key: string;
+            reason?: string;
         };
         SecretVersionBody: {
             actor_id?: string;
@@ -2375,8 +3614,13 @@ export interface components {
         SettingsBody: {
             block_cli_writes: boolean;
             default_appearance: string;
+            duplicate_detection: boolean;
             environment_templates: components["schemas"]["EnvironmentTemplate"][] | null;
+            github_webhook_secret_set: boolean;
             ip_allowlist: string[] | null;
+            preview_enabled: boolean;
+            /** Format: int64 */
+            preview_retention_days: number;
             require_mfa: boolean;
             /** Format: int64 */
             session_absolute_days: number;
@@ -2398,6 +3642,12 @@ export interface components {
         };
         SetupStatusOutputBody: {
             required: boolean;
+        };
+        ShareOutputBody: {
+            expires_at: string;
+            id: string;
+            /** Format: int64 */
+            max_views: number;
         };
         SharedSetBody: {
             /** Format: date-time */
@@ -2480,6 +3730,10 @@ export interface components {
             confirmed: boolean;
             /** Format: date-time */
             created_at: string;
+            delete_missing: boolean;
+            /** Format: date-time */
+            drift_checked_at?: string;
+            drift_keys: string[] | null;
             environment: string;
             id: string;
             /** Format: date-time */
@@ -2540,7 +3794,11 @@ export interface components {
         };
         UpdateSecretInputBody: {
             comment?: string;
+            /** Format: date-time */
+            expires_at?: string;
             folder?: string;
+            /** @description Keep the current value and ignore value; edits metadata without revealing it */
+            keep_value?: boolean;
             /**
              * @default secret
              * @enum {string}
@@ -2552,6 +3810,9 @@ export interface components {
             provider_url?: string;
             tags?: string[] | null;
             value: string;
+        };
+        UpdateSyncInputBody: {
+            delete_missing: boolean;
         };
         UpdateWebhookInputBody: {
             description?: string;
@@ -2626,6 +3887,74 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "apply-access-approval": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Clavis-Reauth"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessApprovalInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "exchange-aws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AwsExchangeInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcExchangeOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "device-approve": {
         parameters: {
             query?: never;
@@ -3753,6 +5082,40 @@ export interface operations {
             };
         };
     };
+    "access-review": {
+        parameters: {
+            query?: {
+                project?: string;
+                env?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessReviewRowBody"][] | null;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "access-explain": {
         parameters: {
             query?: {
@@ -4165,6 +5528,39 @@ export interface operations {
             };
         };
     };
+    "health-report": {
+        parameters: {
+            query?: {
+                project?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-identities": {
         parameters: {
             query?: never;
@@ -4255,6 +5651,146 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-agent-commands": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentAllowlistBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "set-agent-commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCommandsInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentAllowlistBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "check-agent-command": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCommandCheckInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentCommandCheckOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "start-agent-session": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSessionOutputBody"];
+                };
             };
             /** @description Error */
             default: {
@@ -4455,6 +5991,107 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "offboarding-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffboardingBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "start-offboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffboardingBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "mark-offboarding-task": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                user: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkOffboardingInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffboardingBody"];
+                };
             };
             /** @description Error */
             default: {
@@ -4718,6 +6355,178 @@ export interface operations {
             };
         };
     };
+    "list-access-requests": {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected";
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-access-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAccessRequestInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "break-glass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BreakGlassInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BreakGlassOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "approve-access-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "reject-access-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "revoke-project-access": {
         parameters: {
             query?: never;
@@ -4737,6 +6546,180 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-dynamic-configs": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Short-lived token from /auth/reauthenticate */
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicConfigsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-dynamic-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDynamicConfigInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicConfigBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-dynamic-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-leases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeasesOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLeaseInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaseOutputBody"];
+                };
             };
             /** @description Error */
             default: {
@@ -4995,12 +6978,570 @@ export interface operations {
             };
         };
     };
+    "list-freezes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+                /** @description Environment slug */
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreezesOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-freeze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFreezeInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreezeBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-freeze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-overlays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlaysOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-overlay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOverlayInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-overlay-secrets": {
+        parameters: {
+            query?: {
+                reveal?: boolean;
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                overlay: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlaySecretsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "set-overlay-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                overlay: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverlaySecretInputBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-overlay-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                overlay: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-rotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationPoliciesOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRotationInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationPolicyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "rotation-status": {
+        parameters: {
+            query?: {
+                stale_days?: number;
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationStatusOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "toggle-rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RotationEnabledInputBody"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "run-rotation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationRunsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-rotation-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RotationRunsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "request-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRequestBodyBody"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-secrets": {
         parameters: {
             query?: {
                 /** @description Decrypt values (requires secrets:read-values) */
                 reveal?: boolean;
                 channel?: "ui" | "cli" | "export" | "api";
+                overlay?: string;
             };
             header?: never;
             path: {
@@ -5077,6 +7618,7 @@ export interface operations {
                 /** @description Why the value is being revealed (audited) */
                 reason?: string;
                 channel?: "ui" | "cli" | "export" | "api";
+                overlay?: string;
             };
             header?: never;
             path: {
@@ -5321,6 +7863,42 @@ export interface operations {
             };
         };
     };
+    "agent-secrets": {
+        parameters: {
+            query?: {
+                command?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "batch-secrets": {
         parameters: {
             query?: never;
@@ -5361,10 +7939,49 @@ export interface operations {
             };
         };
     };
+    "eso-secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                org: string;
+                /** @description Project slug */
+                project: string;
+                /** @description Environment slug */
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "resolve-secrets": {
         parameters: {
             query?: {
                 channel?: "ui" | "cli" | "export" | "api";
+                overlay?: string;
             };
             header?: never;
             path: {
@@ -5497,6 +8114,43 @@ export interface operations {
             };
         };
     };
+    "create-share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShareInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-snapshots": {
         parameters: {
             query?: never;
@@ -5589,6 +8243,381 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RestoreSnapshotOutputBody"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "ensure-branch-environment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchEnvironmentInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "renew-lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenewLeaseInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaseOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "revoke-lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-promotion-requests": {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected";
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionRequestsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "approve-promotion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionResultOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "reject-promotion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionRequestsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "apply-promotion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionApplyInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionResultOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "plan-promotion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionPlanInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionPlanOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "replace-schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceSchemaInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemaOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-schema-entry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -5729,6 +8758,76 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSyncInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "check-sync-drift": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriftOutputBody"];
+                };
             };
             /** @description Error */
             default: {
@@ -6035,6 +9134,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "search-keys": {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive substring of a key name */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOutputBody"];
+                };
             };
             /** @description Error */
             default: {
@@ -6638,6 +9771,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupStatusOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "claim-share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimShareInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClaimShareOutputBody"];
                 };
             };
             /** @description Error */

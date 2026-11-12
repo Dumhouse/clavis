@@ -1,0 +1,469 @@
+/*
+ * Clavis docs theme. Dark only, emerald accent, matching the product UI.
+ * The landing page styles live in components/Landing.vue.
+ */
+
+:root {
+  --vp-font-family-base:
+    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --vp-font-family-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --vp-c-brand-1: #047857;
+  --vp-c-brand-2: #059669;
+  --vp-c-brand-3: #10b981;
+  --vp-c-brand-soft: rgb(16 185 129 / 0.12);
+
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #fafafa;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f4f4f5;
+  --vp-c-divider: #e7e7ea;
+  --vp-c-border: #dcdce0;
+  --vp-c-gutter: #f0f0f2;
+  --vp-c-text-1: #0a0a0c;
+  --vp-c-text-2: #52525b;
+  --vp-c-text-3: #71717a;
+
+  --vp-c-default-soft: #f1f1f3;
+  --vp-c-tip-1: #047857;
+  --vp-c-tip-soft: rgb(16 185 129 / 0.08);
+
+  --vp-code-bg: #f1f1f3;
+  --vp-code-color: #18181b;
+  --vp-code-block-bg: #fafafa;
+  --vp-code-tab-bg: #fafafa;
+  --vp-code-tab-divider: #e7e7ea;
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #0a0a0c;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #27272a;
+
+  --vp-nav-bg-color: rgb(255 255 255 / 0.82);
+  --vp-sidebar-bg-color: #fafafa;
+  --vp-local-search-highlight-bg: #10b981;
+  --vp-local-search-highlight-text: #04231a;
+
+  --vp-layout-max-width: 1440px;
+
+  /* Shared surfaces for the landing page and screenshots. */
+  --c-line: #e7e7ea;
+  --c-line-strong: #d4d4d8;
+  --c-panel: #ffffff;
+  --c-panel-2: #fafafa;
+  --c-panel-3: #f4f4f5;
+  --c-shadow: 0 1px 2px rgb(10 10 12 / 0.04), 0 12px 40px -12px rgb(10 10 12 / 0.14);
+  --c-shadow-lg: 0 1px 2px rgb(10 10 12 / 0.05), 0 40px 80px -24px rgb(10 10 12 / 0.22);
+  --c-grid: rgb(10 10 12 / 0.05);
+  --c-accent: #059669;
+  --c-accent-text: #047857;
+  --c-accent-soft: rgb(16 185 129 / 0.1);
+  --c-accent-tint: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 45%, #ccfbf1 100%);
+  --c-ok: #059669;
+  --c-bad: #dc2626;
+  --c-warn: #b45309;
+  --c-btn-bg: #0a0a0c;
+  --c-btn-text: #ffffff;
+  --c-btn-hover: #27272a;
+  --c-mark: #d1fae5;
+}
+
+.dark {
+  --vp-c-brand-1: #34d399;
+  --vp-c-brand-2: #10b981;
+  --vp-c-brand-3: #059669;
+  --vp-c-brand-soft: rgb(16 185 129 / 0.14);
+
+  --vp-c-bg: #0a0a0c;
+  --vp-c-bg-alt: #0c0c0f;
+  --vp-c-bg-elv: #131318;
+  --vp-c-bg-soft: #131317;
+  --vp-c-divider: #24242b;
+  --vp-c-border: #2c2c34;
+  --vp-c-gutter: #18181d;
+  --vp-c-text-1: #f4f4f5;
+  --vp-c-text-2: #a1a1aa;
+  --vp-c-text-3: #8b8b95;
+
+  --vp-c-default-soft: #1c1c22;
+  --vp-c-tip-1: #34d399;
+  --vp-c-tip-soft: rgb(16 185 129 / 0.1);
+
+  --vp-code-bg: #17171c;
+  --vp-code-color: #e4e4e7;
+  --vp-code-block-bg: #0d0d10;
+  --vp-code-tab-bg: #0d0d10;
+  --vp-code-tab-divider: #24242b;
+
+  --vp-button-brand-text: #04231a;
+  --vp-button-brand-bg: #10b981;
+  --vp-button-brand-hover-text: #04231a;
+  --vp-button-brand-hover-bg: #34d399;
+
+  --vp-nav-bg-color: rgb(10 10 12 / 0.8);
+  --vp-sidebar-bg-color: #0b0b0e;
+  --vp-local-search-bg: #0e0e12;
+  --vp-local-search-result-bg: #131318;
+  --vp-local-search-result-border: #24242b;
+
+  --c-line: #24242b;
+  --c-line-strong: #34343d;
+  --c-panel: #111115;
+  --c-panel-2: #0d0d10;
+  --c-panel-3: #18181d;
+  --c-shadow: 0 0 0 1px rgb(0 0 0 / 0.4), 0 20px 50px -20px rgb(0 0 0 / 0.8);
+  --c-shadow-lg: 0 0 0 1px rgb(0 0 0 / 0.5), 0 40px 120px -20px rgb(0 0 0 / 0.85);
+  --c-grid: rgb(255 255 255 / 0.04);
+  --c-accent: #10b981;
+  --c-accent-text: #34d399;
+  --c-accent-soft: rgb(16 185 129 / 0.12);
+  --c-accent-tint: linear-gradient(135deg, #064e3b 0%, #0b2a22 50%, #134e4a 100%);
+  --c-ok: #34d399;
+  --c-bad: #f87171;
+  --c-warn: #fbbf24;
+  --c-btn-bg: #10b981;
+  --c-btn-text: #03241a;
+  --c-btn-hover: #34d399;
+  --c-mark: rgb(16 185 129 / 0.28);
+}
+
+::selection {
+  background: rgb(16 185 129 / 0.35);
+}
+
+/* Navigation ------------------------------------------------------------- */
+
+.VPNavBar {
+  backdrop-filter: saturate(160%) blur(14px);
+}
+
+.VPNavBar:not(.home.top) .divider-line,
+.VPNavBar.has-sidebar .divider-line {
+  background-color: var(--vp-c-divider);
+}
+
+.VPNavBar.home.top {
+  background: transparent;
+}
+
+.VPNavBar:not(.home.top) .content-body,
+.VPNavBar.has-sidebar .content-body {
+  background-color: var(--vp-nav-bg-color) !important;
+}
+
+.VPNavBarTitle .title {
+  gap: 2px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .button {
+  font-weight: 500 !important;
+}
+
+.VPNavBarMenuLink.active {
+  color: var(--vp-c-brand-1) !important;
+}
+
+.DocSearch-Button,
+.VPNavBarSearchButton {
+  border: 1px solid var(--vp-c-divider) !important;
+  background: var(--vp-c-bg-alt) !important;
+  border-radius: 9px !important;
+}
+
+/* Sidebar ---------------------------------------------------------------- */
+
+.VPSidebar {
+  border-right: 1px solid var(--vp-c-divider);
+}
+
+.VPSidebarItem.level-0 > .item > .text {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.VPSidebarItem.level-0 {
+  padding-bottom: 18px;
+}
+
+.VPSidebarItem.level-1 .link {
+  position: relative;
+}
+
+.VPSidebarItem.level-1 > .item > .link > .text {
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+  transition: color 0.15s;
+}
+
+.VPSidebarItem.level-1 > .item:hover > .link > .text {
+  color: var(--vp-c-text-1);
+}
+
+.VPSidebarItem.is-active > .item .link .text {
+  color: var(--vp-c-brand-1) !important;
+  font-weight: 600;
+}
+
+.VPSidebarItem.level-1.is-active > .item::before {
+  content: '';
+  position: absolute;
+  left: -17px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--vp-c-brand-1);
+}
+
+.VPSidebarItem.level-1 > .item {
+  position: relative;
+}
+
+/* Content ---------------------------------------------------------------- */
+
+.VPDoc .content-container {
+  max-width: 760px !important;
+}
+
+.vp-doc h1 {
+  font-size: 2.3rem;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+
+.vp-doc h1 + p {
+  font-size: 1.08rem;
+  line-height: 1.7;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc h2 {
+  margin-top: 56px;
+  padding-top: 28px;
+  font-size: 1.5rem;
+  letter-spacing: -0.025em;
+  border-top-color: var(--vp-c-divider);
+}
+
+.vp-doc h3 {
+  letter-spacing: -0.015em;
+}
+
+.vp-doc h3 code,
+.vp-doc h2 code {
+  font-size: 0.9em;
+  color: var(--vp-c-text-1);
+  background: transparent;
+  padding: 0;
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+  text-decoration-color: rgb(52 211 153 / 0.4);
+}
+
+.vp-doc a:hover {
+  text-decoration-color: currentColor;
+}
+
+.vp-doc :not(pre) > code {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.vp-doc a > code {
+  color: var(--vp-c-brand-1);
+}
+
+.vp-doc div[class*='language-'] {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+
+.vp-doc div[class*='language-'] > span.lang {
+  color: var(--vp-c-text-3);
+}
+
+.vp-doc .vp-code-group .tabs {
+  border: 1px solid var(--vp-c-divider);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.vp-doc .vp-code-group div[class*='language-'] {
+  border-radius: 0 0 12px 12px;
+}
+
+/* Shiki comment tokens are too dim on the dark code background (4.03:1). */
+.dark .vp-doc [class*='language-'] code span[style*='#6A737D'] {
+  color: #8b949e !important;
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+.vp-doc tr {
+  border: 0;
+}
+
+.vp-doc th,
+.vp-doc td {
+  border: 0;
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 10px 14px;
+}
+
+.vp-doc tr:last-child td {
+  border-bottom: 0;
+}
+
+.vp-doc th {
+  background: var(--vp-c-bg-alt);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc tr:nth-child(2n) {
+  background: transparent;
+}
+
+.vp-doc tbody tr:hover {
+  background: rgb(255 255 255 / 0.015);
+}
+
+.vp-doc blockquote {
+  border-left: 3px solid var(--vp-c-brand-2);
+  background: var(--vp-c-bg-soft);
+  border-radius: 0 10px 10px 0;
+  padding: 4px 16px;
+}
+
+.vp-doc .custom-block {
+  border-radius: 12px;
+}
+
+.vp-doc .custom-block.tip {
+  border: 1px solid rgb(16 185 129 / 0.3);
+}
+
+/* Screenshots ------------------------------------------------------------ */
+
+.vp-doc figure {
+  margin: 28px 0;
+}
+
+.vp-doc img {
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  box-shadow: var(--c-shadow);
+  cursor: zoom-in;
+}
+
+.vp-doc figure img {
+  margin: 0;
+  width: 100%;
+}
+
+.vp-doc figcaption {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--vp-c-text-3);
+  text-align: center;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgb(5 5 7 / 0.82);
+  backdrop-filter: blur(6px);
+  cursor: zoom-out;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.lightbox.open {
+  opacity: 1;
+}
+
+.lightbox img {
+  max-width: min(1600px, 100%);
+  max-height: 100%;
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: 0 40px 120px rgb(0 0 0 / 0.6);
+  transform: scale(0.98);
+  transition: transform 0.18s ease;
+}
+
+.lightbox.open img {
+  transform: none;
+}
+
+/* Outline, footer, prev/next -------------------------------------------- */
+
+.VPDocAsideOutline .outline-title {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.VPDocAsideOutline .outline-link.active {
+  color: var(--vp-c-brand-1);
+}
+
+.VPDocFooter .pager-link {
+  border-radius: 12px;
+  border-color: var(--vp-c-divider);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.VPDocFooter .pager-link:hover {
+  border-color: rgb(52 211 153 / 0.5);
+  background: rgb(16 185 129 / 0.04);
+}
+
+.VPFooter {
+  border-top: 1px solid var(--vp-c-divider) !important;
+  background: var(--vp-c-bg-alt);
+}
+
+.VPHome {
+  margin-bottom: 0 !important;
+  padding-bottom: 96px;
+}
+
+/* Theme-matched screenshots: <img class="only-dark"> / <img class="only-light">. */
+html:not(.dark) .only-dark,
+.dark .only-light {
+  display: none !important;
+}
+
+.vp-doc mark {
+  background: var(--c-mark);
+  color: inherit;
+  padding: 0 3px;
+  border-radius: 3px;
+}

@@ -1,0 +1,254 @@
+/*
+ * Product mockups for the landing page. These are simplified, zoomed-in
+ * recreations of real Clavis screens, drawn in HTML so they stay sharp and
+ * follow the light/dark theme.
+ */
+
+.m-win {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--c-line-strong);
+  border-radius: 12px;
+  background: var(--c-panel);
+  box-shadow: var(--c-shadow);
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.m-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.m-head .sq {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--c-accent);
+}
+
+.m-head .sub {
+  font-weight: 400;
+  color: var(--vp-c-text-3);
+}
+
+.m-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.m-tabs span {
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--vp-c-text-3);
+}
+
+.m-tabs span.on {
+  background: var(--c-panel-3);
+  color: var(--vp-c-text-1);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+
+.m-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  display: table;
+  border: 0;
+}
+
+.m-table th,
+.m-table td {
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--c-line);
+  text-align: left;
+  white-space: nowrap;
+  background: transparent;
+}
+
+.m-table th {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vp-c-text-3);
+}
+
+.m-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.m-table .c {
+  text-align: center;
+}
+
+.m-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 12.5px;
+}
+
+.m-key svg {
+  flex: none;
+  color: var(--vp-c-text-3);
+}
+
+.m-dots {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--c-panel-3);
+  color: var(--vp-c-text-3);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+
+.m-ok {
+  color: var(--c-ok);
+  font-weight: 700;
+}
+
+.m-bad {
+  color: var(--c-bad);
+  font-weight: 700;
+}
+
+.m-muted {
+  color: var(--vp-c-text-3);
+}
+
+.m-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  color: var(--vp-c-text-2);
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.m-chip.green {
+  border-color: transparent;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
+}
+
+.m-chip.red {
+  border-color: transparent;
+  background: rgb(220 38 38 / 0.1);
+  color: var(--c-bad);
+}
+
+.m-chip.amber {
+  border-color: transparent;
+  background: rgb(245 158 11 / 0.14);
+  color: var(--c-warn);
+}
+
+.m-env {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.m-env::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--env, #3b82f6);
+}
+
+.m-env.dev {
+  --env: #3b82f6;
+}
+
+.m-env.stg {
+  --env: #f59e0b;
+}
+
+.m-env.prod {
+  --env: #f43f5e;
+}
+
+.m-check {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-panel);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.m-check.on {
+  border-color: var(--c-accent);
+  background: var(--c-accent);
+}
+
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-panel);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.m-btn.primary {
+  border-color: transparent;
+  background: var(--c-btn-bg);
+  color: var(--c-btn-text);
+}
+
+.m-mono {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+}
+
+/* A tinted, grid-lined stage that frames a zoomed-in mockup. */
+.m-stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-accent-tint);
+}
+
+.m-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--c-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.m-stage > * {
+  position: relative;
+}
