@@ -92,6 +92,7 @@ type updateSecretInput struct {
 		Tags         []string   `json:"tags,omitempty" maxItems:"20"`
 		ExpiresAt    *time.Time `json:"expires_at,omitempty"`
 		Message      string     `json:"message,omitempty" maxLength:"512"`
+		KeepValue    bool       `json:"keep_value,omitempty" doc:"Keep the current value and ignore value; edits metadata without revealing it"`
 	}
 }
 
@@ -237,6 +238,7 @@ func (s *Server) registerSecretRoutes() error {
 			Tags:          in.Body.Tags,
 			ExpiresAt:     in.Body.ExpiresAt,
 			ChangeMessage: in.Body.Message,
+			KeepValue:     in.Body.KeepValue,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)

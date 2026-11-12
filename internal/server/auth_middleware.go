@@ -183,6 +183,10 @@ func devOriginAllowed(dev bool, origin string) bool {
 
 func (s *Server) rateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isStaticRequest(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		key := "ip:" + metaFrom(r.Context()).IP
 		if actor, ok := authz.ActorFromContext(r.Context()); ok {
 			key = "actor:" + actor.ID
@@ -203,4 +207,16 @@ func (s *Server) rateLimit(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isStaticRequest reports whether r is a read of the embedded web app or its
+// assets. Those are cheap, carry no data, and throttling them leaves the UI
+// blank, so the limiter only counts API and form traffic.
+func isStaticRequest(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	path := r.URL.Path
+	return !strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/scim/") &&
+		!strings.HasPrefix(path, "/auth/") && !strings.HasPrefix(path, "/sso/") && !strings.HasPrefix(path, "/saml/")
 }

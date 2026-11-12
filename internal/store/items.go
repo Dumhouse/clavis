@@ -152,6 +152,13 @@ func (s *Store) GetItemByID(ctx context.Context, id string) (*Item, error) {
 		WHERE id = ? AND deleted_at IS NULL`, id))
 }
 
+// GetItemByIDAny loads an item by id, including soft-deleted ones, so audit
+// views can still label deleted keys.
+func (s *Store) GetItemByIDAny(ctx context.Context, id string) (*Item, error) {
+	return scanItem(s.db.QueryRowContext(ctx, `SELECT `+itemColumns+` FROM items
+		WHERE id = ?`, id))
+}
+
 // ListItems returns live items in an environment.
 func (s *Store) ListItems(ctx context.Context, envID string) ([]Item, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemColumns+` FROM items

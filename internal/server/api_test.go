@@ -71,6 +71,16 @@ func newFixture(t *testing.T) *fixture {
 
 func newFixtureOptions(t *testing.T, opts ...server.Option) *fixture {
 	t.Helper()
+	return newFixtureConfig(t, nil, opts...)
+}
+
+func newRateLimitedFixture(t *testing.T, perMinute int) *fixture {
+	t.Helper()
+	return newFixtureConfig(t, func(cfg *config.Config) { cfg.Server.RateLimitPerMinute = perMinute })
+}
+
+func newFixtureConfig(t *testing.T, mutate func(*config.Config), opts ...server.Option) *fixture {
+	t.Helper()
 	st := storetest.Open(t)
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -82,6 +92,9 @@ func newFixtureOptions(t *testing.T, opts ...server.Option) *fixture {
 	cfg.Server.BaseURL = "http://localhost:8080"
 	cfg.Server.Dev = true
 	cfg.Database.Path = filepath.Join(dir, "clavis.db")
+	if mutate != nil {
+		mutate(cfg)
+	}
 	mailer := &fakeMailer{}
 	baseOpts := []server.Option{server.WithWebFS(testWebFS()), server.WithMailer(mailer)}
 	srv, err := server.New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), key, append(baseOpts, opts...)...)
@@ -422,8 +435,12 @@ func TestSetupLoginAndSecretsFlow(t *testing.T) {
 	if !strings.Contains(auditRec.Body.String(), `"verified":true`) {
 		t.Fatalf("audit API not verified: %s", auditRec.Body)
 	}
-	if strings.Contains(auditRec.Body.String(), "STRIPE_SECRET_KEY") || strings.Contains(auditRec.Body.String(), "sk_test_123") {
+	// Key names are shown to callers who may read names; values never are.
+	if strings.Contains(auditRec.Body.String(), "sk_test_123") {
 		t.Fatal("audit API leaked secret material")
+	}
+	if !strings.Contains(auditRec.Body.String(), `"key":"STRIPE_SECRET_KEY"`) {
+		t.Fatalf("audit API missing key label: %s", auditRec.Body)
 	}
 	events, err := f.st.ListAuditEvents(context.Background(), orgID, 0, 0)
 	if err != nil {
@@ -3820,6 +3837,145 @@ func TestAgentCommandAllowlistAndSecrets(t *testing.T) {
 	listed := owner.request(http.MethodGet, commandsPath, nil)
 	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), "go test *") {
 		t.Fatalf("get allowlist = %d body=%s", listed.Code, listed.Body)
+	}
+}
+
+func TestDelegatedAgentSessions(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	devSecrets := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, devSecrets, map[string]any{
+		"key": "AGENT_KEY", "value": "agent-value", "kind": "variable",
+	}); rec.Code != http.StatusCreated {
+		t.Fatalf("create secret = %d body=%s", rec.Code, rec.Body)
+	}
+	created := owner.request(http.MethodPost, "/api/v1/orgs/acme/identities", map[string]any{
+		"name": "claude-code", "type": "agent", "project": "web-app", "environment": "*",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create agent = %d body=%s", created.Code, created.Body)
+	}
+	agent := decode[struct {
+		Token    string `json:"token"`
+		Identity struct {
+			ID string `json:"id"`
+		} `json:"identity"`
+	}](t, created)
+	if rec := owner.request(http.MethodPut, "/api/v1/orgs/acme/identities/"+agent.Identity.ID+"/commands",
+		map[string]any{"commands": []string{"npm test"}}); rec.Code != http.StatusOK {
+		t.Fatalf("set allowlist = %d body=%s", rec.Code, rec.Body)
+	}
+
+	bearer := func(token, method, path string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(""))
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		f.srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+	type sessionBody struct {
+		Token     string    `json:"token"`
+		Identity  string    `json:"identity"`
+		ExpiresAt time.Time `json:"expires_at"`
+	}
+	sessionsPath := "/api/v1/orgs/acme/identities/claude-code/sessions"
+	agentSecrets := devSecrets + ":agent?command="
+
+	// A person starts a session by agent name; the token is short-lived.
+	started := owner.request(http.MethodPost, sessionsPath, nil)
+	if started.Code != http.StatusCreated {
+		t.Fatalf("start session = %d body=%s", started.Code, started.Body)
+	}
+	session := decode[sessionBody](t, started)
+	if !strings.HasPrefix(session.Token, "clv_at_") || session.Identity != "claude-code" {
+		t.Fatalf("session = %+v", session)
+	}
+	if ttl := time.Until(session.ExpiresAt); ttl <= 0 || ttl > time.Hour+time.Minute {
+		t.Fatalf("session ttl = %s", ttl)
+	}
+
+	// Sessions are counted on the identity, not listed as its tokens.
+	listed := decode[struct {
+		Identities []struct {
+			Name           string            `json:"name"`
+			ActiveSessions int               `json:"active_sessions"`
+			Tokens         []json.RawMessage `json:"tokens"`
+		} `json:"identities"`
+	}](t, owner.request(http.MethodGet, "/api/v1/orgs/acme/identities", nil))
+	found := false
+	for _, identity := range listed.Identities {
+		if identity.Name == "claude-code" {
+			found = true
+			if identity.ActiveSessions != 1 || len(identity.Tokens) != 1 {
+				t.Fatalf("identity listing = %+v", identity)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("claude-code missing from identity listing")
+	}
+
+	// The allowlist still applies to delegated sessions.
+	if rec := bearer(session.Token, http.MethodGet, agentSecrets+url.QueryEscape("npm test")); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), "agent-value") {
+		t.Fatalf("allowed command = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := bearer(session.Token, http.MethodGet, agentSecrets+url.QueryEscape("cat .env")); rec.Code != http.StatusForbidden {
+		t.Fatalf("denied command = %d body=%s", rec.Code, rec.Body)
+	}
+
+	// Agents and machines cannot start sessions; only people can.
+	if rec := bearer(agent.Token, http.MethodPost, sessionsPath); rec.Code != http.StatusForbidden {
+		t.Fatalf("agent starting session = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := bearer(session.Token, http.MethodPost, sessionsPath); rec.Code != http.StatusForbidden {
+		t.Fatalf("session starting session = %d body=%s", rec.Code, rec.Body)
+	}
+
+	// A personal token without `use` cannot delegate it to an agent.
+	weak := decode[struct {
+		Token string `json:"token"`
+	}](t, owner.request(http.MethodPost, "/api/v1/orgs/acme/tokens", map[string]any{
+		"permissions": []string{"secrets:read-names"}, "expires_in_days": 1,
+	}))
+	if rec := bearer(weak.Token, http.MethodPost, sessionsPath); rec.Code != http.StatusForbidden {
+		t.Fatalf("weak PAT starting session = %d body=%s", rec.Code, rec.Body)
+	}
+
+	// Revoking the parent personal token ends the agent session immediately.
+	pat := decode[struct {
+		Token     string `json:"token"`
+		TokenInfo struct {
+			ID string `json:"id"`
+		} `json:"token_info"`
+	}](t, owner.request(http.MethodPost, "/api/v1/orgs/acme/tokens", map[string]any{
+		"permissions": []string{"secrets:read-names", "secrets:use"}, "expires_in_days": 1,
+	}))
+	fromPAT := bearer(pat.Token, http.MethodPost, sessionsPath)
+	if fromPAT.Code != http.StatusCreated {
+		t.Fatalf("PAT starting session = %d body=%s", fromPAT.Code, fromPAT.Body)
+	}
+	patSession := decode[sessionBody](t, fromPAT)
+	if rec := bearer(patSession.Token, http.MethodGet, agentSecrets+url.QueryEscape("npm test")); rec.Code != http.StatusOK {
+		t.Fatalf("PAT session use = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodDelete, "/api/v1/orgs/acme/tokens/"+pat.TokenInfo.ID, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("revoke PAT = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := bearer(patSession.Token, http.MethodGet, agentSecrets+url.QueryEscape("npm test")); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("session after PAT revoke = %d body=%s", rec.Code, rec.Body)
+	}
+
+	// Logging out ends sessions started from that login.
+	if rec := owner.request(http.MethodPost, "/api/v1/auth/logout", nil); rec.Code >= 300 {
+		t.Fatalf("logout = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := bearer(session.Token, http.MethodGet, agentSecrets+url.QueryEscape("npm test")); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("session after logout = %d body=%s", rec.Code, rec.Body)
+	}
+	// The static agent token is unaffected.
+	if rec := bearer(agent.Token, http.MethodGet, agentSecrets+url.QueryEscape("npm test")); rec.Code != http.StatusOK {
+		t.Fatalf("static token after logout = %d body=%s", rec.Code, rec.Body)
 	}
 }
 

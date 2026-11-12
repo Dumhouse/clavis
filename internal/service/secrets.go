@@ -66,6 +66,9 @@ type SecretInput struct {
 	Tags          []string
 	ExpiresAt     *time.Time
 	ChangeMessage string
+	// KeepValue re-encrypts the current value instead of Value, so metadata
+	// can be edited without the caller ever seeing the plaintext.
+	KeepValue bool
 }
 
 // SecretVersion is one entry in a secret's history.
@@ -667,8 +670,10 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.enforceWritePolicy(ctx, org, env, meta); err != nil {
 		return nil, err
 	}
-	if err := s.validateAgainstSchema(ctx, project, &in); err != nil {
-		return nil, err
+	if !in.KeepValue {
+		if err := s.validateAgainstSchema(ctx, project, &in); err != nil {
+			return nil, err
+		}
 	}
 	valueKey, indexKey, err := s.ProjectKeys(ctx, org, project)
 	if err != nil {
@@ -702,6 +707,9 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 			}
 		}
 		if inherited {
+			if in.KeepValue {
+				return nil, fmt.Errorf("%w: enter a value to override an inherited key", ErrValidation)
+			}
 			return s.CreateSecret(ctx, actor, orgSlug, projectSlug, envSlug, in, meta)
 		}
 		return nil, ErrNotFound
@@ -711,7 +719,15 @@ func (s *Service) UpdateSecret(ctx context.Context, actor authz.Actor, orgSlug, 
 		return nil, err
 	}
 	next := item.Version + 1
-	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), crypto.Secret(in.Value),
+	plainValue := crypto.Secret(in.Value)
+	if in.KeepValue {
+		plainValue, err = decryptField(valueKey, org, project, env, item, "value", item.Version, item.ValueCiphertext)
+		if err != nil {
+			return nil, err
+		}
+		defer plainValue.Zero()
+	}
+	valueCT, err := valueKey.Encrypt(uint32(project.KeyVersion), plainValue,
 		crypto.BindAAD(org.ID, project.ID, env.ID, item.ID, "value", next))
 	if err != nil {
 		return nil, err

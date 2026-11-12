@@ -36,6 +36,10 @@ type auditRes struct {
 	Name      string `json:"name,omitempty"`
 	ProjectID string `json:"project_id,omitempty"`
 	EnvID     string `json:"env_id,omitempty"`
+	// Labels resolved at read time; never stored in the chain.
+	Project     string `json:"project,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	Key         string `json:"key,omitempty" doc:"Decrypted key name, when the caller may read names"`
 }
 
 type auditDetail struct {
@@ -81,13 +85,16 @@ func (s *Server) registerAuditRoutes() error {
 		}
 		out := &auditOutput{}
 		out.Body.Verified = verified
+		labels := s.svc.AuditLabels(ctx, actor, in.Org, events)
 		for _, event := range events {
+			label := labels[event.ID]
 			out.Body.Events = append(out.Body.Events, auditEventBody{
-				ID:        event.ID,
-				Seq:       event.Seq,
-				Actor:     auditActor{ID: event.Actor.ID, Kind: event.Actor.Kind, Name: event.Actor.Name},
-				Action:    event.Action,
-				Resource:  auditRes{Type: event.Resource.Type, ID: event.Resource.ID, Name: event.Resource.Name, ProjectID: event.Resource.ProjectID, EnvID: event.Resource.EnvID},
+				ID:     event.ID,
+				Seq:    event.Seq,
+				Actor:  auditActor{ID: event.Actor.ID, Kind: event.Actor.Kind, Name: event.Actor.Name},
+				Action: event.Action,
+				Resource: auditRes{Type: event.Resource.Type, ID: event.Resource.ID, Name: event.Resource.Name, ProjectID: event.Resource.ProjectID, EnvID: event.Resource.EnvID,
+					Project: label.Project, Environment: label.Environment, Key: label.Key},
 				Details:   auditDetailFrom(event.Details),
 				IP:        event.IP,
 				UserAgent: event.UserAgent,

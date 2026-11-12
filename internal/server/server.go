@@ -451,6 +451,9 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerAuditRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerSearchRoutes(); err != nil {
+		return err
+	}
 	if err := s.registerMemberRoutes(); err != nil {
 		return err
 	}

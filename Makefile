@@ -84,10 +84,13 @@ gen-api:
 	@echo "generating web/src/api/schema.d.ts from a local server"
 	@set -e; \
 	DATA_DIR=$$(mktemp -d); \
-	CLAVIS_DATA_DIR="$$DATA_DIR" CLAVIS_SERVER_ADDR=127.0.0.1:18081 go run ./cmd/clavis server >/dev/null 2>&1 & \
+	go build -o "$$DATA_DIR/clavis" ./cmd/clavis; \
+	CLAVIS_DATA_DIR="$$DATA_DIR" CLAVIS_SERVER_ADDR=127.0.0.1:18081 "$$DATA_DIR/clavis" server >/dev/null 2>&1 & \
 	PID=$$!; \
 	trap 'kill $$PID 2>/dev/null || true; rm -rf "$$DATA_DIR"' EXIT; \
-	for i in $$(seq 1 100); do curl -sf http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 0.1; done; \
+	for i in $$(seq 1 100); do \
+		kill -0 $$PID 2>/dev/null || { echo "gen-api: server exited (is port 18081 in use?)"; exit 1; }; \
+		curl -sf http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 0.1; done; \
 	CLAVIS_OPENAPI_URL=http://127.0.0.1:18081/api/v1/openapi.json pnpm --dir web gen:api
 
 ## tools: install developer tooling
