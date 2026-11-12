@@ -357,13 +357,13 @@ export function AppShell() {
               onClick={() => {
                 setAppearance(appearance === 'classic' ? 'warm' : 'classic')
               }}
-              aria-label="Switch appearance"
+              aria-label={`Switch appearance, currently ${appearance}`}
             >
               <Palette className="size-3.5" />
               <span className="capitalize">{appearance}</span>
             </Button>
             <Menu
-              label="Account menu"
+              label={`Account menu for ${initials}`}
               triggerClassName="ml-1 flex size-7 items-center justify-center rounded-full bg-elev text-xs font-semibold text-muted hover:ring-2 hover:ring-accent-line"
               trigger={initials}
               items={[
