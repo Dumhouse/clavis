@@ -4,13 +4,13 @@ Each milestone ends in something usable and releasable. Estimates assume **2 ful
 
 | # | Milestone | Goal | Est. | Release |
 |---|---|---|---|---|
-| M0 | [Foundation](../tasks/M0-foundation.md) | Repo, CI, crypto core, **authz + audit chain core**, skeletons (SQLite) | 3–4 wks | — |
-| M1 | [Core MVP](../tasks/M1-core-mvp.md) | A small team can store and inject secrets safely | 8–10 wks | `v0.1` alpha |
-| M2 | [Teams, Security & Environments](../tasks/M2-teams-security.md) | Safe for real companies: roles, SSO, MFA, env types, variables | 8–10 wks | `v0.2` beta |
-| M3 | [Integrations & Scale](../tasks/M3-integrations.md) | Postgres/HA, CI/cloud/K8s, shared sets, preview envs, files | 10–12 wks | `v0.3` |
-| M4 | [Developer Magic](../tasks/M4-developer-magic.md) | Schema, agents/MCP, importers, promotion, overlays | 8–10 wks | `v0.4` |
-| M5 | [Advanced & Governance](../tasks/M5-advanced.md) | Dynamic secrets, rotation, JIT, approvals, offboarding, freezes | 8–10 wks | `v0.5` |
-| M6 | [Hardening & Launch](../tasks/M6-launch.md) | External audit, docs, performance, public 1.0 | 6–8 wks | `v1.0` |
+| M0 | [Foundation](https://github.com/dumhouse/clavis/blob/main/project/tasks/M0-foundation.md) | Repo, CI, crypto core, **authz + audit chain core**, skeletons (SQLite) | 3–4 wks | — |
+| M1 | [Core MVP](https://github.com/dumhouse/clavis/blob/main/project/tasks/M1-core-mvp.md) | A small team can store and inject secrets safely | 8–10 wks | `v0.1` alpha |
+| M2 | [Teams, Security & Environments](https://github.com/dumhouse/clavis/blob/main/project/tasks/M2-teams-security.md) | Safe for real companies: roles, SSO, MFA, env types, variables | 8–10 wks | `v0.2` beta |
+| M3 | [Integrations & Scale](https://github.com/dumhouse/clavis/blob/main/project/tasks/M3-integrations.md) | Postgres/HA, CI/cloud/K8s, shared sets, preview envs, files | 10–12 wks | `v0.3` |
+| M4 | [Developer Magic](https://github.com/dumhouse/clavis/blob/main/project/tasks/M4-developer-magic.md) | Schema, agents/MCP, importers, promotion, overlays | 8–10 wks | `v0.4` |
+| M5 | [Advanced & Governance](https://github.com/dumhouse/clavis/blob/main/project/tasks/M5-advanced.md) | Dynamic secrets, rotation, JIT, approvals, offboarding, freezes | 8–10 wks | `v0.5` |
+| M6 | [Hardening & Launch](https://github.com/dumhouse/clavis/blob/main/project/tasks/M6-launch.md) | External audit, docs, performance, public 1.0 | 6–8 wks | `v1.0` |
 
 ## Key sequencing decisions
 

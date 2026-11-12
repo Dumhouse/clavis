@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="402" viewBox="0 0 760 402" role="img" aria-label="Terminal: clavis login, link, run with masked secrets, check, and agent allowlist">
+<style>
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;white-space:pre}
+@keyframes v0{0%,3.585%{opacity:0}3.591%,97.610%{opacity:1}100%{opacity:0}}
+.v0{animation:v0 16.73s linear infinite}
+@keyframes v1{0%,6.573%{opacity:0}6.579%,97.610%{opacity:1}100%{opacity:0}}
+.v1{animation:v1 16.73s linear infinite}
+@keyframes w1{0%,6.573%{width:0}9.800%,100%{width:109.6px}}
+.w1{animation:w1 16.73s steps(12,end) infinite}
+@keyframes v2{0%,11.891%{opacity:0}11.897%,97.610%{opacity:1}100%{opacity:0}}
+.v2{animation:v2 16.73s linear infinite}
+@keyframes v3{0%,13.385%{opacity:0}13.391%,97.610%{opacity:1}100%{opacity:0}}
+.v3{animation:v3 16.73s linear infinite}
+@keyframes w3{0%,13.385%{width:0}26.023%,100%{width:404.6px}}
+.w3{animation:w3 16.73s steps(47,end) infinite}
+@keyframes v4{0%,28.115%{opacity:0}28.121%,97.610%{opacity:1}100%{opacity:0}}
+.v4{animation:v4 16.73s linear infinite}
+@keyframes v5{0%,29.609%{opacity:0}29.615%,97.610%{opacity:1}100%{opacity:0}}
+.v5{animation:v5 16.73s linear infinite}
+@keyframes v6{0%,32.596%{opacity:0}32.602%,97.610%{opacity:1}100%{opacity:0}}
+.v6{animation:v6 16.73s linear infinite}
+@keyframes w6{0%,32.596%{width:0}38.512%,100%{width:193.9px}}
+.w6{animation:w6 16.73s steps(22,end) infinite}
+@keyframes v7{0%,40.604%{opacity:0}40.610%,97.610%{opacity:1}100%{opacity:0}}
+.v7{animation:v7 16.73s linear infinite}
+@keyframes v8{0%,42.097%{opacity:0}42.103%,97.610%{opacity:1}100%{opacity:0}}
+.v8{animation:v8 16.73s linear infinite}
+@keyframes v9{0%,43.591%{opacity:0}43.597%,97.610%{opacity:1}100%{opacity:0}}
+.v9{animation:v9 16.73s linear infinite}
+@keyframes v10{0%,46.579%{opacity:0}46.585%,97.610%{opacity:1}100%{opacity:0}}
+.v10{animation:v10 16.73s linear infinite}
+@keyframes w10{0%,46.579%{width:0}54.377%,100%{width:252.9px}}
+.w10{animation:w10 16.73s steps(29,end) infinite}
+@keyframes v11{0%,56.468%{opacity:0}56.474%,97.610%{opacity:1}100%{opacity:0}}
+.v11{animation:v11 16.73s linear infinite}
+@keyframes v12{0%,57.962%{opacity:0}57.968%,97.610%{opacity:1}100%{opacity:0}}
+.v12{animation:v12 16.73s linear infinite}
+@keyframes v13{0%,60.950%{opacity:0}60.956%,97.610%{opacity:1}100%{opacity:0}}
+.v13{animation:v13 16.73s linear infinite}
+@keyframes w13{0%,60.950%{width:0}72.513%,100%{width:370.9px}}
+.w13{animation:w13 16.73s steps(43,end) infinite}
+@keyframes v14{0%,74.604%{opacity:0}74.610%,97.610%{opacity:1}100%{opacity:0}}
+.v14{animation:v14 16.73s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}g,text{opacity:1}rect{width:760px}}
+</style>
+<defs><clipPath id="c1"><rect class="w1" x="38.86" y="74" width="0" height="22"/></clipPath><clipPath id="c3"><rect class="w3" x="38.86" y="118" width="0" height="22"/></clipPath><clipPath id="c6"><rect class="w6" x="38.86" y="184" width="0" height="22"/></clipPath><clipPath id="c10"><rect class="w10" x="38.86" y="272" width="0" height="22"/></clipPath><clipPath id="c13"><rect class="w13" x="38.86" y="338" width="0" height="22"/></clipPath></defs>
+<rect width="760" height="402" rx="12" fill="#0b0b0e"/>
+<rect x=".5" y=".5" width="759" height="401" rx="11.5" fill="none" stroke="#2a2a31"/>
+<path d="M0 12a12 12 0 0 1 12-12h736a12 12 0 0 1 12 12v24H0Z" fill="#101014"/>
+<path d="M0 36h760" stroke="#1c1c22"/>
+<circle cx="22" cy="18" r="5.5" fill="#2a2a31"/><circle cx="40" cy="18" r="5.5" fill="#2a2a31"/><circle cx="58" cy="18" r="5.5" fill="#2a2a31"/>
+<text x="380" y="22" fill="#71717a" text-anchor="middle" style="font-family:-apple-system,Segoe UI,sans-serif;font-size:12px">clavis — zsh</text>
+<text class="v0" x="22" y="67" fill="#71717a"># sign in once and link the repo</text><g class="v1"><text x="22" y="89" fill="#34d399">$</text><text x="38.86" y="89" fill="#f4f4f5" clip-path="url(#c1)">clavis login</text></g><text class="v2" x="22" y="111" fill="#6ee7b7">✓ Signed in as ada@acme.dev (token stored in OS keychain)</text><g class="v3"><text x="22" y="133" fill="#34d399">$</text><text x="38.86" y="133" fill="#f4f4f5" clip-path="url(#c3)">clavis link --project web-app --env development</text></g><text class="v4" x="22" y="155" fill="#6ee7b7">✓ Wrote .clavis.yaml</text><text class="v5" x="22" y="177" fill="#71717a"># run with secrets injected; output is masked</text><g class="v6"><text x="22" y="199" fill="#34d399">$</text><text x="38.86" y="199" fill="#f4f4f5" clip-path="url(#c6)">clavis run -- pnpm dev</text></g><text class="v7" x="22" y="221" fill="#a1a1aa">  ready  DATABASE_URL=postgres://app:******@db:5432/app</text><text class="v8" x="22" y="243" fill="#a1a1aa">  ready  STRIPE_SECRET_KEY=******</text><text class="v9" x="22" y="265" fill="#71717a"># typed config fails CI before bad values ship</text><g class="v10"><text x="22" y="287" fill="#34d399">$</text><text x="38.86" y="287" fill="#f4f4f5" clip-path="url(#c10)">clavis check --env production</text></g><text class="v11" x="22" y="309" fill="#fca5a5">✕ SENTRY_DSN  required in production, missing</text><text class="v12" x="22" y="331" fill="#71717a"># agents run allowlisted commands, never see values</text><g class="v13"><text x="22" y="353" fill="#34d399">$</text><text x="38.86" y="353" fill="#f4f4f5" clip-path="url(#c13)">clavis agents allow claude-code &quot;pnpm test&quot;</text></g><text class="v14" x="22" y="375" fill="#6ee7b7">✓ claude-code may run: pnpm test</text>
+</svg>

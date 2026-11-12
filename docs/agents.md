@@ -14,6 +14,9 @@ without handing them a general-purpose token.
 Through Clavis, agents cannot read values directly, write secrets, manage
 identities, or change their own allowlist.
 
+<img class="only-dark" src="./assets/screenshots/agents.jpg" alt="Agent identities and command allowlists" />
+<img class="only-light" src="./assets/screenshots/agents-light.jpg" alt="Agent identities and command allowlists" />
+
 ## What this protects, and what it does not
 
 Clavis controls what reaches the agent **through MCP**. It cannot stop an

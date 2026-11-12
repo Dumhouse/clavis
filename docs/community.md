@@ -17,4 +17,4 @@
 
 ## Code of conduct
 
-Participation is governed by [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md).
+Participation is governed by [CODE_OF_CONDUCT.md](https://github.com/dumhouse/clavis/blob/main/CODE_OF_CONDUCT.md).

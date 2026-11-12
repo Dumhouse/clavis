@@ -7,7 +7,7 @@ Single Go binary `clavis` (same binary as the server). Installed via Homebrew, S
 - **Pretty by default, scriptable always:** colored tables and prompts on a TTY; `--json` / `--quiet` for scripts; colors disabled automatically when not a TTY or when `NO_COLOR` is set.
 - **Every error suggests a fix:** `Not logged in. Run: clavis login`.
 - **Context from the repo:** `.clavis.yaml` (committed, contains no secrets) stores org/project/default env, so commands need no flags inside a repo.
-- **Non-interactive mode** in CI: auth from `CLAVIS_TOKEN` or OIDC auto-detection (GitHub Actions, GitLab, K8s).
+- **Non-interactive mode** in CI: authenticates with `CLAVIS_TOKEN` (a machine or agent token) instead of the browser flow; a workload OIDC token can be exchanged for a short-lived token at `POST /api/v1/auth/oidc` (see [ci.md](ci.md)).
 - **Production safety:** when the target env is `production`, the CLI shows a colored banner; writes and destructive commands require typing the project name (or `--yes` plus a non-TTY, for CI). Orgs can block CLI writes to production entirely.
 - **Stable exit codes:** 0 ok, 1 general error, 2 usage, 3 auth, 4 permission, 5 not found, 6 validation failed (`check`), 7 leak found (`scan`).
 

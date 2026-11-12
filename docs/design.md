@@ -17,7 +17,7 @@
 - **Environment type colors** are used consistently in the UI, CLI, and Slack messages: development = blue, preview = violet, staging = teal, production = amber.
 - **Item kinds:** secret = masked with key icon, variable = plain text with `{x}` icon, file = paperclip icon with filename and size.
 
-> **Mockup:** see [design/mockups/index.html](../design/mockups/index.html) for a clickable prototype: secrets grid + drawer, promotion, access matrix with explainer, requests inbox (change / access / agent command), health, shared sets with blast radius, offboarding, CLI, ⌘K palette, and Add secret with generator. A **Style** switcher shows both shipped appearances in dark and light.
+> **Mockup:** see [design/mockups/index.html](https://github.com/dumhouse/clavis/blob/main/project/design/mockups/index.html) for a clickable prototype: secrets grid + drawer, promotion, access matrix with explainer, requests inbox (change / access / agent command), health, shared sets with blast radius, offboarding, CLI, ⌘K palette, and Add secret with generator. A **Style** switcher shows both shipped appearances in dark and light.
 
 ## Appearances
 
