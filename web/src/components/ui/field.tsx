@@ -14,11 +14,7 @@ const control =
 
 export const controlClass = control
 
-export function Input({
-  className,
-  mono,
-  ...props
-}: ComponentProps<'input'> & { mono?: boolean }) {
+export function Input({ className, mono, ...props }: ComponentProps<'input'> & { mono?: boolean }) {
   return <input className={cn(control, 'h-9 px-2.5', mono && 'font-mono', className)} {...props} />
 }
 

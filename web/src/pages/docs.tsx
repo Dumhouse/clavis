@@ -7,7 +7,11 @@ import {
   Check,
   ChevronRight,
   Copy,
+  ExternalLink,
+  FileCode,
   GitBranch,
+  Maximize2,
+  Minimize2,
   Hash,
   KeyRound,
   Lightbulb,
@@ -21,15 +25,22 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { CertificateNote } from '@/components/certificate-note'
+import { DocMarkdown, type LinkRenderer } from '@/components/doc-markdown'
 import { Select } from '@/components/ui/field'
 import {
-  commandGroups,
-  environmentVariables,
-  exitCodes,
-  globalFlags,
-  type CommandDoc,
-  type CommandGroup,
-} from '@/lib/commands'
+  commandByPath,
+  flagSignature,
+  groupCommands,
+  publicDocsBase,
+  reference,
+  resolveReferenceLink,
+  type RefCommand,
+  type RefExample,
+  type RefFlag,
+  type RefGroup,
+  type RefTopic,
+} from '@/lib/cli-reference'
 import { guides, type DocGuide, type DocSnippet } from '@/lib/docs-content'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +48,7 @@ import { cn } from '@/lib/utils'
 // Page model
 // ---------------------------------------------------------------------------
 
-type Section = 'Get started' | 'Guides' | 'CLI reference'
+type Section = 'Get started' | 'Guides' | 'CLI reference' | 'CLI configuration'
 
 type DocPage = {
   id: string
@@ -46,8 +57,9 @@ type DocPage = {
   icon: LucideIcon
   summary: string
   guide?: DocGuide
-  group?: CommandGroup
-  kind: 'overview' | 'guide' | 'commands' | 'config'
+  group?: RefGroup
+  topic?: RefTopic
+  kind: 'overview' | 'guide' | 'commands' | 'config' | 'topic'
 }
 
 const guideIcons: Record<string, LucideIcon> = {
@@ -60,13 +72,9 @@ const guideIcons: Record<string, LucideIcon> = {
   security: ShieldCheck,
 }
 
-const slug = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-
-const commandAnchor = (command: CommandDoc) => `cmd-${slug(command.name)}`
+const commandAnchor = (command: RefCommand) => `cmd-${command.slug}`
+const groupPageId = (groupId: string) => `cli-${groupId}`
+const topicPageId = (topicId: string) => `topic-${topicId}`
 const stepAnchor = (index: number) => `step-${String(index + 1)}`
 
 const pages: DocPage[] = [
@@ -87,16 +95,8 @@ const pages: DocPage[] = [
     guide,
     kind: 'guide',
   })),
-  {
-    id: 'config',
-    title: 'Flags, variables, exit codes',
-    section: 'CLI reference',
-    icon: SlidersHorizontal,
-    summary: 'Global flags, environment variables, and exit codes shared by every command.',
-    kind: 'config',
-  },
-  ...commandGroups.map<DocPage>((group) => ({
-    id: `cli-${slug(group.title)}`,
+  ...reference.groups.map<DocPage>((group) => ({
+    id: groupPageId(group.id),
     title: group.title,
     section: 'CLI reference',
     icon: Terminal,
@@ -104,9 +104,26 @@ const pages: DocPage[] = [
     group,
     kind: 'commands',
   })),
+  {
+    id: 'config',
+    title: 'Global flags',
+    section: 'CLI configuration',
+    icon: SlidersHorizontal,
+    summary: 'Flags that work with every command. Put them before the command name or after it.',
+    kind: 'config',
+  },
+  ...reference.topics.map<DocPage>((topic) => ({
+    id: topicPageId(topic.id),
+    title: topic.title,
+    section: 'CLI configuration',
+    icon: FileCode,
+    summary: topic.summary,
+    topic,
+    kind: 'topic',
+  })),
 ]
 
-const sections: Section[] = ['Get started', 'Guides', 'CLI reference']
+const sections: Section[] = ['Get started', 'Guides', 'CLI reference', 'CLI configuration']
 const pageById = new Map(pages.map((page) => [page.id, page]))
 
 // ---------------------------------------------------------------------------
@@ -129,9 +146,40 @@ function useDocLocation() {
 }
 
 const href = (pageId: string, anchor?: string) => `#${pageId}${anchor ? `/${anchor}` : ''}`
+const commandHref = (command: RefCommand) =>
+  href(groupPageId(command.group), commandAnchor(command))
+
+/** Links inside reference text: commands and topics stay in the app. */
+const renderLink: LinkRenderer = (target, children, key) => {
+  const internal = resolveReferenceLink(target)
+  const className = 'font-medium text-accent-text hover:underline'
+  if (internal?.kind === 'command') {
+    return (
+      <a key={key} href={commandHref(internal.command)} className={className}>
+        {children}
+      </a>
+    )
+  }
+  if (internal?.kind === 'topic') {
+    return (
+      <a key={key} href={href(topicPageId(internal.id))} className={className}>
+        {children}
+      </a>
+    )
+  }
+  const external = /^https?:/.test(target) ? target : new URL(target, publicDocsBase).toString()
+  return (
+    <a key={key} href={external} target="_blank" rel="noreferrer" className={className}>
+      {children}
+    </a>
+  )
+}
 
 function scrollRegion(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('[data-scroll-region]')
+  return (
+    document.querySelector<HTMLElement>('[data-docs-full]') ??
+    document.querySelector<HTMLElement>('[data-scroll-region]')
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -175,32 +223,41 @@ const searchIndex: SearchEntry[] = (() => {
       })
     }
     if (page.group) {
-      for (const command of page.group.commands) {
+      for (const command of groupCommands(page.group)) {
         entries.push({
           page,
           anchor: commandAnchor(command),
-          title: command.name,
-          context: command.description,
+          title: `clavis ${command.path}`,
+          context: command.summary,
           mono: true,
           haystack: [
-            command.name,
-            command.usage,
+            command.path,
+            command.summary,
             command.description,
-            ...(command.flags ?? []),
-            ...(command.examples ?? []),
+            ...command.flags.map((flag) => `--${flag.name}`),
+            ...command.examples.map((example) => `${example.title ?? ''} ${example.run}`),
           ].join(' '),
         })
       }
     }
+    if (page.topic) {
+      entries.push({
+        page,
+        title: page.topic.title,
+        context: page.topic.summary,
+        mono: false,
+        haystack: [page.topic.title, page.topic.summary, page.topic.body].join(' '),
+      })
+    }
     if (page.kind === 'config') {
-      for (const [name, description] of [...globalFlags, ...environmentVariables]) {
+      for (const flag of reference.globalFlags) {
         entries.push({
           page,
-          anchor: slug(name),
-          title: name,
-          context: description,
+          anchor: `flag-${flag.name}`,
+          title: `--${flag.name}`,
+          context: flag.usage,
           mono: true,
-          haystack: `${name} ${description}`,
+          haystack: `--${flag.name} ${flag.usage}`,
         })
       }
     }
@@ -214,7 +271,7 @@ function search(needle: string): SearchEntry[] {
   return searchIndex
     .filter((entry) => terms.every((term) => entry.haystack.includes(term)))
     .map((entry) => {
-      const title = entry.title.toLowerCase()
+      const title = entry.title.toLowerCase().replace(/^clavis /, '')
       const score = terms.every((term) => title.includes(term))
         ? title.startsWith(terms[0] ?? '')
           ? 0
@@ -234,6 +291,7 @@ function search(needle: string): SearchEntry[] {
 export function DocsPage() {
   const { page, anchor } = useDocLocation()
   const [query, setQuery] = useState('')
+  const [full, setFull] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const results = useMemo(() => search(query.trim()), [query])
   const searching = query.trim().length > 0
@@ -248,6 +306,18 @@ export function DocsPage() {
       region?.scrollTo({ top: 0 })
     }
   }, [page.id, anchor, searching])
+
+  // Esc leaves full-page mode.
+  useEffect(() => {
+    if (!full) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFull(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [full])
 
   // "/" focuses search, like the rest of the app.
   useEffect(() => {
@@ -271,7 +341,13 @@ export function DocsPage() {
   const outline = outlineFor(page)
 
   return (
-    <div className="@container">
+    <div
+      className={cn(
+        '@container',
+        full && 'fixed inset-0 z-40 overflow-y-auto bg-bg px-4 py-6 md:px-8',
+      )}
+      data-docs-full={full ? '' : undefined}
+    >
       {/* Docs header */}
       <header className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border-soft pb-5">
         <div className="flex items-center gap-2.5">
@@ -283,19 +359,33 @@ export function DocsPage() {
             <p className="text-xs text-dim">Guides and CLI reference for this server</p>
           </div>
         </div>
-        <div className="ml-auto w-full @2xl:w-72">
-          <SearchBox
-            inputRef={searchRef}
-            value={query}
-            onChange={setQuery}
-            onSubmit={() => {
-              const first = results[0]
-              if (first) {
-                setQuery('')
-                window.location.hash = href(first.page.id, first.anchor)
-              }
+        <div className="ml-auto flex w-full items-center gap-2 @2xl:w-auto">
+          <div className="min-w-0 flex-1 @2xl:w-72 @2xl:flex-none">
+            <SearchBox
+              inputRef={searchRef}
+              value={query}
+              onChange={setQuery}
+              onSubmit={() => {
+                const first = results[0]
+                if (first) {
+                  setQuery('')
+                  window.location.hash = href(first.page.id, first.anchor)
+                }
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFull((value) => !value)
             }}
-          />
+            aria-pressed={full}
+            title={full ? 'Exit full page (Esc)' : 'Show docs on the whole page'}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-app-sm border border-border px-2.5 text-xs text-muted hover:bg-hover hover:text-text"
+          >
+            {full ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            <span className="hidden sm:inline">{full ? 'Exit full page' : 'Full page'}</span>
+          </button>
         </div>
       </header>
 
@@ -388,7 +478,8 @@ export function DocsPage() {
                 {page.kind === 'overview' && <Overview />}
                 {page.guide && <GuideBody guide={page.guide} />}
                 {page.group && <CommandList group={page.group} />}
-                {page.kind === 'config' && <ConfigReference />}
+                {page.topic && <TopicBody topic={page.topic} />}
+                {page.kind === 'config' && <FlagList flags={reference.globalFlags} />}
               </div>
               <PagerNav previous={previous} next={next} />
             </article>
@@ -526,7 +617,10 @@ function PageHeader({ page }: { page: DocPage }) {
     page.guide !== undefined
       ? `${String(page.guide.steps.length)} steps`
       : page.group !== undefined
-        ? `${String(page.group.commands.length)} ${page.group.commands.length === 1 ? 'command' : 'commands'}`
+        ? (() => {
+            const count = groupCommands(page.group).length
+            return `${String(count)} ${count === 1 ? 'command' : 'commands'}`
+          })()
         : undefined
   return (
     <header>
@@ -582,8 +676,9 @@ function Overview() {
           </p>
           <div className="mt-3 space-y-1.5">
             <CodeBlock code={`clavis login --server ${origin}`} />
-            <CodeBlock code="clavis init && clavis run -- npm run dev" />
+            <CodeBlock code={'clavis init\nclavis run npm run dev'} />
           </div>
+          <CertificateNote className="mt-3" />
           <a
             href={href('start')}
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:underline"
@@ -618,12 +713,12 @@ function Overview() {
       <section>
         <h2 className="text-md font-semibold">CLI reference</h2>
         <p className="mt-1 text-sm text-muted">
-          Every command, grouped by task.{' '}
-          <code className="font-mono">clavis &lt;command&gt; --help</code> prints the same text.
+          All {reference.commands.length} commands, grouped by task, with flags and examples.{' '}
+          <code className="font-mono">clavis &lt;command&gt; --help</code> prints the same examples.
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {pages
-            .filter((page) => page.section === 'CLI reference')
+            .filter((page) => page.section.startsWith('CLI'))
             .map((page) => (
               <a
                 key={page.id}
@@ -671,103 +766,195 @@ function GuideBody({ guide }: { guide: DocGuide }) {
   )
 }
 
-function CommandList({ group }: { group: CommandGroup }) {
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-4">
-      {group.commands.map((command) => (
-        <section
-          key={command.name}
-          id={commandAnchor(command)}
-          className="group/cmd scroll-mt-6 rounded-app border border-border bg-surface"
-        >
-          <div className="border-b border-border-soft px-4 py-3">
-            <h2 className="flex items-center gap-2 font-mono text-md font-semibold">
-              <span className="text-dim">clavis</span>
-              {command.name}
-              <a
-                href={href(`cli-${slug(group.title)}`, commandAnchor(command))}
-                aria-label={`Link to ${command.name}`}
-                className="text-dim opacity-0 transition-opacity hover:text-accent-text focus:opacity-100 group-hover/cmd:opacity-100"
-              >
-                <Hash className="size-3.5" />
-              </a>
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted">{command.description}</p>
-          </div>
-          <div className="space-y-3 px-4 py-3">
-            <CodeBlock code={command.usage} />
-            {command.flags && command.flags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-2xs font-semibold uppercase tracking-[0.08em] text-dim">
-                  Flags
-                </span>
-                {command.flags.map((flag) => (
-                  <code
-                    key={flag}
-                    className="rounded-app-sm border border-border-soft bg-bg px-1.5 py-0.5 font-mono text-2xs text-muted"
-                  >
-                    {flag}
-                  </code>
-                ))}
-              </div>
-            )}
-            {command.examples && command.examples.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-dim">
-                  {command.examples.length === 1 ? 'Example' : 'Examples'}
-                </p>
-                <div className="space-y-1.5">
-                  {command.examples.map((example) => (
-                    <CodeBlock key={example} code={example} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+    <p className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-dim">{children}</p>
+  )
+}
+
+const renderCode = (code: string, lang: string) => (
+  <CodeBlock code={code} plain={lang !== '' && lang !== 'sh' && lang !== 'bash'} />
+)
+
+function CommandList({ group }: { group: RefGroup }) {
+  return (
+    <div className="space-y-5">
+      {groupCommands(group).map((command) => (
+        <CommandCard key={command.path} command={command} />
       ))}
     </div>
   )
 }
 
-function ConfigReference() {
-  const tables: { id: string; title: string; rows: [string, string][]; head: string }[] = [
-    { id: 'global-flags', title: 'Global flags', rows: globalFlags, head: 'Flag' },
-    {
-      id: 'environment-variables',
-      title: 'CLI environment variables',
-      rows: environmentVariables,
-      head: 'Variable',
-    },
-    { id: 'exit-codes', title: 'Exit codes', rows: exitCodes, head: 'Code' },
-  ]
+function CommandChips({ paths }: { paths: string[] }) {
   return (
-    <div className="space-y-10">
-      {tables.map((table) => (
-        <section key={table.id} id={table.id} className="scroll-mt-6">
-          <h2 className="text-md font-semibold">{table.title}</h2>
-          <div className="mt-3 overflow-hidden rounded-app border border-border">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-panel text-2xs uppercase tracking-[0.08em] text-dim">
-                <tr>
-                  <th className="px-4 py-2 font-semibold">{table.head}</th>
-                  <th className="px-4 py-2 font-semibold">Meaning</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-soft bg-surface">
-                {table.rows.map(([name, description]) => (
-                  <tr key={name} id={slug(name)} className="scroll-mt-6">
-                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-text">
-                      {name}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-muted">{description}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="flex flex-wrap gap-1.5">
+      {paths.map((path) => {
+        const target = commandByPath(path)
+        if (!target) return null
+        return (
+          <a
+            key={path}
+            href={commandHref(target)}
+            title={target.summary}
+            className="rounded-app-sm border border-border bg-bg px-2 py-1 font-mono text-xs text-muted transition-colors hover:border-accent-line hover:text-text"
+          >
+            {path}
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
+function CommandCard({ command }: { command: RefCommand }) {
+  const parent = command.parent ? commandByPath(command.parent) : undefined
+  return (
+    <section
+      id={commandAnchor(command)}
+      className="group/cmd scroll-mt-6 overflow-hidden rounded-app border border-border bg-surface"
+    >
+      <header className="border-b border-border-soft px-5 pb-3.5 pt-4">
+        {parent && (
+          <a
+            href={commandHref(parent)}
+            className="mb-1 inline-flex items-center gap-1 font-mono text-2xs text-dim hover:text-text"
+          >
+            clavis {parent.path}
+            <ChevronRight className="size-3" />
+          </a>
+        )}
+        <div className="flex items-start gap-3">
+          <h2 className="flex min-w-0 items-center gap-2 font-mono text-md font-semibold">
+            <span className="text-dim">clavis</span>
+            <span className="break-all">{command.path}</span>
+            <a
+              href={commandHref(command)}
+              aria-label={`Link to clavis ${command.path}`}
+              className="text-dim opacity-0 transition-opacity hover:text-accent-text focus:opacity-100 group-hover/cmd:opacity-100"
+            >
+              <Hash className="size-3.5" />
+            </a>
+          </h2>
+          <a
+            href={`${publicDocsBase}${command.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            title="Open this page on the public docs site"
+            className="ml-auto mt-1 inline-flex shrink-0 items-center gap-1 text-2xs text-dim hover:text-text"
+          >
+            Docs site <ExternalLink className="size-3" />
+          </a>
+        </div>
+        <p className="mt-1 text-sm text-text/90">{command.summary}</p>
+      </header>
+      <div className="space-y-5 px-5 py-4">
+        <CodeBlock code={command.usage} label="Usage" plain />
+        {command.description && command.description !== command.summary && (
+          <DocMarkdown
+            source={command.description}
+            renderLink={renderLink}
+            renderCode={renderCode}
+          />
+        )}
+        {command.subcommands.length > 0 && (
+          <div>
+            <Label>Commands</Label>
+            <CommandChips paths={command.subcommands} />
           </div>
-        </section>
+        )}
+        {command.examples.length > 0 && (
+          <div>
+            <Label>{command.examples.length === 1 ? 'Example' : 'Examples'}</Label>
+            <ExampleList examples={command.examples} />
+          </div>
+        )}
+        {command.flags.length > 0 && (
+          <div>
+            <Label>Flags</Label>
+            <FlagList flags={command.flags} />
+          </div>
+        )}
+        {command.notes && (
+          <div>
+            <Label>Details</Label>
+            <DocMarkdown source={command.notes} renderLink={renderLink} renderCode={renderCode} />
+          </div>
+        )}
+        {command.related.length > 0 && (
+          <div>
+            <Label>Related</Label>
+            <CommandChips paths={command.related} />
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ExampleList({ examples }: { examples: RefExample[] }) {
+  return (
+    <div className="space-y-3">
+      {examples.map((example) => (
+        <div key={example.run}>
+          {example.title && (
+            <p className="mb-1.5 flex items-center gap-2 text-xs font-medium text-text">
+              <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+              {example.title}
+            </p>
+          )}
+          <CodeBlock code={example.run} />
+        </div>
       ))}
+    </div>
+  )
+}
+
+function FlagList({ flags }: { flags: RefFlag[] }) {
+  return (
+    <dl className="divide-y divide-border-soft overflow-hidden rounded-app-sm border border-border bg-bg">
+      {flags.map((flag) => (
+        <div
+          key={flag.name}
+          id={`flag-${flag.name}`}
+          className="grid scroll-mt-6 gap-1 px-3.5 py-2.5 @xl:grid-cols-[minmax(11rem,38%)_1fr] @xl:gap-4"
+        >
+          <dt className="font-mono text-xs font-medium text-text">{flagSignature(flag)}</dt>
+          <dd className="text-sm text-muted [&::first-letter]:uppercase">
+            {flag.usage}
+            {flag.default && (
+              <span className="ml-1.5 whitespace-nowrap text-2xs text-dim">
+                Default{' '}
+                <code className="rounded bg-elev px-1 py-px font-mono text-text">
+                  {flag.default}
+                </code>
+              </span>
+            )}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function TopicBody({ topic }: { topic: RefTopic }) {
+  return (
+    <div className="space-y-8">
+      <DocMarkdown source={topic.body} renderLink={renderLink} renderCode={renderCode} />
+      {topic.examples && topic.examples.length > 0 && (
+        <div>
+          <Label>{topic.examples.length === 1 ? 'Example' : 'Examples'}</Label>
+          <ExampleList examples={topic.examples} />
+        </div>
+      )}
+      <a
+        href={`${publicDocsBase}${topic.id}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 text-xs text-dim hover:text-text"
+      >
+        Open on the docs site <ExternalLink className="size-3" />
+      </a>
     </div>
   )
 }
@@ -827,18 +1014,11 @@ function outlineFor(page: DocPage): OutlineItem[] {
     }))
   }
   if (page.group) {
-    return page.group.commands.map((command) => ({
+    return groupCommands(page.group).map((command) => ({
       id: commandAnchor(command),
-      label: command.name,
+      label: command.path,
       mono: true,
     }))
-  }
-  if (page.kind === 'config') {
-    return [
-      { id: 'global-flags', label: 'Global flags', mono: false },
-      { id: 'environment-variables', label: 'CLI environment variables', mono: false },
-      { id: 'exit-codes', label: 'Exit codes', mono: false },
-    ]
   }
   return []
 }
@@ -948,10 +1128,13 @@ function CodeBlock({
   code,
   label,
   bare = false,
+  plain = false,
 }: {
   code: string
   label?: string
   bare?: boolean
+  /** No `$` prompt: for usage lines and non-shell code. */
+  plain?: boolean
 }) {
   return (
     <div className="group relative">
@@ -969,14 +1152,14 @@ function CodeBlock({
       >
         {code.split('\n').map((line, index, lines) => {
           const continuation = index > 0 && (lines[index - 1] ?? '').trimEnd().endsWith('\\')
-          const plain = continuation || /^\s/.test(line) || line.trim() === ''
+          const noPrompt = plain || continuation || /^\s/.test(line) || line.trim() === ''
           return (
             <span key={`${String(index)}-${line}`} className="block">
-              {line.startsWith('#') ? (
+              {line.startsWith('#') && !plain ? (
                 <span className="text-dim">{line}</span>
               ) : (
                 <>
-                  {!plain && <span className="select-none text-dim">$ </span>}
+                  {!noPrompt && <span className="select-none text-dim">$ </span>}
                   {line}
                 </>
               )}

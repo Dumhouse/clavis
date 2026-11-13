@@ -21,11 +21,9 @@ export type SetupForm = {
   email: string
   name: string
   password: string
-  orgName: string
-  orgSlug: string
-  projectName: string
-  projectSlug: string
 }
+
+const ONBOARDING_KEY = 'clavis:onboarding'
 
 type AuthStatus = 'loading' | 'setup' | 'anonymous' | 'authenticated'
 
@@ -38,6 +36,11 @@ type AuthContextValue = {
   verifyMFA: (challenge: string, code: string, recoveryCode?: string) => Promise<void>
   setup: (form: SetupForm) => Promise<void>
   logout: () => Promise<void>
+  /** True right after first-run setup until the welcome flow is finished. */
+  onboarding: boolean
+  finishOnboarding: () => void
+  /** Replaces the cached org list, for example after a rename. */
+  setOrgs: (orgs: Org[]) => void
 }
 
 export type LoginResult = { mfaRequired: true; challenge: string } | { mfaRequired: false }
@@ -49,6 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [orgs, setOrgs] = useState<Org[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [onboarding, setOnboarding] = useState(
+    () => window.localStorage.getItem(ONBOARDING_KEY) === '1',
+  )
 
   const load = useCallback(async () => {
     try {
@@ -117,10 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: form.email,
         name: form.name,
         password: form.password,
-        org_name: form.orgName,
-        org_slug: form.orgSlug,
-        project_name: form.projectName,
-        project_slug: form.projectSlug,
+        skip_project: true,
       },
     })
     if (result.error || !result.data) {
@@ -129,7 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.data.user)
     setOrgs(result.data.orgs ?? [])
     if (result.data.preferences) applyServerPreferences(result.data.preferences)
+    window.localStorage.setItem(ONBOARDING_KEY, '1')
+    setOnboarding(true)
     setStatus('authenticated')
+  }, [])
+
+  const finishOnboarding = useCallback(() => {
+    window.localStorage.removeItem(ONBOARDING_KEY)
+    setOnboarding(false)
   }, [])
 
   const logout = useCallback(async () => {
@@ -140,8 +150,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, orgs, error, login, verifyMFA, setup, logout }),
-    [status, user, orgs, error, login, verifyMFA, setup, logout],
+    () => ({
+      status,
+      user,
+      orgs,
+      error,
+      login,
+      verifyMFA,
+      setup,
+      logout,
+      onboarding,
+      finishOnboarding,
+      setOrgs,
+    }),
+    [status, user, orgs, error, login, verifyMFA, setup, logout, onboarding, finishOnboarding],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
