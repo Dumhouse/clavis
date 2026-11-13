@@ -2,6 +2,7 @@ import { h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 
+import DownloadMatrix from './components/DownloadMatrix.vue'
 import Landing from './components/Landing.vue'
 import NavStars from './components/NavStars.vue'
 import NotFound from './components/NotFound.vue'
@@ -46,6 +47,7 @@ export default {
   Layout: () => h(DefaultTheme.Layout, null, { 'nav-bar-content-after': () => h(NavStars), 'not-found': () => h(NotFound) }),
   enhanceApp({ app }) {
     app.component('Landing', Landing)
+    app.component('DownloadMatrix', DownloadMatrix)
     installLightbox()
   },
 } satisfies Theme

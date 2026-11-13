@@ -173,14 +173,25 @@ release:
 
     Open-source secrets management for humans, machines, and AI agents.
 
-    **Install**
+    **Download**
+
+    | | x86-64 (amd64) | ARM (arm64) |
+    | --- | --- | --- |
+    | **macOS** | [clavis_{{ .Version }}_darwin_amd64.tar.gz](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_darwin_amd64.tar.gz) | [clavis_{{ .Version }}_darwin_arm64.tar.gz](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_darwin_arm64.tar.gz) |
+    | **Linux** | [tar.gz](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_amd64.tar.gz) · [.deb](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_amd64.deb) · [.rpm](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_amd64.rpm) · [.apk](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_amd64.apk) | [tar.gz](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_arm64.tar.gz) · [.deb](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_arm64.deb) · [.rpm](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_arm64.rpm) · [.apk](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_linux_arm64.apk) |
+    | **Windows** | [clavis_{{ .Version }}_windows_amd64.zip](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_windows_amd64.zip) | [clavis_{{ .Version }}_windows_arm64.zip](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_windows_arm64.zip) |
+
+    Not sure which? Apple Silicon Macs and most ARM servers are arm64; most
+    Intel and AMD machines are amd64.
+
+    **Install with a package manager**
 
     - macOS: `brew install dumhouse/tap/clavis`
     - Windows: `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket && scoop install clavis`
     - Any Linux or macOS: `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh | bash`
     - Docker: `docker run -p 8080:8080 -v clavis-data:/data dumhouse/clavis:{{ .Version }}`
   footer: |
-    **Which file do I need?** One archive or package for your platform. The `.sigstore.json`, `.sbom.json` and `multiple.intoto.jsonl` files let you verify it; see the [supply chain docs](https://dumhouse.github.io/clavis/supply-chain).
+    **Other files in this release** are for verification, not for running: `checksums.txt` (SHA-256 of everything), `*.sigstore.json` (cosign signatures), `*.sbom.json` (software bill of materials) and `multiple.intoto.jsonl` (build provenance). See the [supply chain docs](https://dumhouse.github.io/clavis/supply-chain).
 
 changelog:
   sort: asc
