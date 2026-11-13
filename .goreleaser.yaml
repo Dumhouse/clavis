@@ -104,6 +104,41 @@ scoops:
     license: Apache-2.0
     skip_upload: '{{ if index .Env "SCOOP_BUCKET_TOKEN" }}false{{ else }}true{{ end }}'
 
+winget:
+  - name: clavis
+    publisher: Dumhouse
+    package_identifier: Dumhouse.Clavis
+    short_description: Open-source secrets management for humans, machines, and AI agents.
+    description: >-
+      Clavis is a self-hosted secrets manager in a single Go binary: typed config,
+      dynamic credentials, time-limited access with approvals, an audit log, and an
+      MCP server that lets coding agents run commands without seeing secret values.
+    publisher_url: https://github.com/Dumhouse
+    publisher_support_url: https://github.com/Dumhouse/clavis/issues
+    homepage: https://dumhouse.github.io/clavis/
+    license: Apache-2.0
+    license_url: https://github.com/Dumhouse/clavis/blob/main/LICENSE
+    release_notes_url: https://github.com/Dumhouse/clavis/releases/tag/{{ .Tag }}
+    tags:
+      - secrets
+      - secrets-management
+      - security
+      - devops
+      - cli
+    # Skipped until the WINGET_TOKEN secret exists, so releases keep working.
+    skip_upload: '{{ if index .Env "WINGET_TOKEN" }}false{{ else }}true{{ end }}'
+    repository:
+      owner: dumhouse
+      name: winget-pkgs
+      branch: 'clavis-{{ .Version }}'
+      token: '{{ index .Env "WINGET_TOKEN" }}'
+      pull_request:
+        enabled: true
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
 nfpms:
   - id: packages
     package_name: clavis

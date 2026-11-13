@@ -16,6 +16,7 @@ and publishes it to each channel below.
 | `dumhouse/clavis` on Docker Hub | The same image | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` |
 | Homebrew tap | A cask in `Dumhouse/homebrew-tap` | `HOMEBREW_TAP_TOKEN` |
 | Scoop bucket | A manifest in `Dumhouse/scoop-bucket` | `SCOOP_BUCKET_TOKEN` |
+| winget | A pull request to `microsoft/winget-pkgs` | `WINGET_TOKEN` and a `Dumhouse/winget-pkgs` fork |
 | apt and rpm repositories | Hosted `.deb` and `.rpm` on Cloudsmith | `CLOUDSMITH_API_KEY` |
 | Helm chart | OCI chart at `ghcr.io/dumhouse/charts` | Nothing extra (separate workflow) |
 
@@ -157,14 +158,31 @@ Until the repository is set up, install the packages from the release page.
 ## winget
 
 winget manifests are submitted as a pull request to
-[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
+[microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs). GoReleaser
+generates the three manifest files (a portable zip installer for amd64 and arm64)
+and opens that pull request from a fork owned by the organization.
 
-1. Fork `microsoft/winget-pkgs` into the organization.
-2. Create a token with *Contents* and *Pull requests* write access on the fork
-   and store it as `WINGET_TOKEN`.
-3. Add GoReleaser's `winget` section to `.goreleaser.yaml`.
+One-time setup:
 
-Do this once there is a Windows build you are ready to support.
+1. Fork `microsoft/winget-pkgs` into the organization, so the fork is
+   `Dumhouse/winget-pkgs`. Keep the name.
+2. Create a fine-grained token with the organization as owner, only the
+   `winget-pkgs` fork selected, and *Contents: Read and write* plus
+   *Pull requests: Read and write*. If the organization restricts tokens, the
+   pull request itself is created against `microsoft/winget-pkgs`, so a classic
+   token with `public_repo` scope is the fallback.
+3. Store it as the secret `WINGET_TOKEN`. Until it exists the step is skipped.
+
+What to expect:
+
+- The first submission of a new package is reviewed by Microsoft's moderators and
+  an automated validation pipeline, and can take days. Later versions are
+  usually merged automatically once validation passes.
+- Fix anything the validation bot reports on the pull request, then push to the
+  same branch (`clavis-<version>` on the fork).
+- Once it is accepted, users install with `winget install Dumhouse.Clavis`.
+- Keep the fork's default branch in sync with upstream (the GitHub "Sync fork"
+  button), or GoReleaser opens pull requests based on an outdated branch.
 
 ## Troubleshooting
 
