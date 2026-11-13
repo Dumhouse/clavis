@@ -125,6 +125,12 @@ jobs:
       - run: pnpm --dir web check:hints
       - run: pnpm --dir web build
       - run: pnpm --dir web check:bundle
+      # The binary job embeds this build instead of repeating the install and build.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist/
+          retention-days: 1
 
   build:
     name: Build binary
@@ -136,16 +142,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - uses: pnpm/action-setup@v6
+      - uses: actions/download-artifact@v8
         with:
-          version: 12
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: web/.nvmrc
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm --dir web install --frozen-lockfile
-      - run: pnpm --dir web build
+          name: web-dist
+          path: web/dist/
       - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
       - run: ./bin/clavis version --json
 
@@ -168,7 +168,17 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm --dir web install --frozen-lockfile
-      - run: pnpm --dir web exec playwright install --with-deps chromium
+      - id: playwright
+        run: echo "version=$(pnpm --dir web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --dir web exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --dir web exec playwright install-deps chromium
       - run: pnpm --dir web e2e
       - uses: actions/upload-artifact@v7
         if: failure()
