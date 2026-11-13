@@ -137,9 +137,11 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 	}
 	s.svc.SigningKey = signingKey
 	s.svc.AWSSTSEndpoint = s.awsSTSURL
-	ssoAllow := []string(nil)
+	// Outbound calls (webhooks, syncs, SSO, audit exporters) never reach private
+	// addresses unless the operator allowlists them.
+	ssoAllow := append([]string(nil), cfg.Security.OutboundAllowlist...)
 	if cfg.Server.Dev {
-		ssoAllow = []string{"127.0.0.1/32", "::1/128"}
+		ssoAllow = append(ssoAllow, "127.0.0.1/32", "::1/128")
 	}
 	ssoGuardian, ssoErr := netguard.New(ssoAllow)
 	if ssoErr == nil {

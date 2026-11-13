@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- `CLAVIS_OUTBOUND_ALLOWLIST` (`security.outbound_allowlist`): IPs or CIDRs that syncs,
+  webhooks, SSO discovery and audit exporters may reach even though they are
+  private, for example a Forgejo or Vault on your LAN. Everything else private
+  stays blocked, and the blocked-address error now names this setting.
+
 ## v0.3.0 — 2026-11-13
 
 ### Added

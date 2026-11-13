@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/dumhouse/clavis/internal/config"
 )
 
 // fakeForgejo accepts the given tokens and records the token behind each
@@ -412,5 +414,43 @@ func TestSyncConnectionTestForgejoDestinations(t *testing.T) {
 	rejected := decode[result](t, owner.request(http.MethodPost, connections+"/"+wrongConn.ID+"/test", nil))
 	if rejected.OK || !strings.Contains(rejected.Detail, "rejected the token") {
 		t.Fatalf("rejected = %+v", rejected)
+	}
+}
+
+// Syncs to a private address (a Forgejo on the LAN) are blocked unless the
+// operator allowlists it, and the error says how.
+func TestForgejoSyncOutboundAllowlist(t *testing.T) {
+	_, srv := newFakeForgejo(t, "fj-one")
+
+	run := func(allow []string) (int, string) {
+		f := newFixtureConfig(t, func(cfg *config.Config) {
+			cfg.Server.Dev = false // dev mode already allows loopback
+			cfg.Server.BaseURL = "http://192.168.1.10:8080" // plain-HTTP LAN host: plain cookies
+			cfg.Security.OutboundAllowlist = allow
+		})
+		owner, _ := f.setup(t)
+		created := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs", map[string]any{
+			"environment": "dev", "provider": "forgejo", "forgejo_repo": "team/app",
+			"base_url": srv.URL, "token": "fj-one",
+		})
+		if created.Code != http.StatusCreated {
+			t.Fatalf("create sync = %d body=%s", created.Code, created.Body)
+		}
+		id := decode[connectionResponse](t, created).ID
+		if rec := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets",
+			map[string]any{"key": "API_KEY", "value": "v1"}); rec.Code != http.StatusCreated {
+			t.Fatalf("secret = %d", rec.Code)
+		}
+		rec := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/syncs/"+id+"/run",
+			map[string]any{"confirm": true})
+		return rec.Code, rec.Body.String()
+	}
+
+	if code, body := run(nil); code != http.StatusCreated || !strings.Contains(body, `"status":"failed"`) ||
+		!strings.Contains(body, "outbound_allowlist") {
+		t.Fatalf("blocked run = %d body=%s", code, body)
+	}
+	if code, body := run([]string{"127.0.0.1/32"}); code != http.StatusCreated || !strings.Contains(body, `"status":"success"`) {
+		t.Fatalf("allowlisted run = %d body=%s", code, body)
 	}
 }
