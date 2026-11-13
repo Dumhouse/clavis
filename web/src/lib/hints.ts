@@ -40,7 +40,7 @@ export const pageHints: Record<string, PageHints> = {
     cmds: [
       { cmd: 'clavis secrets ls', description: 'List key names' },
       { cmd: 'clavis secrets get KEY', description: 'Print one value (audited)' },
-      { cmd: 'clavis run npm run dev', description: 'Inject secrets and mask output' },
+      { cmd: 'clavis run -- npm run dev', description: 'Inject secrets and mask output' },
     ],
     tips: [
       'Every reveal is audited with the key name and your reason — never the value.',
