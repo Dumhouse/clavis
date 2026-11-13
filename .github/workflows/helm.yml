@@ -3,10 +3,24 @@ name: Helm chart
 # Publishes the chart as an OCI artifact to ghcr.io, which Artifact Hub can
 # index. Pages already serves the docs site, so a classic index.yaml repo would
 # need a second site; OCI avoids that.
+#
+# The release workflow calls this after the release is verified. A release
+# created with GITHUB_TOKEN never fires a `release: published` trigger, which
+# is why this used to be a workflow that never ran. Run it by hand from the
+# Actions tab to publish the chart outside a release.
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Release tag (v0.2.6) or version; becomes the chart's appVersion and default image tag"
+        type: string
+        default: ""
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      version:
+        description: "Release tag (v0.2.6) or version; empty keeps appVersion from Chart.yaml"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -19,6 +33,27 @@ jobs:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
       - run: helm lint deploy/helm/clavis
-      - run: helm package deploy/helm/clavis --destination dist
-      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - run: helm push dist/clavis-*.tgz oci://ghcr.io/dumhouse/charts
+      - name: Package
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          args=()
+          if [ -n "${VERSION}" ]; then args+=(--app-version "${VERSION#v}"); fi
+          helm package deploy/helm/clavis --destination dist "${args[@]}"
+      - name: Push
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${GH_ACTOR}" --password-stdin
+          helm push dist/clavis-*.tgz oci://ghcr.io/dumhouse/charts
+          helm registry logout ghcr.io
+      - name: Anonymous install works
+        # A new ghcr.io package is private. The chart is only useful when
+        # anyone can pull it, so fail loudly until its visibility is Public.
+        run: |
+          version="$(sed -n 's/^version: *//p' deploy/helm/clavis/Chart.yaml | tr -d '"')"
+          if ! helm pull oci://ghcr.io/dumhouse/charts/clavis --version "${version}" --destination "$(mktemp -d)"; then
+            echo "::error::Chart ${version} was pushed but cannot be pulled anonymously. Make the package public: https://github.com/orgs/Dumhouse/packages/container/charts%2Fclavis/settings (Danger zone, Change visibility)."
+            exit 1
+          fi
