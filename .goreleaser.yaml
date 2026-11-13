@@ -98,6 +98,31 @@ brews:
     test: |
       system "#{bin}/clavis", "version"
 
+scoops:
+  - name: clavis
+    repository:
+      owner: dumhouse
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: https://dumhouse.github.io/clavis/
+    description: Open-source secrets management for humans, machines, and AI agents.
+    license: Apache-2.0
+    skip_upload: '{{ if .Env.SCOOP_BUCKET_TOKEN }}false{{ else }}true{{ end }}'
+
+nfpms:
+  - id: packages
+    package_name: clavis
+    vendor: Dumhouse
+    homepage: https://dumhouse.github.io/clavis/
+    maintainer: Dumhouse <noreply@users.noreply.github.com>
+    description: Open-source secrets management for humans, machines, and AI agents.
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+
 changelog:
   sort: asc
   filters:

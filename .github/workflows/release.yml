@@ -47,6 +47,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
       - id: subjects
         run: echo "hashes=$(cd dist && sha256sum *.tar.gz *.zip | base64 -w0)" >> "$GITHUB_OUTPUT"
 

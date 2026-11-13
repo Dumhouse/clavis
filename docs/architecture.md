@@ -100,7 +100,7 @@ clavis/
     └── loadtest/          # k6 load tests
 ```
 
-One binary contains both server and CLI. The install script or a release archive gives developers the CLI; `docker run ghcr.io/dumhouse/clavis server` runs the server. Same version, no drift.
+One binary contains both server and CLI. The install script, a release archive, or `brew install dumhouse/tap/clavis` gives developers the CLI; `docker run ghcr.io/dumhouse/clavis server` runs the server. Same version, no drift.
 
 ## API design
 
