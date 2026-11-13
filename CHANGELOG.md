@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## v0.3.1 — 2026-11-13
+
+Finishes the v0.3.0 release, whose run stopped at the winget step before the
+Cloudsmith packages, the Docker Hub description and the Helm chart.
+
+### Added
+
+- The Helm chart is published to `oci://ghcr.io/dumhouse/charts/clavis` with
+  every release. The chart version and `appVersion` are the release version, so
+  `--version 0.3.1` installs Clavis 0.3.1. Each chart is signed with cosign,
+  is only published from a release tag, and a published version is never
+  overwritten. The docs site has an install, verify and upgrade guide.
+- CI installs the chart into a kind cluster on every pull request.
+- A manual Release backfill workflow re-runs the Cloudsmith, Docker Hub and
+  Helm steps for a tag, from that tag.
+
+### Fixed
+
+- A failure to open the winget pull request no longer fails the release; it is
+  a warning, and the pull request is opened by its own step.
+- `cloudsmith-cli` is installed into a virtual environment, which newer Ubuntu
+  runners require.
+
 ## v0.3.0 — 2026-11-13
 
 ### Added
