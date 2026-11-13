@@ -122,11 +122,19 @@ export function IntegrationsPage() {
       return result.data
     },
     onSuccess: async (data, input) => {
-      setNotice(
-        input.confirm
-          ? `Sync ${data?.run?.status ?? 'started'} with ${String(data?.run?.secret_count ?? 0)} keys.`
-          : `Preview: ${String(data?.preview?.count ?? 0)} keys → ${data?.preview?.destination ?? ''}`,
-      )
+      // A failed push is still a 200: the run records the provider's error.
+      if (data?.run?.status === 'failed') {
+        toast(`Sync failed: ${data.run.error || 'the provider returned no details.'}`, {
+          tone: 'error',
+        })
+        setSelected(input.sync)
+      } else {
+        setNotice(
+          input.confirm
+            ? `Sync ${data?.run?.status ?? 'started'} with ${String(data?.run?.secret_count ?? 0)} keys.`
+            : `Preview: ${String(data?.preview?.count ?? 0)} keys → ${data?.preview?.destination ?? ''}`,
+        )
+      }
       await invalidate()
     },
     onError: (cause: unknown) => {
@@ -249,7 +257,12 @@ export function IntegrationsPage() {
                   })()}
                   <span className="text-dim">←</span>
                   <span className="font-mono text-xs text-muted">{sync.environment}</span>
-                  <span
+                  <button
+                    type="button"
+                    title="Show run history"
+                    onClick={() => {
+                      setSelected(sync)
+                    }}
                     className={
                       sync.status === 'success'
                         ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-2xs font-semibold text-success'
@@ -259,7 +272,7 @@ export function IntegrationsPage() {
                     }
                   >
                     {sync.status}
-                  </span>
+                  </button>
                   {!sync.confirmed && (
                     <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-2xs font-semibold text-amber-fg">
                       first run unconfirmed

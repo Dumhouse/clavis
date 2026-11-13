@@ -1,5 +1,5 @@
-import { Loader2 } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { ExternalLink, KeyRound, Loader2, Lock } from 'lucide-react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
 import { Modal, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
+import { cn } from '@/lib/utils'
 
 type Env = components['schemas']['EnvBody']
 type Body = components['schemas']['CreateSyncInputBody']
@@ -32,11 +33,14 @@ export type Provider = {
   color: string
   fields: FieldSpec[]
   docs: string
+  /** Where to create the credential, given the form values (e.g. the instance URL). */
+  tokenUrl?: (values: Record<string, string>) => string
 }
 
 export const providers: Provider[] = [
   {
     id: 'github',
+    tokenUrl: () => 'https://github.com/settings/personal-access-tokens/new',
     name: 'GitHub Actions',
     blurb: 'Repository, environment, or organization secrets.',
     mark: 'GH',
@@ -70,6 +74,8 @@ export const providers: Provider[] = [
   },
   {
     id: 'gitlab',
+    tokenUrl: (values) =>
+      `${(values.base_url?.trim() || 'https://gitlab.com').replace(/\/+$/, '')}/-/user_settings/personal_access_tokens`,
     name: 'GitLab CI',
     blurb: 'Project CI/CD variables, masked and protected.',
     mark: 'GL',
@@ -88,11 +94,13 @@ export const providers: Provider[] = [
   },
   {
     id: 'forgejo',
+    tokenUrl: (values) =>
+      `${(values.base_url?.trim() || 'https://codeberg.org').replace(/\/+$/, '')}/user/settings/applications`,
     name: 'Forgejo Actions',
     blurb: 'Repository or organization secrets on Forgejo, Codeberg, or Gitea.',
     mark: 'FJ',
     color: '#fb923c',
-    docs: 'Access token with write:repository (write:organization for org scope).',
+    docs: 'In Forgejo: avatar → Settings → Applications → Generate New Token. Set “repository” to Read and Write (“organization” to Read and Write for org scope). Codeberg: codeberg.org/user/settings/applications.',
     fields: [
       {
         key: 'forgejo_scope',
@@ -106,7 +114,7 @@ export const providers: Provider[] = [
         key: 'forgejo_repo',
         label: 'Repository or organization',
         placeholder: 'team/web',
-        hint: 'owner/name for a repository; just the name for an organization.',
+        hint: 'Where the secrets will appear: owner/name for a repository (team/web), or just the name for an organization.',
         required: true,
       },
       {
@@ -120,6 +128,7 @@ export const providers: Provider[] = [
   },
   {
     id: 'vercel',
+    tokenUrl: () => 'https://vercel.com/account/settings/tokens',
     name: 'Vercel',
     blurb: 'Project environment variables per target.',
     mark: '▲',
@@ -133,6 +142,7 @@ export const providers: Provider[] = [
   },
   {
     id: 'netlify',
+    tokenUrl: () => 'https://app.netlify.com/user/applications#personal-access-tokens',
     name: 'Netlify',
     blurb: 'Site or account environment variables.',
     mark: 'N',
@@ -146,6 +156,7 @@ export const providers: Provider[] = [
   },
   {
     id: 'cloudflare',
+    tokenUrl: () => 'https://dash.cloudflare.com/profile/api-tokens',
     name: 'Cloudflare',
     blurb: 'Workers secrets or Pages environment variables.',
     mark: 'CF',
@@ -314,6 +325,107 @@ export function CreateSyncDialog({
   const target = envs.find((candidate) => candidate.slug === env)
   const visible = provider.fields.filter((field) => !field.showIf || field.showIf(values))
 
+  const destination = visible.filter((field) => !field.secret)
+  const credentials = visible.filter((field) => field.secret)
+  const tokenLink = provider.tokenUrl?.(values)
+  const where = destination
+    .filter((field) => !field.options)
+    .map((field) => values[field.key]?.trim())
+    .find(Boolean)
+  const summary = `${env || '…'} → ${provider.name}${where ? ` · ${where}` : ''}`
+
+  function renderField(field: FieldSpec) {
+    const set = (value: string) => {
+      setValues((state) => ({ ...state, [field.key]: value }))
+    }
+    const label = field.label + (field.required ? '' : ' (optional)')
+    if (field.options && field.options.length <= 3) {
+      return (
+        <fieldset key={field.key}>
+          <legend className="mb-1.5 text-sm font-medium">{label}</legend>
+          <div
+            className="grid gap-1.5"
+            style={{
+              gridTemplateColumns: `repeat(${String(field.options.length)}, minmax(0, 1fr))`,
+            }}
+          >
+            {field.options.map(([value, optionLabel]) => {
+              const checked = (values[field.key] ?? '') === value
+              return (
+                <label
+                  key={value}
+                  className={cn(
+                    'flex cursor-pointer items-center justify-center rounded-app-sm border px-2 py-1.5 text-center text-xs transition-colors',
+                    checked
+                      ? 'border-accent-line bg-accent-soft font-medium text-accent-text'
+                      : 'border-border text-muted hover:bg-hover hover:text-text',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="sr-only"
+                    name={field.key}
+                    value={value}
+                    checked={checked}
+                    onChange={() => {
+                      set(value)
+                    }}
+                  />
+                  {optionLabel}
+                </label>
+              )
+            })}
+          </div>
+          {field.hint && <p className="mt-1 text-2xs text-dim">{field.hint}</p>}
+        </fieldset>
+      )
+    }
+    return (
+      <Field key={field.key} label={label} hint={field.hint}>
+        {field.options ? (
+          <Select
+            value={values[field.key] ?? ''}
+            onChange={(event) => {
+              set(event.target.value)
+            }}
+          >
+            {field.options.map(([value, optionLabel]) => (
+              <option key={value} value={value}>
+                {optionLabel}
+              </option>
+            ))}
+          </Select>
+        ) : field.multiline ? (
+          <Textarea
+            mono
+            rows={4}
+            required={field.required}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={field.placeholder}
+            value={values[field.key] ?? ''}
+            onChange={(event) => {
+              set(event.target.value)
+            }}
+          />
+        ) : (
+          <Input
+            type={field.secret ? 'password' : 'text'}
+            mono={field.secret === true}
+            required={field.required}
+            autoComplete={field.secret ? 'new-password' : 'off'}
+            spellCheck={false}
+            placeholder={field.placeholder}
+            value={values[field.key] ?? ''}
+            onChange={(event) => {
+              set(event.target.value)
+            }}
+          />
+        )}
+      </Field>
+    )
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     setBusy(true)
@@ -356,98 +468,85 @@ export function CreateSyncDialog({
           description={provider.blurb}
           onClose={onClose}
         />
-        <div className="mt-4 space-y-3">
-          <Field
-            label="Environment to push"
-            hint="Values are resolved (references, inheritance) first."
-          >
-            <Select
-              value={env}
-              onChange={(event) => {
-                setEnv(event.target.value)
-              }}
-            >
-              {envs.map((candidate) => (
-                <option key={candidate.id} value={candidate.slug}>
-                  {candidate.name} ({candidate.slug})
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {visible.map((field) => (
+        <div className="mt-5 space-y-5">
+          <FormSection step={1} title="What to push">
             <Field
-              key={field.key}
-              label={field.label + (field.required ? '' : ' (optional)')}
-              hint={field.hint}
+              label="Clavis environment"
+              hint="One sync pushes one environment to one destination. Add another sync for staging or production."
             >
-              {field.options ? (
-                <Select
-                  value={values[field.key] ?? ''}
-                  onChange={(event) => {
-                    setValues((state) => ({ ...state, [field.key]: event.target.value }))
-                  }}
-                >
-                  {field.options.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              ) : field.multiline ? (
-                <Textarea
-                  mono
-                  rows={4}
-                  required={field.required}
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder={field.placeholder}
-                  value={values[field.key] ?? ''}
-                  onChange={(event) => {
-                    setValues((state) => ({ ...state, [field.key]: event.target.value }))
-                  }}
-                />
-              ) : (
-                <Input
-                  type={field.secret ? 'password' : 'text'}
-                  mono={field.secret === true}
-                  required={field.required}
-                  autoComplete={field.secret ? 'new-password' : 'off'}
-                  spellCheck={false}
-                  placeholder={field.placeholder}
-                  value={values[field.key] ?? ''}
-                  onChange={(event) => {
-                    setValues((state) => ({ ...state, [field.key]: event.target.value }))
-                  }}
-                />
-              )}
+              <Select
+                value={env}
+                onChange={(event) => {
+                  setEnv(event.target.value)
+                }}
+              >
+                {envs.map((candidate) => (
+                  <option key={candidate.id} value={candidate.slug}>
+                    {candidate.name} ({candidate.slug})
+                  </option>
+                ))}
+              </Select>
             </Field>
-          ))}
-          <label className="flex items-start gap-2 text-sm text-muted">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={deleteMissing}
-              onChange={(event) => {
-                setDeleteMissing(event.target.checked)
-              }}
-            />
-            <span>
-              Delete keys in {provider.name} that are not in Clavis
-              <span className="block text-2xs text-dim">Off is safer for a first sync.</span>
-            </span>
-          </label>
-          <p className="text-2xs text-dim">
-            {provider.docs} Credentials are encrypted with the organization key and never shown
-            again.
-          </p>
-          {target?.type === 'production' && (
-            <Notice tone="warning">
-              This pushes production values. The first run asks you to confirm a preview.
-            </Notice>
+            {target?.type === 'production' && (
+              <Notice tone="warning">
+                This pushes production values. The first run asks you to confirm a preview.
+              </Notice>
+            )}
+          </FormSection>
+
+          <FormSection step={2} title={`Where in ${provider.name}`}>
+            {destination.map(renderField)}
+          </FormSection>
+
+          {credentials.length > 0 && (
+            <FormSection step={3} title="Credentials">
+              <div className="rounded-app-sm border border-border-soft bg-panel px-3 py-2.5 text-xs leading-relaxed text-muted">
+                <p className="flex items-start gap-1.5">
+                  <KeyRound className="mt-0.5 size-3.5 shrink-0 text-dim" />
+                  <span>{provider.docs}</span>
+                </p>
+                {tokenLink && (
+                  <a
+                    href={tokenLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1.5 inline-flex items-center gap-1 font-medium text-accent-text hover:underline"
+                  >
+                    Create a token <ExternalLink className="size-3" />
+                  </a>
+                )}
+              </div>
+              {credentials.map(renderField)}
+              <p className="flex items-center gap-1.5 text-2xs text-dim">
+                <Lock className="size-3" /> Encrypted with the organization key and never shown
+                again.
+              </p>
+            </FormSection>
           )}
+
+          <FormSection step={credentials.length > 0 ? 4 : 3} title="Options">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-app-sm border border-border-soft px-3 py-2.5 text-sm hover:bg-hover">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={deleteMissing}
+                onChange={(event) => {
+                  setDeleteMissing(event.target.checked)
+                }}
+              />
+              <span>
+                Delete keys in {provider.name} that are not in Clavis
+                <span className="block text-2xs text-dim">Off is safer for a first sync.</span>
+              </span>
+            </label>
+          </FormSection>
+
           {error && <Notice>{error}</Notice>}
         </div>
-        <ModalFooter>
+        <ModalFooter className="mt-6 items-center border-t border-border-soft pt-4">
+          <p className="mr-auto min-w-0 truncate font-mono text-2xs text-dim" title={summary}>
+            {summary}
+          </p>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
@@ -457,5 +556,27 @@ export function CreateSyncDialog({
         </ModalFooter>
       </form>
     </Modal>
+  )
+}
+
+function FormSection({
+  step,
+  title,
+  children,
+}: {
+  step: number
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.06em] text-dim">
+        <span className="flex size-4 items-center justify-center rounded-full bg-elev font-mono text-3xs text-muted">
+          {step}
+        </span>
+        {title}
+      </h3>
+      {children}
+    </section>
   )
 }
