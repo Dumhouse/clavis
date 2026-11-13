@@ -333,3 +333,84 @@ func TestSyncConnectionTestAWS(t *testing.T) {
 		t.Fatalf("authorization = %q", gotAuth)
 	}
 }
+
+// A sync-only Forgejo token has no "user" permission, so GET /user is a 403.
+// The test must still pass for it, and must point at the destination that
+// fails rather than blaming the token.
+func TestSyncConnectionTestForgejoDestinations(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.TrimPrefix(r.Header.Get("Authorization"), "token ") != "sync-only" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch {
+		case r.URL.Path == "/api/v1/user":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"token does not have at least one of required scope(s): [read:user]"}`))
+		case r.URL.Path == "/api/v1/repos/team/app/actions/secrets":
+			_, _ = w.Write([]byte(`[]`))
+		case r.URL.Path == "/api/v1/repos/team/locked/actions/secrets":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"user should have admin write access to repo"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	const connections = "/api/v1/orgs/acme/connections"
+	created := owner.request(http.MethodPost, connections, map[string]any{
+		"provider": "forgejo", "name": "Sync only", "base_url": srv.URL, "token": "sync-only",
+	})
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", created.Code, created.Body)
+	}
+	conn := decode[connectionResponse](t, created)
+	testURL := connections + "/" + conn.ID + "/test"
+
+	type result struct {
+		OK     bool   `json:"ok"`
+		Detail string `json:"detail"`
+		Checks []struct {
+			Target string `json:"target"`
+			OK     bool   `json:"ok"`
+			Detail string `json:"detail"`
+		} `json:"checks"`
+	}
+
+	// No destination yet: token is valid, repository access is unchecked.
+	bare := decode[result](t, owner.request(http.MethodPost, testURL, nil))
+	if !bare.OK || !strings.Contains(bare.Detail, "not checked") || len(bare.Checks) != 1 {
+		t.Fatalf("bare test = %+v", bare)
+	}
+
+	good := decode[result](t, owner.request(http.MethodPost, testURL,
+		map[string]any{"forgejo_scope": "repo", "forgejo_repo": "team/app"}))
+	if !good.OK || !strings.Contains(good.Detail, "team/app") {
+		t.Fatalf("good repo = %+v", good)
+	}
+
+	for repo, want := range map[string]string{
+		"team/locked":  "cannot manage Actions",
+		"team/missing": "Not found",
+		"team":         "owner/name",
+	} {
+		bad := decode[result](t, owner.request(http.MethodPost, testURL,
+			map[string]any{"forgejo_scope": "repo", "forgejo_repo": repo}))
+		if bad.OK || !strings.Contains(bad.Detail, want) {
+			t.Fatalf("%s = %+v, want %q", repo, bad, want)
+		}
+	}
+
+	// A wrong token is reported as the token, not as a destination.
+	wrong := owner.request(http.MethodPost, connections, map[string]any{
+		"provider": "forgejo", "name": "Wrong", "base_url": srv.URL, "token": "nope",
+	})
+	wrongConn := decode[connectionResponse](t, wrong)
+	rejected := decode[result](t, owner.request(http.MethodPost, connections+"/"+wrongConn.ID+"/test", nil))
+	if rejected.OK || !strings.Contains(rejected.Detail, "rejected the token") {
+		t.Fatalf("rejected = %+v", rejected)
+	}
+}

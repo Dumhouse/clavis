@@ -777,7 +777,7 @@ export interface paths {
         put?: never;
         /**
          * Test a sync connection
-         * @description Makes one cheap authenticated call to the provider. A rejected credential returns ok=false with the reason.
+         * @description Makes cheap authenticated calls to the provider. A rejected credential returns ok=false with the reason. For Forgejo it also checks Actions access in every destination its syncs use, plus an optional extra one.
          */
         post: operations["test-connection"];
         delete?: never;
@@ -2678,6 +2678,11 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        ConnectionCheckBody: {
+            detail: string;
+            ok: boolean;
+            target: string;
+        };
         ConnectionUsageBody: {
             environment: string;
             project: string;
@@ -3901,7 +3906,17 @@ export interface components {
         SyncsOutputBody: {
             syncs: components["schemas"]["SyncBody"][] | null;
         };
+        TestConnectionInputBody: {
+            /** @description owner/name, or an organization name, to check besides the syncs that use the connection */
+            forgejo_repo?: string;
+            /**
+             * @description Scope of the extra destination to check
+             * @enum {string}
+             */
+            forgejo_scope?: "repo" | "org";
+        };
         TestConnectionOutputBody: {
+            checks: components["schemas"]["ConnectionCheckBody"][] | null;
             detail: string;
             identity?: string;
             ok: boolean;
@@ -5632,7 +5647,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TestConnectionInputBody"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {

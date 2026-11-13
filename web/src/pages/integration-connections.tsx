@@ -1,5 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Loader2, Lock, Plus, RotateCw, Stethoscope, Trash2 } from 'lucide-react'
+import {
+  Check,
+  KeyRound,
+  Loader2,
+  Lock,
+  Plus,
+  RotateCw,
+  Stethoscope,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
@@ -22,6 +32,10 @@ import {
 } from '@/pages/integration-create'
 
 type Connection = components['schemas']['ConnectionBody']
+type TestResult = components['schemas']['TestConnectionOutputBody'] & {
+  checks: components['schemas']['ConnectionCheckBody'][]
+  at: Date
+}
 
 const connectable = providers.filter(supportsConnections)
 
@@ -64,16 +78,24 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
   const connections = useConnections(orgSlug)
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['connections', orgSlug] })
 
+  const [results, setResults] = useState<Record<string, TestResult>>({})
+  const [repoDraft, setRepoDraft] = useState<Record<string, string>>({})
+
   const test = useMutation({
-    mutationFn: async (connection: Connection) => {
+    mutationFn: async (input: { connection: Connection; repo?: string }) => {
+      const repo = input.repo?.trim()
       const result = await api.POST('/api/v1/orgs/{org}/connections/{id}/test', {
-        params: { path: { org: orgSlug, id: connection.id } },
+        params: { path: { org: orgSlug, id: input.connection.id } },
+        ...(repo ? { body: { forgejo_scope: 'repo' as const, forgejo_repo: repo } } : {}),
       })
       if (result.error) throw new Error(apiErrorMessage(result.error, 'Could not test it.'))
       return result.data
     },
-    onSuccess: (data, connection) => {
-      toast(`${connection.name}: ${data.detail}`, { tone: data.ok ? 'success' : 'error' })
+    onSuccess: (data, input) => {
+      setResults((state) => ({
+        ...state,
+        [input.connection.id]: { ...data, checks: data.checks ?? [], at: new Date() },
+      }))
     },
     onError: (cause: unknown) => {
       toast(cause instanceof Error ? cause.message : 'Could not test it.', { tone: 'error' })
@@ -161,10 +183,10 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
                   size="sm"
                   disabled={test.isPending}
                   onClick={() => {
-                    test.mutate(connection)
+                    test.mutate({ connection })
                   }}
                 >
-                  {test.isPending && test.variables.id === connection.id ? (
+                  {test.isPending && test.variables.connection.id === connection.id ? (
                     <Loader2 className="size-3.5 animate-spin" />
                   ) : (
                     <Stethoscope className="size-3.5" />
@@ -193,6 +215,27 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
                   <Trash2 className="size-3.5" />
                 </Button>
               </span>
+              {results[connection.id] && (
+                <TestPanel
+                  result={results[connection.id] as TestResult}
+                  forgejo={connection.provider === 'forgejo'}
+                  repo={repoDraft[connection.id] ?? ''}
+                  busy={test.isPending}
+                  onRepo={(value) => {
+                    setRepoDraft((state) => ({ ...state, [connection.id]: value }))
+                  }}
+                  onCheck={() => {
+                    test.mutate({ connection, repo: repoDraft[connection.id] ?? '' })
+                  }}
+                  onClose={() => {
+                    setResults((state) =>
+                      Object.fromEntries(
+                        Object.entries(state).filter(([id]) => id !== connection.id),
+                      ),
+                    )
+                  }}
+                />
+              )}
             </div>
           )
         })}
@@ -367,5 +410,87 @@ export function ConnectionDialog({
         </ModalFooter>
       </form>
     </Modal>
+  )
+}
+
+/** The last test of a connection: one line per check, with what to change. */
+function TestPanel({
+  result,
+  forgejo,
+  repo,
+  busy,
+  onRepo,
+  onCheck,
+  onClose,
+}: {
+  result: TestResult
+  forgejo: boolean
+  repo: string
+  busy: boolean
+  onRepo: (value: string) => void
+  onCheck: () => void
+  onClose: () => void
+}) {
+  const checks =
+    result.checks.length > 0
+      ? result.checks
+      : [{ target: 'Connection', ok: result.ok, detail: result.detail }]
+  return (
+    <div
+      className={`mt-1 w-full rounded-app-sm border px-3 py-2.5 ${result.ok ? 'border-success/40 bg-success-bg' : 'border-danger/40 bg-danger-bg'}`}
+      role="status"
+    >
+      <div className="flex items-center gap-2">
+        <p className={`text-xs font-semibold ${result.ok ? 'text-success' : 'text-danger'}`}>
+          {result.ok ? 'Everything checked works' : 'Something needs fixing'}
+        </p>
+        <span className="text-2xs text-dim">{result.at.toLocaleTimeString()}</span>
+        <button
+          type="button"
+          aria-label="Dismiss test result"
+          onClick={onClose}
+          className="ml-auto rounded p-0.5 text-dim hover:bg-hover hover:text-text"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <ul className="mt-1.5 space-y-1.5">
+        {checks.map((check) => (
+          <li key={check.target} className="flex items-start gap-2 text-xs">
+            {check.ok ? (
+              <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
+            ) : (
+              <X className="mt-0.5 size-3.5 shrink-0 text-danger" />
+            )}
+            <span className="min-w-0">
+              <span className="font-medium">{check.target}</span>
+              <span className="block text-muted">{check.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {forgejo && (
+        <form
+          className="mt-2 flex items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (repo.trim()) onCheck()
+          }}
+        >
+          <Input
+            aria-label="Repository to check"
+            className="h-7 max-w-xs text-xs"
+            placeholder="Check a repository: team/web"
+            value={repo}
+            onChange={(event) => {
+              onRepo(event.target.value)
+            }}
+          />
+          <Button type="submit" variant="secondary" size="sm" disabled={busy || !repo.trim()}>
+            Check
+          </Button>
+        </form>
+      )}
+    </div>
   )
 }
