@@ -1,0 +1,24 @@
+name: Helm chart
+
+# Publishes the chart as an OCI artifact to ghcr.io, which Artifact Hub can
+# index. Pages already serves the docs site, so a classic index.yaml repo would
+# need a second site; OCI avoids that.
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - run: helm lint deploy/helm/clavis
+      - run: helm package deploy/helm/clavis --destination dist
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - run: helm push dist/clavis-*.tgz oci://ghcr.io/dumhouse/charts

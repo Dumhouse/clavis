@@ -1,6 +1,6 @@
 # CLI
 
-Single Go binary `clavis` (same binary as the server). Installed via Homebrew, Scoop, winget, apt/rpm repos, `go install`, a curl install script (signed), and Docker.
+Single Go binary `clavis` (same binary as the server). Install it with the signed curl install script, a release archive from GitHub Releases, `go install`, or the Docker image. Package-manager distribution (a Homebrew tap, Scoop, winget, apt/rpm) is planned and not available yet.
 
 ## UX rules
 
