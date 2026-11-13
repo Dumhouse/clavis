@@ -343,13 +343,13 @@ func TestSyncConnectionTestForgejoDestinations(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		switch {
-		case r.URL.Path == "/api/v1/user":
+		switch r.URL.Path {
+		case "/api/v1/user":
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"message":"token does not have at least one of required scope(s): [read:user]"}`))
-		case r.URL.Path == "/api/v1/repos/team/app/actions/secrets":
+		case "/api/v1/repos/team/app/actions/secrets":
 			_, _ = w.Write([]byte(`[]`))
-		case r.URL.Path == "/api/v1/repos/team/locked/actions/secrets":
+		case "/api/v1/repos/team/locked/actions/secrets":
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"message":"user should have admin write access to repo"}`))
 		default:
