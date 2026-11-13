@@ -121,15 +121,15 @@ func newAccessRequestsCommand(opts *Options) *cobra.Command {
 }
 
 func newAccessApproveCommand(opts *Options, approve bool) *cobra.Command {
-	use := "approve REQUEST_ID"
+	use, short := "approve REQUEST_ID", "Approve an access request"
 	action := "approve"
 	if !approve {
-		use = "reject REQUEST_ID"
+		use, short = "reject REQUEST_ID", "Reject an access request"
 		action = "reject"
 	}
 	return &cobra.Command{
 		Use:   use,
-		Short: "Approve or reject an access request",
+		Short: short,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()

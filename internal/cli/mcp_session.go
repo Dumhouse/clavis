@@ -48,9 +48,14 @@ func (a *agentSessionSource) client(ctx context.Context) (*client.Client, error)
 	if err := a.human.Post(ctx, path, nil, &out); err != nil {
 		return nil, fmt.Errorf("start agent session for %q: %w", a.agent, err)
 	}
+	hc, err := httpClientFor(a.server, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
 	c, err := client.New(a.server,
 		client.WithToken(out.Token),
 		client.WithUserAgent("clavis-mcp/"+version.Version),
+		client.WithHTTPClient(hc),
 	)
 	if err != nil {
 		return nil, err

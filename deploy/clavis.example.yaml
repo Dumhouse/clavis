@@ -10,6 +10,19 @@ server:
   shutdown_timeout: 20s
   max_body_bytes: 1048576
   metrics_public: true
+  # HTTPS built in. mode: off | self-signed | file | acme
+  # Any mode except off needs an https:// base_url; addr then only redirects.
+  tls:
+    mode: "off"
+    addr: ":8443"
+    # cert_file: /certs/fullchain.pem   # mode: file
+    # key_file: /certs/privkey.pem      # mode: file
+    # acme_email: you@example.com       # mode: acme
+    # acme_domains: [clavis.example.com]
+  # First-run setup presets (optional).
+  setup:
+    # token: "<at least 24 random characters>"
+    # owner_email: you@example.com
 
 database:
   driver: sqlite

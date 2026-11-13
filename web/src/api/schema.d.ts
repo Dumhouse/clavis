@@ -3768,16 +3768,27 @@ export interface components {
             /** Format: email */
             email: string;
             name: string;
-            org_name: string;
+            /** @description Defaults to "My organization" */
+            org_name?: string;
             org_slug?: string;
             password: string;
             project_name?: string;
             project_slug?: string;
+            /** @description Create no project; the web app asks for one after sign-in */
+            skip_project?: boolean;
             /** @description One-time token from the server log or <data-dir>/setup-token */
             token: string;
         };
         SetupStatusOutputBody: {
+            /** @description Preset owner email (CLAVIS_SETUP_OWNER_EMAIL); only returned while setup is open */
+            owner_email?: string;
             required: boolean;
+            /** @description Whether the configured base URL is https */
+            secure: boolean;
+            /** @description SHA-256 of the self-signed certificate (CLAVIS_TLS=self-signed), as the CLI shows it when asking to trust the server */
+            self_signed_fingerprint?: string;
+            /** @description off, self-signed, file, or acme; only returned while setup is open */
+            tls_mode?: string;
         };
         ShareOutputBody: {
             expires_at: string;

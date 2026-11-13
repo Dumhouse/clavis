@@ -4,6 +4,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -175,7 +176,7 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 	if err != nil {
 		return nil, err
 	}
-	authOpts := []authn.Option{authn.WithMFAKey(mfaKey), authn.WithPasswordGuard(s.svc.CheckSSORequired)}
+	authOpts := []authn.Option{authn.WithMFAKey(mfaKey), authn.WithPasswordGuard(s.svc.CheckSSORequired), authn.WithSetupToken(cfg.Server.Setup.Token)}
 	if parsed, parseErr := url.Parse(cfg.Server.BaseURL); parseErr == nil && parsed.Hostname() != "" {
 		rpID := parsed.Hostname()
 		if net.ParseIP(rpID) != nil {
@@ -267,8 +268,13 @@ func (s *Server) initSetupToken(ctx context.Context) error {
 	attrs := []any{
 		"setup_url", s.cfg.Server.BaseURL + "/setup",
 		"token_file", s.auth.SetupTokenPath(),
+		"get_token", "docker exec clavis clavis setup-token",
 	}
-	if created {
+	// A preset token came from the operator's own config, so it is not logged.
+	if created && s.cfg.Server.Setup.Token == "" {
+		// The fragment never reaches the server or proxy logs; the setup page
+		// reads it and fills the token field.
+		attrs[1] = s.cfg.Server.BaseURL + "/setup#token=" + token
 		attrs = append(attrs, "setup_token", token)
 	}
 	s.setupNotice = attrs
@@ -715,10 +721,24 @@ func (s *Server) listenEvents(ctx context.Context) {
 
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
+	var tlsSet *tlsSetup
+	if s.cfg.Server.TLS.Enabled() {
+		var err error
+		if tlsSet, err = s.prepareTLS(); err != nil {
+			return err
+		}
+	}
 	// Bind first so a busy port fails before the setup token is printed.
 	ln, err := net.Listen("tcp", s.cfg.Server.Addr)
 	if err != nil {
 		return fmt.Errorf("server: listen: %w", err)
+	}
+	var tlsLn net.Listener
+	if tlsSet != nil {
+		if tlsLn, err = net.Listen("tcp", s.cfg.Server.TLS.Addr); err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("server: listen https: %w", err)
+		}
 	}
 	if s.setupNotice != nil {
 		s.logger.Warn("first-run setup is required", s.setupNotice...)
@@ -731,29 +751,63 @@ func (s *Server) Run(ctx context.Context) error {
 	go s.rotationLoop(ctx)
 	go s.rotationReminderLoop(ctx)
 	go s.backupLoop(ctx)
-	errCh := make(chan error, 1)
-	go func() {
-		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
-		if err := s.http.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
-			return
+
+	servers := []*http.Server{s.http}
+	errCh := make(chan error, 2)
+	if tlsSet == nil {
+		if PlainHTTPBaseURL(s.cfg.Server.BaseURL) && !s.cfg.Server.Dev {
+			s.logger.Warn("base URL is plain http on a non-loopback host: session cookies are sent without the Secure flag and passkeys will not work; set CLAVIS_TLS=self-signed (or put Clavis behind HTTPS) for anything beyond a trial", "base_url", s.cfg.Server.BaseURL)
 		}
-		errCh <- nil
-	}()
+		s.logger.Info("server listening", "addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
+		go serve(s.http, ln, errCh)
+	} else {
+		plain := &http.Server{
+			Handler:           tlsSet.httpSide,
+			ReadHeaderTimeout: s.http.ReadHeaderTimeout,
+			ReadTimeout:       s.http.ReadTimeout,
+			WriteTimeout:      s.http.WriteTimeout,
+			IdleTimeout:       s.http.IdleTimeout,
+			ErrorLog:          s.http.ErrorLog,
+		}
+		servers = append(servers, plain)
+		s.http.TLSConfig = tlsSet.config
+		if tlsSet.start != nil {
+			go tlsSet.start(ctx)
+		}
+		s.logger.Info("https enabled", tlsSet.logAttrs...)
+		s.logger.Info("server listening", "addr", s.cfg.Server.TLS.Addr, "http_redirect_addr", s.cfg.Server.Addr, "base_url", s.cfg.Server.BaseURL, "version", version.Version)
+		go serve(s.http, tls.NewListener(tlsLn, tlsSet.config), errCh)
+		go serve(plain, ln, errCh)
+	}
 
 	select {
 	case err := <-errCh:
-		return err
+		if err != nil {
+			for _, srv := range servers {
+				_ = srv.Close()
+			}
+			return err
+		}
 	case <-ctx.Done():
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Server.ShutdownTimeout.Duration())
 	defer cancel()
 	s.logger.Info("shutting down")
-	if err := s.http.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("server: shutdown: %w", err)
+	for _, srv := range servers {
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("server: shutdown: %w", err)
+		}
 	}
 	return nil
+}
+
+func serve(srv *http.Server, ln net.Listener, errCh chan<- error) {
+	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		errCh <- err
+		return
+	}
+	errCh <- nil
 }
 
 func (s *Server) rotationReminderLoop(ctx context.Context) {

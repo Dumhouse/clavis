@@ -15,25 +15,67 @@ make build
 or with Docker:
 
 ```sh
-docker run --rm -p 8080:8080 -v clavis-data:/data ghcr.io/dumhouse/clavis:latest
+docker run -d --name clavis --restart unless-stopped \
+  -p 80:8080 -v clavis-data:/data \
+  ghcr.io/dumhouse/clavis:latest
 ```
 
-Data lives in `./data` (SQLite database and the root key). The root key is
+- `-p 80:8080` publishes Clavis on port 80 of your machine, so the address is
+  plain <http://localhost>. Inside the container it listens on 8080 because it
+  runs as a non-root user. Use `-p 8080:8080` if port 80 is taken.
+- `--restart unless-stopped` brings it back after a crash or a reboot.
+- `-v clavis-data:/data` keeps the database and the root key across restarts
+  and upgrades.
+
+::: tip Running Clavis on another machine?
+Use the [install wizard](./install). It asks where Clavis runs and writes a
+compose file with HTTPS set up (a self-signed certificate for a home lab, or
+Let's Encrypt for a domain). Browsers only keep the sign-in cookie over HTTPS
+or on `localhost`; see [HTTPS and certificates](./https).
+:::
+
+With Docker the data lives in the `clavis-data` volume; with the binary it is in
+`./data` (SQLite database and the root key). The root key is
 created with `0600` permissions. **Back it up separately from database
 backups** — without it the ciphertexts cannot be decrypted.
 
 ## 2. Claim the instance
 
-On first start Clavis prints a one-time setup token and writes it to
-`<data-dir>/setup-token` (for example `./data/setup-token`).
+A fresh server has to be claimed with a one-time setup token, so that whoever
+reaches it first cannot take it over. The easiest way: the server log prints a
+**setup link with the token built in**.
 
-Open <http://localhost:8080>, paste the token, and create:
+```sh
+docker logs clavis 2>&1 | grep setup_url
+```
 
-- your owner account (12+ character password),
-- your organization,
-- optionally, a first project.
+Open that link. Or open <http://localhost/setup> and paste the token, which you
+can print at any time while setup is open:
+
+```sh
+docker exec clavis clavis setup-token        # Docker
+docker compose exec clavis clavis setup-token # Docker Compose
+clavis setup-token                            # binary, from the server's directory
+```
+
+On a remote server, run it over SSH: `ssh user@host docker exec clavis clavis setup-token`.
+
+Create your owner account (name, email, 12+ character password). After you
+sign in, a short welcome flow asks for:
+
+1. your organization's name,
+2. your first project and what it is built with (Node.js, Python, Go, Ruby,
+   PHP, Java, .NET, Rust, Docker Compose, or anything else),
+3. the commands to connect your app, for your operating system and stack.
+
+You can skip the project step and create projects later.
 
 Setup closes permanently once the owner exists. The token file is deleted.
+
+To skip the token step entirely, choose the token yourself when you start the
+server (`CLAVIS_SETUP_TOKEN`, at least 24 characters) and optionally lock the
+owner email (`CLAVIS_SETUP_OWNER_EMAIL`). The [install wizard](./install) does
+this for you.
 
 ## 3. Store a secret
 
@@ -58,14 +100,14 @@ Browsers use an HttpOnly session cookie plus a double-submit CSRF token. A
 cookie-based script looks like this:
 
 ```sh
-BASE=http://localhost:8080
+BASE=http://localhost   # http://localhost:8080 when you run the binary
 
 # Sign in; -c stores the session and CSRF cookies.
 curl -sS -c cookies.txt -H 'Content-Type: application/json' \
   -d '{"email":"owner@example.com","password":"correct horse battery staple"}' \
   "$BASE/api/v1/auth/login"
 
-CSRF=$(awk '$6=="clavis_csrf"{print $7}' cookies.txt)
+CSRF=$(awk '$6 ~ /clavis_csrf$/ {print $7}' cookies.txt)
 
 # Create a secret (CSRF header required for unsafe methods).
 curl -sS -b cookies.txt -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' \
@@ -84,7 +126,7 @@ setup and [agents.md](agents.md) for agent identities.
 
 ```sh
 # Sign in with the browser device flow; the token is stored in the OS keychain.
-clavis login --server http://localhost:8080
+clavis login --server http://localhost   # :8080 for the binary
 
 # Link this repository to a project and choose a default environment.
 clavis init
@@ -93,11 +135,15 @@ clavis init
 clavis secrets ls
 clavis secrets set DATABASE_URL
 clavis secrets get DATABASE_URL
-clavis run -- npm run dev
+clavis run npm run dev
 ```
 
 `clavis run` injects secrets as environment variables and masks values (and
-their base64/URL-encoded forms) in stdout/stderr. Masking is a convenience, not
+their base64/URL-encoded forms) in stdout/stderr. Clavis flags go before your
+command and `--` is optional: `clavis run rails s -p 3001` passes `-p 3001` to
+Rails. `clavis init` also saves how to start your app as `run:` in
+`.clavis.yaml` when it recognizes the project, so a plain `clavis run` starts
+it. See [`clavis run`](./reference/run) and [`.clavis.yaml`](./reference/clavis-yaml). Masking is a convenience, not
 a boundary: prefer short-lived dynamic credentials for agents.
 
 That is all local setup needs: `clavis login` stores the session token in the OS
@@ -129,7 +175,7 @@ services:
 File secrets can be mounted instead of injected as environment variables:
 
 ```sh
-clavis run --mount -- ./start.sh   # FILE_KEY points at a 0600 temp file
+clavis run --mount ./start.sh   # FILE_KEY points at a 0600 temp file
 ```
 
 ## Invite a teammate

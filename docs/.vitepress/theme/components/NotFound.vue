@@ -10,7 +10,7 @@ import { withBase } from 'vitepress'
     <div class="links">
       <a :href="withBase('/')">Home</a>
       <a :href="withBase('/quickstart')">Quickstart</a>
-      <a :href="withBase('/commands')">CLI reference</a>
+      <a :href="withBase('/reference/')">CLI reference</a>
       <a :href="withBase('/agents')">AI agents</a>
     </div>
   </div>

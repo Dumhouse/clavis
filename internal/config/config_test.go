@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -255,5 +256,71 @@ func TestDurationRoundTrip(t *testing.T) {
 	}
 	if !strings.Contains(d.String(), "1m") {
 		t.Fatal("unexpected string")
+	}
+}
+
+func TestTLSValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{"off by default", map[string]string{}, ""},
+		{"self-signed with https", map[string]string{"CLAVIS_TLS": "self-signed", "CLAVIS_SERVER_BASE_URL": "https://192.168.1.20"}, ""},
+		{"self-signed default base URL", map[string]string{"CLAVIS_TLS": "self-signed"}, ""},
+		{"self-signed needs https", map[string]string{"CLAVIS_TLS": "self-signed", "CLAVIS_SERVER_BASE_URL": "http://192.168.1.20"}, "needs an https:// base URL"},
+		{"unknown mode", map[string]string{"CLAVIS_TLS": "yes"}, "must be off, self-signed, file, or acme"},
+		{"file needs paths", map[string]string{"CLAVIS_TLS": "file", "CLAVIS_SERVER_BASE_URL": "https://a.example.com"}, "CLAVIS_TLS_CERT_FILE"},
+		{"acme needs a name", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://192.168.1.20"}, "public domain"},
+		{"acme with domain", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com"}, ""},
+		{"wildcard needs dns", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DOMAINS": "*.example.com"}, "needs the DNS challenge"},
+		{"dns unknown provider", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DNS": "route53", "CLAVIS_ACME_DNS_TOKEN": "x"}, "cloudflare or duckdns"},
+		{"dns needs token", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DNS": "cloudflare"}, "CLAVIS_ACME_DNS_TOKEN"},
+		{"dns cloudflare wildcard", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DNS": "cloudflare", "CLAVIS_ACME_DNS_TOKEN": "x", "CLAVIS_ACME_DOMAINS": "clavis.example.com,*.example.com"}, ""},
+		{"duckdns other domain", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DNS": "duckdns", "CLAVIS_ACME_DNS_TOKEN": "x"}, "under duckdns.org"},
+		{"duckdns ok", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://myhome.duckdns.org", "CLAVIS_ACME_DNS": "duckdns", "CLAVIS_ACME_DNS_TOKEN": "x"}, ""},
+		{"dns token file missing", map[string]string{"CLAVIS_TLS": "acme", "CLAVIS_SERVER_BASE_URL": "https://clavis.example.com", "CLAVIS_ACME_DNS": "cloudflare", "CLAVIS_ACME_DNS_TOKEN_FILE": "/nonexistent/token"}, "CLAVIS_ACME_DNS_TOKEN_FILE"},
+		{"short setup token", map[string]string{"CLAVIS_SETUP_TOKEN": "short"}, "at least 24"},
+		{"bad owner email", map[string]string{"CLAVIS_SETUP_OWNER_EMAIL": "nope"}, "not an email"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CLAVIS_DATA_DIR", t.TempDir())
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			cfg, err := Load("")
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if tc.name == "self-signed default base URL" && cfg.Server.BaseURL != "https://localhost:8443" {
+					t.Fatalf("base URL = %s", cfg.Server.BaseURL)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("error = %v, want it to contain %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestACMEDNSTokenFile(t *testing.T) {
+	t.Setenv("CLAVIS_DATA_DIR", t.TempDir())
+	token := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(token, []byte("cf-token\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAVIS_TLS", "acme")
+	t.Setenv("CLAVIS_SERVER_BASE_URL", "https://clavis.example.com")
+	t.Setenv("CLAVIS_ACME_DNS", "cloudflare")
+	t.Setenv("CLAVIS_ACME_DNS_TOKEN_FILE", token)
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Server.TLS.ACMEDNSToken != "cf-token" || cfg.Server.TLS.ACMEDNSWait.Duration() != 3*time.Minute {
+		t.Fatalf("token=%q wait=%s", cfg.Server.TLS.ACMEDNSToken, cfg.Server.TLS.ACMEDNSWait)
 	}
 }

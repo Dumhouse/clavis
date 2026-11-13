@@ -1,13 +1,15 @@
-import { h } from 'vue'
+import { defineAsyncComponent, h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 
 import DownloadMatrix from './components/DownloadMatrix.vue'
+import InstallWizard from './components/InstallWizard.vue'
 import Landing from './components/Landing.vue'
 import NavStars from './components/NavStars.vue'
 import NotFound from './components/NotFound.vue'
 import './custom.css'
 import './mock.css'
+import './reference.css'
 
 /*
  * Click any screenshot in a docs page to view it full size. A tiny lightbox
@@ -48,6 +50,9 @@ export default {
   enhanceApp({ app }) {
     app.component('Landing', Landing)
     app.component('DownloadMatrix', DownloadMatrix)
+    app.component('InstallWizard', InstallWizard)
+    // Loaded on demand: it carries the whole CLI reference JSON.
+    app.component('CliSearch', defineAsyncComponent(() => import('./components/CliSearch.vue')))
     installLightbox()
   },
 } satisfies Theme

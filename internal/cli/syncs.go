@@ -119,7 +119,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var protected, masked, deleteMissing bool
 	cmd := &cobra.Command{
 		Use:   "create ENVIRONMENT",
-		Short: "Create a generic HTTP sync",
+		Short: "Create a sync to GitHub, GitLab, Vercel, AWS, an HTTP endpoint, and more",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()

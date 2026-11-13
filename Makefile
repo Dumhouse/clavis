@@ -101,6 +101,10 @@ gen-api:
 		curl -sf http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 0.1; done; \
 	CLAVIS_OPENAPI_URL=http://127.0.0.1:18081/api/v1/openapi.json pnpm --dir web gen:api
 
+## docs-cli: regenerate the CLI reference (docs/reference, docs and web JSON)
+docs-cli:
+	go run ./internal/tools/clidocs
+
 ## tools: install developer tooling
 tools:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest

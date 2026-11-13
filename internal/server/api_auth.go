@@ -6,11 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/dumhouse/clavis/internal/authn"
+	"github.com/dumhouse/clavis/internal/config"
 	"github.com/dumhouse/clavis/internal/email"
 	"github.com/dumhouse/clavis/internal/service"
 	"github.com/dumhouse/clavis/pkg/problem"
@@ -18,7 +20,13 @@ import (
 
 type setupStatusOutput struct {
 	Body struct {
-		Required bool `json:"required"`
+		Required   bool   `json:"required"`
+		OwnerEmail string `json:"owner_email,omitempty" doc:"Preset owner email (CLAVIS_SETUP_OWNER_EMAIL); only returned while setup is open"`
+		TLSMode    string `json:"tls_mode,omitempty" doc:"off, self-signed, file, or acme; only returned while setup is open"`
+		Secure     bool   `json:"secure" doc:"Whether the configured base URL is https"`
+		// Anyone can read the certificate from the TLS handshake, so this
+		// reveals nothing new. The web app shows it next to `clavis login`.
+		SelfSignedFingerprint string `json:"self_signed_fingerprint,omitempty" doc:"SHA-256 of the self-signed certificate (CLAVIS_TLS=self-signed), as the CLI shows it when asking to trust the server"`
 	}
 }
 
@@ -28,10 +36,11 @@ type setupInput struct {
 		Email       string `json:"email" format:"email"`
 		Name        string `json:"name" minLength:"1" maxLength:"100"`
 		Password    string `json:"password" minLength:"12" maxLength:"1024"`
-		OrgName     string `json:"org_name" minLength:"1" maxLength:"100"`
+		OrgName     string `json:"org_name,omitempty" maxLength:"100" doc:"Defaults to \"My organization\""`
 		OrgSlug     string `json:"org_slug,omitempty" maxLength:"60"`
 		ProjectName string `json:"project_name,omitempty" maxLength:"100"`
 		ProjectSlug string `json:"project_slug,omitempty" maxLength:"60"`
+		SkipProject bool   `json:"skip_project,omitempty" doc:"Create no project; the web app asks for one after sign-in"`
 	}
 }
 
@@ -103,6 +112,16 @@ func (s *Server) registerAuthRoutes() error {
 		}
 		out := &setupStatusOutput{}
 		out.Body.Required = required
+		out.Body.Secure = strings.HasPrefix(s.cfg.Server.BaseURL, "https://")
+		if s.cfg.Server.TLS.Mode == config.TLSSelfSigned {
+			if info, err := DescribeTLS(s.cfg); err == nil && info.Leaf != nil {
+				out.Body.SelfSignedFingerprint = info.Fingerprint()
+			}
+		}
+		if required {
+			out.Body.OwnerEmail = s.cfg.Server.Setup.OwnerEmail
+			out.Body.TLSMode = s.cfg.Server.TLS.Mode
+		}
 		return out, nil
 	})
 
@@ -122,6 +141,9 @@ func (s *Server) registerAuthRoutes() error {
 		}
 		defer unlock()
 
+		if want := s.cfg.Server.Setup.OwnerEmail; want != "" && !strings.EqualFold(strings.TrimSpace(in.Body.Email), want) {
+			return nil, withRequestID(ctx, problem.BadRequest("The owner email for this server is preset to "+want+"."))
+		}
 		if err := s.svc.CheckPassword(ctx, in.Body.Password); err != nil {
 			return nil, s.apiError(ctx, err)
 		}
@@ -136,6 +158,7 @@ func (s *Server) registerAuthRoutes() error {
 			OrgSlug:     in.Body.OrgSlug,
 			ProjectName: in.Body.ProjectName,
 			ProjectSlug: in.Body.ProjectSlug,
+			SkipProject: in.Body.SkipProject,
 		})
 		if err != nil {
 			return nil, s.apiError(ctx, err)

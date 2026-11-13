@@ -15,7 +15,7 @@ Pick your operating system and CPU. The CLI and the server are the same binary.
 | macOS | `brew install dumhouse/tap/clavis` |
 | Windows | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket && scoop install clavis` |
 | Linux or macOS | `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \| bash` |
-| Docker (server) | `docker run -p 8080:8080 -v clavis-data:/data dumhouse/clavis:latest` |
+| Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis:latest` (or use the [install wizard](./install)) |
 
 More methods are listed in the [CLI docs](./cli#install-the-cli). To check a
 download, see [Supply chain](./supply-chain).

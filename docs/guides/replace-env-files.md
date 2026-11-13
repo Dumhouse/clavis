@@ -27,7 +27,7 @@ Link the repository once, then wrap any command:
 
 ```sh
 clavis init
-clavis run -- pnpm dev
+clavis run pnpm dev
 ```
 
 Values are placed in the process environment, never written to disk, and

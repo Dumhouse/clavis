@@ -251,13 +251,13 @@ func newRotationRunCommand(opts *Options) *cobra.Command {
 }
 
 func newRotationToggleCommand(opts *Options, enabled bool) *cobra.Command {
-	use := "enable POLICY_ID"
+	use, short := "enable POLICY_ID", "Resume a paused rotation schedule"
 	if !enabled {
-		use = "disable POLICY_ID"
+		use, short = "disable POLICY_ID", "Pause a rotation schedule"
 	}
 	return &cobra.Command{
 		Use:   use,
-		Short: "Enable or disable a rotation schedule",
+		Short: short,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()

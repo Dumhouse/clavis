@@ -5,6 +5,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/netip"
 	"net/url"
 	"os"
@@ -118,6 +119,59 @@ type ServerConfig struct {
 	// X-Forwarded-For / X-Real-IP headers are believed. Empty (the default)
 	// means those headers are ignored and the socket peer is the client.
 	TrustedProxies []string `yaml:"trusted_proxies"`
+	// TLS makes Clavis serve HTTPS itself. Off by default: localhost trials
+	// and deployments behind a reverse proxy serve plain HTTP.
+	TLS TLSConfig `yaml:"tls"`
+	// Setup presets the first-run claim (useful for compose files and
+	// automation). Both fields are optional.
+	Setup SetupConfig `yaml:"setup"`
+}
+
+// TLS modes.
+const (
+	TLSOff        = "off"         // plain HTTP (localhost, or behind a reverse proxy)
+	TLSSelfSigned = "self-signed" // generate a certificate for the base URL host
+	TLSFile       = "file"        // read cert_file and key_file, reload on change
+	TLSACME       = "acme"        // Let's Encrypt (or another ACME CA), automatic
+)
+
+// TLSConfig controls the built-in HTTPS listener.
+type TLSConfig struct {
+	Mode     string `yaml:"mode"`      // off | self-signed | file | acme
+	Addr     string `yaml:"addr"`      // HTTPS listen address, default :8443
+	CertFile string `yaml:"cert_file"` // mode=file
+	KeyFile  string `yaml:"key_file"`  // mode=file
+	Dir      string `yaml:"dir"`       // where generated and ACME certificates live, default <data-dir>/tls
+	// ACME settings. Domains default to the base URL host.
+	ACMEEmail     string   `yaml:"acme_email"`
+	ACMEDomains   []string `yaml:"acme_domains"`
+	ACMEDirectory string   `yaml:"acme_directory"` // default Let's Encrypt production
+	// DNS-01 challenge: proves the domain through a TXT record, so the server
+	// needs no inbound internet access (home labs, private networks) and
+	// wildcard names work.
+	ACMEDNS          string   `yaml:"acme_dns"`            // provider: cloudflare | duckdns
+	ACMEDNSToken     string   `yaml:"acme_dns_token"`      // provider API token
+	ACMEDNSTokenFile string   `yaml:"acme_dns_token_file"` // or read it from a file (Docker secrets)
+	ACMEDNSResolvers []string `yaml:"acme_dns_resolvers"`  // check propagation here; default: the zone's nameservers
+	ACMEDNSWait      Duration `yaml:"acme_dns_wait"`       // max time to wait for the TXT record, default 3m
+}
+
+// ACME DNS providers.
+const (
+	ACMEDNSCloudflare = "cloudflare"
+	ACMEDNSDuckDNS    = "duckdns"
+)
+
+// Enabled reports whether Clavis terminates TLS itself.
+func (t TLSConfig) Enabled() bool { return t.Mode != "" && t.Mode != TLSOff }
+
+// SetupConfig presets first-run setup.
+type SetupConfig struct {
+	// Token, when set, is the one-time setup token instead of a random one.
+	Token string `yaml:"token"`
+	// OwnerEmail, when set, is the only email allowed for the owner account
+	// and is prefilled in the setup wizard.
+	OwnerEmail string `yaml:"owner_email"`
 }
 
 // DatabaseConfig controls the data store.
@@ -227,15 +281,28 @@ func (c *Config) applyDerived() {
 	if c.Backup.Dir == "" {
 		c.Backup.Dir = filepath.Join(c.dataDir(), "backups")
 	}
+	if c.Server.TLS.Mode == "" {
+		c.Server.TLS.Mode = TLSOff
+	}
+	if c.Server.TLS.Addr == "" {
+		c.Server.TLS.Addr = ":8443"
+	}
+	if c.Server.TLS.Dir == "" {
+		c.Server.TLS.Dir = filepath.Join(c.dataDir(), "tls")
+	}
 	if c.Server.BaseURL == "" {
 		addr := c.Server.Addr
+		scheme := "http://"
+		if c.Server.TLS.Enabled() {
+			addr, scheme = c.Server.TLS.Addr, "https://"
+		}
 		if strings.HasPrefix(addr, ":") {
 			addr = "localhost" + addr
 		}
 		if strings.HasPrefix(addr, "0.0.0.0:") {
 			addr = "localhost:" + strings.TrimPrefix(addr, "0.0.0.0:")
 		}
-		c.Server.BaseURL = "http://" + addr
+		c.Server.BaseURL = scheme + addr
 	}
 	c.Server.BaseURL = strings.TrimRight(c.Server.BaseURL, "/")
 	if c.Server.Dev && os.Getenv("CLAVIS_LOG_FORMAT") == "" && c.Log.Format == "json" {
@@ -331,6 +398,34 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_EMAIL_FROM", &c.Email.From)
 	setString("CLAVIS_EMAIL_TLS", &c.Email.TLS)
 	setString("CLAVIS_BREACH_CHECK_URL", &c.Security.BreachCheckURL)
+	setString("CLAVIS_TLS", &c.Server.TLS.Mode)
+	setString("CLAVIS_TLS_ADDR", &c.Server.TLS.Addr)
+	setString("CLAVIS_TLS_CERT_FILE", &c.Server.TLS.CertFile)
+	setString("CLAVIS_TLS_KEY_FILE", &c.Server.TLS.KeyFile)
+	setString("CLAVIS_TLS_DIR", &c.Server.TLS.Dir)
+	setString("CLAVIS_ACME_EMAIL", &c.Server.TLS.ACMEEmail)
+	setString("CLAVIS_ACME_DIRECTORY", &c.Server.TLS.ACMEDirectory)
+	setString("CLAVIS_ACME_DNS", &c.Server.TLS.ACMEDNS)
+	setString("CLAVIS_ACME_DNS_TOKEN", &c.Server.TLS.ACMEDNSToken)
+	setString("CLAVIS_ACME_DNS_TOKEN_FILE", &c.Server.TLS.ACMEDNSTokenFile)
+	if v, ok := os.LookupEnv("CLAVIS_ACME_DNS_RESOLVERS"); ok {
+		c.Server.TLS.ACMEDNSResolvers = nil
+		for _, r := range strings.Split(v, ",") {
+			if r = strings.TrimSpace(r); r != "" {
+				c.Server.TLS.ACMEDNSResolvers = append(c.Server.TLS.ACMEDNSResolvers, r)
+			}
+		}
+	}
+	setString("CLAVIS_SETUP_TOKEN", &c.Server.Setup.Token)
+	setString("CLAVIS_SETUP_OWNER_EMAIL", &c.Server.Setup.OwnerEmail)
+	if v, ok := os.LookupEnv("CLAVIS_ACME_DOMAINS"); ok {
+		c.Server.TLS.ACMEDomains = nil
+		for _, d := range strings.Split(v, ",") {
+			if d = strings.TrimSpace(d); d != "" {
+				c.Server.TLS.ACMEDomains = append(c.Server.TLS.ACMEDomains, d)
+			}
+		}
+	}
 	if v, ok := os.LookupEnv("CLAVIS_TRUSTED_PROXIES"); ok {
 		c.Server.TrustedProxies = nil
 		for _, p := range strings.Split(v, ",") {
@@ -348,6 +443,7 @@ func applyEnv(c *Config) error {
 		setDuration("CLAVIS_WRITE_TIMEOUT", &c.Server.WriteTimeout),
 		setDuration("CLAVIS_IDLE_TIMEOUT", &c.Server.IdleTimeout),
 		setDuration("CLAVIS_SHUTDOWN_TIMEOUT", &c.Server.ShutdownTimeout),
+		setDuration("CLAVIS_ACME_DNS_WAIT", &c.Server.TLS.ACMEDNSWait),
 		setDuration("CLAVIS_BACKUP_INTERVAL", &c.Backup.Interval),
 		setInt64("CLAVIS_MAX_BODY_BYTES", &c.Server.MaxBodyBytes),
 		setBool("CLAVIS_EMAIL_ENABLED", &c.Email.Enabled),
@@ -432,6 +528,15 @@ func (c *Config) Validate() error {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("config: server.base_url scheme must be http or https")
 	}
+	if err := c.validateTLS(u); err != nil {
+		return err
+	}
+	if t := c.Server.Setup.Token; t != "" && len(t) < 24 {
+		return fmt.Errorf("config: CLAVIS_SETUP_TOKEN must be at least 24 characters (generate one with: openssl rand -base64 32)")
+	}
+	if e := c.Server.Setup.OwnerEmail; e != "" && !strings.Contains(e, "@") {
+		return fmt.Errorf("config: CLAVIS_SETUP_OWNER_EMAIL %q is not an email address", e)
+	}
 	if c.Backup.Enabled {
 		if c.Backup.Interval.Duration() <= 0 {
 			return fmt.Errorf("config: backup.interval must be positive")
@@ -515,4 +620,78 @@ func ParseProxyPrefix(s string) (netip.Prefix, error) {
 		return netip.Prefix{}, fmt.Errorf("%q is not an IP address or CIDR", s)
 	}
 	return netip.PrefixFrom(addr, addr.BitLen()), nil
+}
+
+func (c *Config) validateTLS(base *url.URL) error {
+	t := c.Server.TLS
+	switch t.Mode {
+	case TLSOff:
+		return nil
+	case TLSSelfSigned, TLSFile, TLSACME:
+	default:
+		return fmt.Errorf("config: CLAVIS_TLS must be off, self-signed, file, or acme (got %q)", t.Mode)
+	}
+	if base.Scheme != "https" {
+		return fmt.Errorf("config: CLAVIS_TLS=%s needs an https:// base URL; set CLAVIS_SERVER_BASE_URL=https://%s", t.Mode, base.Hostname())
+	}
+	if t.Addr == c.Server.Addr {
+		return fmt.Errorf("config: the HTTPS address %s must differ from server.addr", t.Addr)
+	}
+	switch t.Mode {
+	case TLSFile:
+		if t.CertFile == "" || t.KeyFile == "" {
+			return fmt.Errorf("config: CLAVIS_TLS=file needs CLAVIS_TLS_CERT_FILE and CLAVIS_TLS_KEY_FILE")
+		}
+	case TLSACME:
+		host := base.Hostname()
+		if len(t.ACMEDomains) == 0 && (host == "localhost" || net.ParseIP(host) != nil) {
+			return fmt.Errorf("config: CLAVIS_TLS=acme needs a public domain name in the base URL, not %q; use self-signed for an IP address", host)
+		}
+		return c.validateACMEDNS(host)
+	}
+	return nil
+}
+
+func (c *Config) validateACMEDNS(baseHost string) error {
+	t := &c.Server.TLS
+	domains := t.ACMEDomains
+	if len(domains) == 0 {
+		domains = []string{baseHost}
+	}
+	for _, d := range domains {
+		if net.ParseIP(d) != nil || d == "localhost" {
+			return fmt.Errorf("config: CLAVIS_ACME_DOMAINS has %q; Let's Encrypt only issues certificates for domain names", d)
+		}
+		if strings.HasPrefix(d, "*.") && t.ACMEDNS == "" {
+			return fmt.Errorf("config: the wildcard %q needs the DNS challenge; set CLAVIS_ACME_DNS (cloudflare or duckdns)", d)
+		}
+	}
+	if t.ACMEDNS == "" {
+		return nil
+	}
+	switch t.ACMEDNS {
+	case ACMEDNSCloudflare:
+	case ACMEDNSDuckDNS:
+		for _, d := range domains {
+			if !strings.HasSuffix(strings.TrimPrefix(d, "*."), ".duckdns.org") {
+				return fmt.Errorf("config: CLAVIS_ACME_DNS=duckdns only works for names under duckdns.org, not %q", d)
+			}
+		}
+	default:
+		return fmt.Errorf("config: CLAVIS_ACME_DNS must be cloudflare or duckdns (got %q); for other DNS providers put Caddy or Traefik in front, see the HTTPS guide", t.ACMEDNS)
+	}
+	if t.ACMEDNSToken == "" && t.ACMEDNSTokenFile != "" {
+		data, err := os.ReadFile(t.ACMEDNSTokenFile)
+		if err != nil {
+			return fmt.Errorf("config: CLAVIS_ACME_DNS_TOKEN_FILE: %w", err)
+		}
+		t.ACMEDNSToken = strings.TrimSpace(string(data))
+	}
+	if t.ACMEDNSToken == "" {
+		return fmt.Errorf("config: CLAVIS_ACME_DNS=%s needs CLAVIS_ACME_DNS_TOKEN (or CLAVIS_ACME_DNS_TOKEN_FILE)", t.ACMEDNS)
+	}
+	if t.ACMEDNSWait <= 0 {
+		t.ACMEDNSWait = Duration(3 * time.Minute)
+	}
+	return nil
 }

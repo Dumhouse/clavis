@@ -12,7 +12,7 @@ only the token, plus the server URL when the instance is not on localhost:
 ```sh
 export CLAVIS_TOKEN=clv_mt_…                       # from the CI secret store
 export CLAVIS_SERVER=https://clavis.example.com    # only when not localhost
-clavis run -- npm test
+clavis run npm test
 ```
 
 `.clavis.yaml` supplies the organization, project, and default environment.
@@ -28,7 +28,7 @@ export CLAVIS_ORG=acme
 export CLAVIS_PROJECT=web-app
 export CLAVIS_ENV=staging
 export CLAVIS_TOKEN=clv_mt_…
-clavis run -- npm test
+clavis run npm test
 ```
 
 Precedence for every setting is: **CLI flag → environment variable →
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # brings the committed .clavis.yaml
-      - run: clavis run -- npm test
+      - run: clavis run npm test
         env:
           CLAVIS_SERVER: https://clavis.example.com
           CLAVIS_TOKEN: ${{ secrets.CLAVIS_TOKEN }}
@@ -78,7 +78,7 @@ committed, add `CLAVIS_ORG`, `CLAVIS_PROJECT`, and `CLAVIS_ENV` to `env`.
 ```yaml
 test:
   script:
-    - clavis run -- npm test
+    - clavis run npm test
   variables:
     CLAVIS_SERVER: https://clavis.example.com
     CLAVIS_ENV: staging

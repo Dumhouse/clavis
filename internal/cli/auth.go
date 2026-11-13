@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -57,6 +58,9 @@ func runLogin(cmd *cobra.Command, opts *Options, open bool) error {
 	out := opts.output()
 	resolved, err := opts.resolveContext(false)
 	if err != nil {
+		return err
+	}
+	if err := ensureServerTrusted(ctx, out, resolved.Server); err != nil {
 		return err
 	}
 	c, err := resolved.newAnonymousClient()
@@ -373,6 +377,19 @@ func runInit(cmd *cobra.Command, opts *Options, projectName string) error {
 		}
 	}
 
+	// Keep a run command the user already chose; otherwise guess one.
+	runCommand := ""
+	if existing, existingPath, loadErr := loadProjectConfig("."); loadErr == nil && existing != nil && existingPath != "" {
+		if abs, _ := filepath.Abs(projectConfigName); abs == existingPath {
+			runCommand = existing.Run
+		}
+	}
+	detected := false
+	if runCommand == "" {
+		runCommand = detectRunCommand(".")
+		detected = runCommand != ""
+	}
+
 	cfg := &projectConfig{
 		Server:  resolved.Server,
 		Org:     orgSlug,
@@ -380,6 +397,7 @@ func runInit(cmd *cobra.Command, opts *Options, projectName string) error {
 		Env:     envSlug,
 		Path:    "/",
 		Cache:   true,
+		Run:     runCommand,
 	}
 	path, err := writeProjectConfig(".", cfg)
 	if err != nil {
@@ -387,7 +405,16 @@ func runInit(cmd *cobra.Command, opts *Options, projectName string) error {
 	}
 	out.Success("Linked this directory to %s/%s (%s)", orgSlug, projectSlug, envSlug)
 	out.Info("Wrote %s", path)
-	out.Info("Next: clavis secrets ls")
+	switch {
+	case detected:
+		out.Info("Detected your dev command: %s (change run: in %s)", runCommand, projectConfigName)
+		out.Info("Next: add secrets in the web app, then start your app with: clavis run")
+	case runCommand != "":
+		out.Info("Next: clavis run   (starts %s with your secrets)", runCommand)
+	default:
+		out.Info("Next: clavis run <your command>, for example: clavis run npm run dev")
+		out.Info("Tip: set run: <command> in %s and a plain `clavis run` starts it", projectConfigName)
+	}
 	return nil
 }
 

@@ -1,5 +1,75 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Built-in HTTPS with `CLAVIS_TLS`: `self-signed` (a certificate for the base URL
+  host, renewed automatically), `file` (your certificate, reloaded when it
+  changes) and `acme` (Let's Encrypt). The default stays `off` for localhost and
+  reverse proxies. With TLS on, the HTTP port redirects to HTTPS and keeps
+  `/healthz` and `/readyz`.
+- `clavis setup-token` prints the first-run token, so
+  `docker exec clavis clavis setup-token` works in the distroless image.
+- The server log prints a setup link with the token built in
+  (`/setup#token=…`), and the setup page fills the token from it.
+- `CLAVIS_SETUP_TOKEN` presets the setup token and `CLAVIS_SETUP_OWNER_EMAIL`
+  locks the owner email, for compose files and automation.
+- An install wizard on the docs site writes a `compose.yaml` for localhost, a
+  home lab, a public domain, or a reverse proxy.
+- New docs page: HTTPS and certificates.
+- First-run setup only asks for the owner account. A welcome flow after sign-in
+  names the organization, creates the first project and shows how to connect
+  an app for your OS (macOS, Windows, Linux) and stack (Node.js, Python, Go,
+  Ruby, PHP, Java, .NET, Rust, Docker Compose, or any command). The setup API
+  accepts `skip_project`, and `org_name` is now optional.
+- The setup page explains where to find the token, with copy buttons, and warns
+  when the connection is not encrypted. The projects page shows the four CLI
+  steps (install, login, init, run) with copy buttons.
+
+- `clavis run` no longer needs `--`: Clavis stops reading its own flags at the
+  first word of your command, so `clavis run rails s -p 3001` works. The old
+  `clavis run -- …` form still works.
+- `run:` in `.clavis.yaml` saves a default command, so a plain `clavis run`
+  starts your app. `clavis init` fills it in for npm, pnpm, yarn and bun
+  scripts, Rails, Django, Laravel, Go, Rust, Maven, Gradle and Docker Compose.
+- The CLI handles self-signed servers without copying certificates around: on
+  first contact `clavis login` shows the SHA-256 fingerprint and asks once, like
+  SSH. The answer is pinned to the server's public key, which the server keeps
+  across renewals and host changes; a changed key stops the CLI with a warning
+  and needs `trust` typed to accept. New `clavis trust add|ls|rm` (with
+  `--fingerprint` for scripts) and the variables `CLAVIS_SERVER_FINGERPRINT`,
+  `CLAVIS_CA_CERT` and `CLAVIS_TRUST_FILE`.
+- `clavis admin tls-info` shows the served certificate and its fingerprints.
+  On a self-signed server, the app's connect guide and Docs page show the
+  same fingerprint next to `clavis login`.
+- Let's Encrypt with the DNS challenge (`CLAVIS_ACME_DNS=cloudflare|duckdns`)
+  gives a LAN-only server a publicly trusted certificate, wildcards included.
+  A temporary certificate keeps HTTPS up until issuance, failures retry with
+  backoff, renewal runs in the background, and propagation is checked on the
+  zone's own nameservers (works with split DNS). `CLAVIS_ACME_DNS_TOKEN_FILE`
+  reads the token from a Docker secret.
+- Self-signed certificates now renew while the server runs, keeping the key.
+- `clavis admin reset-password EMAIL` prints a one-time password reset link,
+  for servers without email (SMTP). The reset is audited.
+- A new CLI reference with a page per command (usage, flags with defaults,
+  titled examples, related commands) plus pages for `.clavis.yaml`,
+  environment variables, exit codes, output, offline cache, overlays and shell
+  completion. It is generated from the command tree and
+  `internal/cli/reference.yaml` (`make docs-cli`), and the in-app docs, the
+  docs site and `clavis <command> --help` examples all use it. Tests fail when
+  a command is undocumented or an example uses a flag that doesn't exist.
+
+### Fixed
+
+- Signing in at a plain `http://` LAN address no longer fails with "Sign in to
+  continue": Clavis uses non-Secure cookies there and logs a warning.
+
+### Changed
+
+- Docs and examples publish the web UI on port 80 (`-p 80:8080`) and use
+  `--restart unless-stopped`.
+
 ## v0.2.5 — unreleased
 
 Includes everything that v0.2.3 and v0.2.4 were meant to ship.

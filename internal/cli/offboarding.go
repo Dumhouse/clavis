@@ -72,13 +72,13 @@ func newMembersOffboardingCommand(opts *Options) *cobra.Command {
 }
 
 func newMembersMarkSafeCommand(opts *Options, status string) *cobra.Command {
-	use := "mark-safe USER TASK_ID"
+	use, short := "mark-safe USER TASK_ID", "Mark a secret the member saw as safe to keep"
 	if status == "rotated" {
-		use = "mark-rotated USER TASK_ID"
+		use, short = "mark-rotated USER TASK_ID", "Mark a secret the member saw as rotated"
 	}
 	return &cobra.Command{
 		Use:   use,
-		Short: "Mark an offboarding task reviewed",
+		Short: short,
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()

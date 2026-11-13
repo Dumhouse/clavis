@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   Check,
+  ChevronDown,
   Folder,
   Loader2,
   Pencil,
@@ -16,10 +17,12 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
+import { ConnectGuide } from '@/components/connect-guide'
 import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
+import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Input } from '@/components/ui/field'
@@ -58,6 +61,13 @@ export function ProjectsPage() {
   const queryClient = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
+
+  // Page shortcut advertised in the hint bar: N creates a project.
+  useShortcuts({
+    n: () => {
+      setCreating(true)
+    },
+  })
 
   useOrgEvents(org?.slug, (event) => {
     if (event.type === 'projects.changed' || event.type === 'environments.changed') {
@@ -213,7 +223,7 @@ export function ProjectsPage() {
         ))}
       </div>
 
-      <CliCard />
+      <CliCard orgSlug={org.slug} />
 
       {editing && (
         <ProjectDialog
@@ -247,6 +257,53 @@ export function ProjectsPage() {
   )
 }
 
+/** Remembers whether a help block was collapsed, per browser. */
+function useCollapsed(id: string): [boolean, () => void] {
+  const key = `clavis.collapsed.${id}`
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem(key) === 'true'
+    } catch {
+      return false
+    }
+  })
+  return [
+    collapsed,
+    () => {
+      const next = !collapsed
+      setCollapsed(next)
+      try {
+        window.localStorage.setItem(key, String(next))
+      } catch {
+        // Storage can be unavailable; the toggle still works for this visit.
+      }
+    },
+  ]
+}
+
+function CollapseButton({
+  collapsed,
+  onToggle,
+  label,
+}: {
+  collapsed: boolean
+  onToggle: () => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!collapsed}
+      aria-label={`${collapsed ? 'Show' : 'Hide'} ${label}`}
+      title={`${collapsed ? 'Show' : 'Hide'} ${label}`}
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded text-dim hover:bg-hover hover:text-text"
+    >
+      <ChevronDown className={cn('size-4 transition-transform', collapsed && '-rotate-90')} />
+    </button>
+  )
+}
+
 function GettingStarted({ projectCount }: { projectCount: number }) {
   const steps = [
     { label: 'Create your organization', done: true },
@@ -254,6 +311,7 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
     { label: 'Connect the CLI', done: false },
   ]
   const completed = steps.filter((step) => step.done).length
+  const [collapsed, toggle] = useCollapsed('getting-started')
 
   return (
     <section className="rounded-app border border-border bg-surface p-4 shadow-app">
@@ -274,7 +332,7 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
               style={{ width: `${String((completed / steps.length) * 100)}%` }}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+          <div className={cn('mt-3 flex flex-wrap gap-x-5 gap-y-2', collapsed && 'hidden')}>
             {steps.map((step) => (
               <span key={step.label} className="flex items-center gap-1.5 text-sm">
                 <span
@@ -293,9 +351,18 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
             ))}
           </div>
         </div>
-        <Button variant="secondary" size="sm">
-          Connect CLI
-        </Button>
+        {!collapsed && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              document.getElementById('connect-cli')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+          >
+            Connect CLI
+          </Button>
+        )}
+        <CollapseButton collapsed={collapsed} onToggle={toggle} label="setup checklist" />
       </div>
     </section>
   )
@@ -360,23 +427,24 @@ function ProjectCard({
   )
 }
 
-function CliCard(): ReactNode {
+function CliCard({ orgSlug }: { orgSlug: string }): ReactNode {
+  const [collapsed, toggle] = useCollapsed('connect-cli')
   return (
-    <section className="grid gap-3 rounded-app border border-border bg-panel p-4 md:grid-cols-[1fr_auto] md:items-center">
+    <section id="connect-cli" className="grid gap-4 rounded-app border border-border bg-panel p-4">
       <div className="flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-app-sm bg-elev">
           <TerminalSquare className="size-4 text-muted" />
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold">Get secrets into your app</h2>
           <p className="mt-0.5 text-sm text-muted">
-            Run any command with secrets injected and output masked.
+            Pick your computer and your stack. Works with any language: secrets arrive as
+            environment variables.
           </p>
         </div>
+        <CollapseButton collapsed={collapsed} onToggle={toggle} label="CLI guide" />
       </div>
-      <code className="rounded-app-sm border border-border bg-bg px-3 py-2 font-mono text-sm text-accent-text">
-        clavis run -- npm run dev
-      </code>
+      {!collapsed && <ConnectGuide orgSlug={orgSlug} />}
     </section>
   )
 }
