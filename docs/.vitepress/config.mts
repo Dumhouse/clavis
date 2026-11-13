@@ -96,6 +96,7 @@ export default defineConfig({
       {
         text: 'Get started',
         items: [
+          { text: 'Download', link: '/download' },
           { text: 'Quickstart', link: '/quickstart' },
           { text: 'Product tour', link: '/screenshots' },
           { text: 'CI and machine tokens', link: '/ci' },
