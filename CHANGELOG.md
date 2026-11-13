@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.0 — 2026-11-13
+
 ### Added
 
 - Built-in HTTPS with `CLAVIS_TLS`: `self-signed` (a certificate for the base URL
@@ -70,7 +72,7 @@
 - Docs and examples publish the web UI on port 80 (`-p 80:8080`) and use
   `--restart unless-stopped`.
 
-## v0.2.5 — unreleased
+## v0.2.5 — 2026-11-13
 
 Includes everything that v0.2.3 and v0.2.4 were meant to ship.
 
