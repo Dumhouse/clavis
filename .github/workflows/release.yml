@@ -66,3 +66,35 @@ jobs:
     with:
       base64-subjects: "${{ needs.release.outputs.hashes }}"
       upload-assets: true
+
+  verify:
+    name: Verify published release
+    needs: [release]
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Container images run
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for image in "dumhouse/clavis:${version}" "ghcr.io/dumhouse/clavis:${version}"; do
+            docker pull "$image"
+            docker run --rm "$image" version
+          done
+      - name: Release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          assets="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')"
+          for pattern in checksums.txt '_linux_amd64.tar.gz$' '_darwin_arm64.tar.gz$' '_windows_amd64.zip$' '\.deb$' '\.rpm$'; do
+            echo "$assets" | grep -Eq "$pattern" || { echo "missing release asset matching $pattern"; exit 1; }
+          done
+      - name: Homebrew cask and Scoop manifest
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ -n "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            curl -fsSL https://raw.githubusercontent.com/Dumhouse/homebrew-tap/main/Casks/clavis.rb | grep -q "version \"${version}\"" \
+              || { echo "cask does not list ${version}"; exit 1; }
+          fi
+          if [ -n "${{ secrets.SCOOP_BUCKET_TOKEN }}" ]; then
+            curl -fsSL https://raw.githubusercontent.com/Dumhouse/scoop-bucket/main/clavis.json | grep -q "\"version\": \"${version}\"" \
+              || { echo "scoop manifest does not list ${version}"; exit 1; }
+          fi
