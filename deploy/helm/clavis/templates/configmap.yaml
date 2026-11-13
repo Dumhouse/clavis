@@ -50,6 +50,7 @@ data:
     security:
       breach_check: {{ .Values.security.breachCheck }}
       breach_check_url: {{ .Values.security.breachCheckURL | quote }}
+      outbound_allowlist: {{ .Values.security.outboundAllowlist | default (list) | toJson }}
     {{- if .Values.auditExporters }}
     audit:
       exporters:

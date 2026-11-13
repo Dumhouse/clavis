@@ -92,6 +92,15 @@ replicas must be able to read the same root key file. The default volume uses
 `ReadWriteOnce`; configure suitable shared storage or a key provider that gives
 each replica access to the same key.
 
+To let Clavis reach a Forgejo, GitLab or Vault on your network (private
+addresses are blocked by default), list it in the values file:
+
+```yaml
+security:
+  outboundAllowlist:
+    - 192.168.100.0/24
+```
+
 ## Back up the root key
 
 The root key is required to decrypt stored secrets. Keep a protected recovery

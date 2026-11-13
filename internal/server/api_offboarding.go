@@ -32,6 +32,7 @@ type offboardingBody struct {
 	Done     int                   `json:"done"`
 	Total    int                   `json:"total"`
 	Exported int                   `json:"exported"`
+	Removed  bool                  `json:"removed"`
 	Tasks    []offboardingTaskBody `json:"tasks"`
 }
 
@@ -97,7 +98,7 @@ func (s *Server) registerOffboardingRoutes() error {
 
 func offboardingFromService(report service.OffboardingReport) offboardingBody {
 	out := offboardingBody{UserID: report.UserID, Email: report.Email, Name: report.Name,
-		Done: report.Done, Total: report.Total, Exported: report.Exported}
+		Done: report.Done, Total: report.Total, Exported: report.Exported, Removed: report.Removed}
 	for _, task := range report.Tasks {
 		out.Tasks = append(out.Tasks, offboardingTaskBody{
 			ID: task.ID, ProjectSlug: task.ProjectSlug, EnvSlug: task.EnvSlug,

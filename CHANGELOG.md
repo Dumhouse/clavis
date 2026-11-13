@@ -8,6 +8,13 @@
   webhooks, SSO discovery and audit exporters may reach even though they are
   private, for example a Forgejo or Vault on your LAN. Everything else private
   stays blocked, and the blocked-address error now names this setting.
+  The Helm chart exposes it as `security.outboundAllowlist`.
+
+### Fixed
+
+- Removing a member now opens their offboarding checklist of revealed secrets
+  straight away, instead of leaving it unreachable once they vanish from the
+  members list. The offboarding report says whether the person was removed.
 
 ## v0.3.1 — 2026-11-13
 

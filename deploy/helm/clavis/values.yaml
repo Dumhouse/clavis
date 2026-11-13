@@ -91,6 +91,10 @@ email:
 security:
   breachCheck: false
   breachCheckURL: https://api.pwnedpasswords.com/range/
+  # Syncs, webhooks, SSO discovery and audit exporters never reach private,
+  # loopback or link-local addresses. List the ones you do mean to reach, for
+  # example a Forgejo or Vault on your network: ["192.168.100.0/24"].
+  outboundAllowlist: []
 
 auditExporters: []
 

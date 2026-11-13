@@ -4773,3 +4773,67 @@ func TestForgejoSync(t *testing.T) {
 		t.Fatalf("drift after run = %d body=%s", drift.Code, drift.Body)
 	}
 }
+
+// Removing a member records which secrets they revealed; the checklist has to
+// stay reachable afterwards, because that is when it is needed.
+func TestOffboardingChecklistSurvivesRemoval(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+
+	if rec := owner.request(http.MethodPost, "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets",
+		map[string]any{"key": "DB_PASSWORD", "value": "hunter2"}); rec.Code != http.StatusCreated {
+		t.Fatalf("secret = %d body=%s", rec.Code, rec.Body)
+	}
+	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Developer"})
+	inv := decode[struct {
+		URL string `json:"url"`
+	}](t, invite)
+	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
+	leaver := &apiClient{t: t, h: f.srv.Handler()}
+	accept := leaver.request(http.MethodPost, "/api/v1/invites/"+token+"/accept", map[string]string{
+		"name": "Leaver", "email": "leaver@example.com", "password": "another long password",
+	})
+	if accept.Code != http.StatusOK {
+		t.Fatalf("accept = %d body=%s", accept.Code, accept.Body)
+	}
+	leaverID := decode[setupResponse](t, accept).User.ID
+
+	if rec := leaver.request(http.MethodGet,
+		"/api/v1/orgs/acme/projects/web-app/environments/dev/secrets/DB_PASSWORD?reveal=true&reason=testing", nil); rec.Code != http.StatusOK {
+		t.Fatalf("reveal = %d body=%s", rec.Code, rec.Body)
+	}
+
+	remove := owner.requestHeaders(http.MethodDelete, "/api/v1/orgs/acme/members/"+leaverID, nil,
+		map[string]string{"X-Clavis-Reauth": owner.reauth("correct horse battery staple")})
+	if remove.Code != http.StatusNoContent {
+		t.Fatalf("remove = %d body=%s", remove.Code, remove.Body)
+	}
+
+	type report struct {
+		Removed bool   `json:"removed"`
+		Email   string `json:"email"`
+		Total   int    `json:"total"`
+		Tasks   []struct {
+			ID  string `json:"id"`
+			Key string `json:"key"`
+		} `json:"tasks"`
+	}
+	path := "/api/v1/orgs/acme/members/" + leaverID + "/offboarding"
+	rec := owner.request(http.MethodGet, path, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("offboarding after removal = %d body=%s", rec.Code, rec.Body)
+	}
+	got := decode[report](t, rec)
+	if !got.Removed || got.Email != "leaver@example.com" || got.Total != 1 || len(got.Tasks) != 1 || got.Tasks[0].Key != "DB_PASSWORD" {
+		t.Fatalf("report = %+v", got)
+	}
+	// Marking tasks keeps working for a removed member.
+	mark := owner.request(http.MethodPost, path+"/"+got.Tasks[0].ID, map[string]string{"status": "rotated"})
+	if mark.Code != http.StatusOK || decode[report](t, mark).Total != 1 {
+		t.Fatalf("mark = %d body=%s", mark.Code, mark.Body)
+	}
+	// A person who never revealed anything leaves no checklist to show.
+	if gone := owner.request(http.MethodGet, "/api/v1/orgs/acme/members/00000000-0000-0000-0000-000000000000/offboarding", nil); gone.Code != http.StatusNotFound {
+		t.Fatalf("unknown member = %d", gone.Code)
+	}
+}

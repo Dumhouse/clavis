@@ -424,7 +424,7 @@ func TestForgejoSyncOutboundAllowlist(t *testing.T) {
 
 	run := func(allow []string) (int, string) {
 		f := newFixtureConfig(t, func(cfg *config.Config) {
-			cfg.Server.Dev = false // dev mode already allows loopback
+			cfg.Server.Dev = false                          // dev mode already allows loopback
 			cfg.Server.BaseURL = "http://192.168.1.10:8080" // plain-HTTP LAN host: plain cookies
 			cfg.Security.OutboundAllowlist = allow
 		})
