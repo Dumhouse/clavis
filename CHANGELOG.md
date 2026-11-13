@@ -25,6 +25,7 @@ Includes everything that v0.2.3 and v0.2.4 were meant to ship.
   security and conduct contact addresses.
 - The container image carries OCI title, description, documentation and vendor
   labels, and its Docker Hub overview is published on every release.
+- The docs site includes an OCI Helm installation and upgrade guide.
 
 ### Fixed
 

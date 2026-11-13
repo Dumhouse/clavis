@@ -15,22 +15,10 @@ default) separately from database backups.
 
 ## Kubernetes
 
-The Helm chart lives in `deploy/helm/clavis`. It supports:
-
-- SQLite or external Postgres
-- multiple API/worker replicas
-- `--role=all|api|worker`
-- AWS KMS or GCP KMS root keys
-- ServiceMonitor and PodDisruptionBudget
-- Ingress and TLS
-
-```sh
-helm install clavis deploy/helm/clavis \
-  --namespace clavis --create-namespace \
-  --set config.server.baseURL=https://clavis.example.com \
-  --set database.driver=postgres \
-  --set database.dsnSecret=clavis-postgres
-```
+See [Install with Helm](./helm.md) for OCI install and upgrade commands, chart
+values, database configuration, persistence, ingress, and root key backup. The
+chart defaults to one SQLite-backed replica; use PostgreSQL for multiple
+replicas.
 
 ## Postgres
 
