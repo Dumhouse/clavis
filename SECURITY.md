@@ -6,7 +6,7 @@ to disclose a vulnerability in a public issue.
 ## Reporting a vulnerability
 
 Use GitHub Security Advisories in this repository (Security → Report a
-vulnerability). If that is unavailable, email `security@clavis.dev`.
+vulnerability). If that is unavailable, email `dumhousestudio@gmail.com`.
 
 Please include:
 

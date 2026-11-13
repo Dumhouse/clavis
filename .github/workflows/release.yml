@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-26.04
+    # Publishing needs a maintainer's approval in the Actions UI.
+    environment: release
     outputs:
       hashes: ${{ steps.subjects.outputs.hashes }}
     steps:

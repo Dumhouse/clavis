@@ -8,7 +8,7 @@ humans, machines, and AI agents.
 - Docs: https://github.com/dumhouse/clavis/tree/main/docs
 - Quickstart: `/docs/quickstart.md`
 - Security reports: **never post vulnerabilities here.** Use GitHub Security
-  Advisories or security@clavis.dev.
+  Advisories or dumhousestudio@gmail.com.
 
 ## Rooms
 

@@ -1,5 +1,5 @@
-Contact: mailto:security@clavis.dev
+Contact: mailto:dumhousestudio@gmail.com
 Expires: 2027-12-31T23:59:59Z
 Preferred-Languages: en
-Canonical: https://clavis.dev/.well-known/security.txt
+Canonical: https://dumhouse.github.io/clavis/.well-known/security.txt
 Policy: https://github.com/dumhouse/clavis/security/policy

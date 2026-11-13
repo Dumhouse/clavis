@@ -32,6 +32,10 @@ RUN CGO_ENABLED=0 go build -trimpath \
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/clavis /usr/local/bin/clavis
 USER nonroot:nonroot
+# Create /data owned by nonroot (WORKDIR after USER does that under BuildKit;
+# distroless has no shell for mkdir/chown). Without it Docker creates the
+# volume mount point as root and the server cannot write clavis.db.
+WORKDIR /data
 EXPOSE 8080
 ENV CLAVIS_SERVER_ADDR=:8080 \
     CLAVIS_DATA_DIR=/data \

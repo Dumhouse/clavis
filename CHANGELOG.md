@@ -13,7 +13,16 @@ Includes everything that v0.2.3 and v0.2.4 were meant to ship.
   release assets, Homebrew cask and Scoop manifest list the new version.
 - Releases open a pull request to `microsoft/winget-pkgs`, so Windows users can
   install with `winget install Dumhouse.Clavis` once the package is accepted.
-- Release notes open with install commands and explain which file to download.
+- Release notes open with a download table by operating system and CPU, then
+  install commands, and explain which files are only for verification.
+- A Download page on the docs site builds the same table from the latest release.
+- Releases sign archives and `checksums.txt` only, so a release has about 27
+  files instead of 39. Packages and SBOMs are verified through the signed
+  checksums.
+- Publishing a release now waits for a maintainer's approval, and release tags
+  are protected from being moved or deleted.
+- `SUPPORT.md`, a pull request template, an OpenSSF Scorecard workflow, and real
+  security and conduct contact addresses.
 - The container image carries OCI title, description, documentation and vendor
   labels, and its Docker Hub overview is published on every release.
 

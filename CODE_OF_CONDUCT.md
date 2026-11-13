@@ -30,7 +30,7 @@ Examples of unacceptable behavior:
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the maintainers at `conduct@clavis.dev`. All complaints will be
+reported to the maintainers at `dumhousestudio@gmail.com`. All complaints will be
 reviewed promptly and fairly. Maintainers will respect the privacy and security
 of the reporter.
 
