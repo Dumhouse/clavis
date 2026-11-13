@@ -54,37 +54,25 @@ signs:
       - --bundle=${signature}
       - ${artifact}
 
-dockers:
-  - image_templates:
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
-    use: buildx
+dockers_v2:
+  - id: clavis
     dockerfile: deploy/Dockerfile.goreleaser
-    goarch: amd64
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-  - image_templates:
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
-    use: buildx
-    dockerfile: deploy/Dockerfile.goreleaser
-    goarch: arm64
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+    images:
+      - ghcr.io/dumhouse/clavis
+      - docker.io/dumhouse/clavis
+    tags:
+      - "{{ .Version }}"
+      - latest
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: https://github.com/Dumhouse/clavis
+      org.opencontainers.image.licenses: Apache-2.0
 
-docker_manifests:
-  - name_template: "ghcr.io/dumhouse/clavis:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/dumhouse/clavis:latest"
-    image_templates:
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
-      - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
-
-brews:
+homebrew_casks:
   - name: clavis
     repository:
       owner: dumhouse
@@ -92,11 +80,15 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://dumhouse.github.io/clavis/
     description: Open-source secrets management for humans, machines, and AI agents.
-    license: Apache-2.0
     # Skipped until the HOMEBREW_TAP_TOKEN secret exists, so releases keep working.
     skip_upload: '{{ if .Env.HOMEBREW_TAP_TOKEN }}false{{ else }}true{{ end }}'
-    test: |
-      system "#{bin}/clavis", "version"
+    # The binary is not notarized by Apple, so clear the download quarantine flag.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/clavis"]
+          end
 
 scoops:
   - name: clavis

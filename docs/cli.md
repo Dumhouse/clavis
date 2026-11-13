@@ -8,11 +8,11 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | --- | --- | --- |
 | Install script (signed) | `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \| bash` | Available |
 | Release archive | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) | Available |
-| `.deb`, `.rpm`, `.apk` | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) and install with your package manager | From the next release |
-| Homebrew | `brew install dumhouse/tap/clavis` | After the tap token is set up |
-| Scoop | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket` then `scoop install clavis` | After the bucket token is set up |
+| `.deb`, `.rpm`, `.apk` | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) and install with your package manager | Available |
+| Homebrew | `brew install dumhouse/tap/clavis` | Available |
+| Scoop | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket` then `scoop install clavis` | Available |
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
-| Docker (server) | `docker run ghcr.io/dumhouse/clavis server` | Available |
+| Docker (server) | `docker run dumhouse/clavis server` or `ghcr.io/dumhouse/clavis` | Available |
 
 winget and hosted apt/rpm repositories are planned.
 

@@ -129,6 +129,7 @@ export default defineConfig({
         items: [
           { text: 'API stability', link: '/api-stability' },
           { text: 'Changelog', link: '/changelog' },
+          { text: 'Releasing and packaging', link: '/releasing' },
           { text: 'Community', link: '/community' },
           { text: 'Security policy', link: '/vulnerability-disclosure' },
           { text: 'Sustainability', link: '/sustainability' },
