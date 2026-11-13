@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/dumhouse/clavis/internal/version"
 	"github.com/dumhouse/clavis/pkg/client"
@@ -60,14 +61,23 @@ func (r *resolvedContext) newClient() (*client.Client, error) {
 	if r.Token == "" {
 		return nil, fmt.Errorf("not logged in to %s. Run: clavis login --server %s", r.Server, r.Server)
 	}
+	hc, err := httpClientFor(r.Server, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
 	return client.New(r.Server,
 		client.WithToken(r.Token),
 		client.WithUserAgent("clavis-cli/"+version.Version),
+		client.WithHTTPClient(hc),
 	)
 }
 
 func (r *resolvedContext) newAnonymousClient() (*client.Client, error) {
-	return client.New(r.Server, client.WithUserAgent("clavis-cli/"+version.Version))
+	hc, err := httpClientFor(r.Server, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	return client.New(r.Server, client.WithUserAgent("clavis-cli/"+version.Version), client.WithHTTPClient(hc))
 }
 
 func firstNonEmpty(values ...string) string {

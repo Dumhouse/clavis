@@ -18,6 +18,9 @@ type projectConfig struct {
 	Path       string `yaml:"path,omitempty"`
 	BranchEnvs bool   `yaml:"branch_envs,omitempty"`
 	Cache      bool   `yaml:"cache,omitempty"`
+	// Run is the default command for a bare `clavis run`, for example
+	// "bin/rails server". Quotes group words: `run: 'sh -c "make dev"'`.
+	Run string `yaml:"run,omitempty"`
 }
 
 const projectConfigName = ".clavis.yaml"

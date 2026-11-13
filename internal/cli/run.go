@@ -24,17 +24,113 @@ func newRunCommand(opts *Options) *cobra.Command {
 	var mountFiles bool
 	var watch bool
 	cmd := &cobra.Command{
-		Use:   "run [--no-mask] [--mount] [--watch] -- COMMAND [ARGS...]",
+		Use:   "run [flags] [COMMAND [ARGS...]]",
 		Short: "Run a command with secrets injected and output masked",
-		Args:  cobra.MinimumNArgs(1),
+		Long: `Run your app with the environment's secrets as environment variables.
+
+Clavis starts the command itself, so you use one terminal: the command gets
+the secrets, and its output is masked so secret values never show up in logs.
+
+Clavis flags go before the command; everything from the first word of the
+command on belongs to it, so "--" is optional:
+
+  clavis run rails s -p 3001
+  clavis run --env staging npm run dev
+  clavis run -- ./script --verbose     (the old form still works)
+
+With no command, Clavis runs the "run:" entry from .clavis.yaml. clavis init
+fills it in when it recognizes your project (for example bin/rails server for
+Rails or npm run dev for Node.js).`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				defaultArgs, err := defaultRunCommand()
+				if err != nil {
+					return err
+				}
+				args = defaultArgs
+			}
 			return runWithSecrets(cmd, opts, args, !noMask, mountFiles, watch)
 		},
 	}
+	// Stop parsing Clavis flags at the first word of the command, so
+	// `clavis run rails s -p 3001` passes -p to rails without "--".
+	cmd.Flags().SetInterspersed(false)
 	cmd.Flags().BoolVar(&noMask, "no-mask", false, "disable output masking (dangerous)")
 	cmd.Flags().BoolVar(&mountFiles, "mount", false, "write file secrets to a private temp directory and expose their paths as env vars")
 	cmd.Flags().BoolVar(&watch, "watch", false, "restart the command when the environment's secrets change")
 	return cmd
+}
+
+// defaultRunCommand reads `run:` from the nearest .clavis.yaml.
+func defaultRunCommand() ([]string, error) {
+	cfg, path, err := loadProjectConfig(".")
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil || strings.TrimSpace(cfg.Run) == "" {
+		where := "your .clavis.yaml"
+		if path != "" {
+			where = path
+		}
+		return nil, fmt.Errorf("no command to run: pass one (for example `clavis run npm run dev`) or set `run: <command>` in %s", where)
+	}
+	args, err := splitCommandLine(cfg.Run)
+	if err != nil {
+		return nil, fmt.Errorf("%s: run: %w", path, err)
+	}
+	if len(args) == 0 {
+		return nil, fmt.Errorf("%s: run is empty", path)
+	}
+	return args, nil
+}
+
+// splitCommandLine splits a command line into words. Single and double quotes
+// group words and backslash escapes the next character outside single quotes.
+// It does not expand variables or globs: wrap the command in `sh -c "…"` for
+// shell features.
+func splitCommandLine(line string) ([]string, error) {
+	var words []string
+	var cur strings.Builder
+	inWord := false
+	var quote rune
+	escaped := false
+	for _, r := range line {
+		switch {
+		case escaped:
+			cur.WriteRune(r)
+			escaped = false
+		case r == '\\' && quote != '\'':
+			escaped, inWord = true, true
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				cur.WriteRune(r)
+			}
+		case r == '\'' || r == '"':
+			quote, inWord = r, true
+		case r == ' ' || r == '\t' || r == '\n':
+			if inWord {
+				words = append(words, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		default:
+			cur.WriteRune(r)
+			inWord = true
+		}
+	}
+	if quote != 0 {
+		return nil, errors.New("unterminated quote")
+	}
+	if escaped {
+		return nil, errors.New("trailing backslash")
+	}
+	if inWord {
+		words = append(words, cur.String())
+	}
+	return words, nil
 }
 
 func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch bool) error {
@@ -185,7 +281,11 @@ func watchForSecretChange(ctx context.Context, resolved *resolvedContext) bool {
 	}
 	request.Header.Set("Authorization", "Bearer "+resolved.Token)
 	request.Header.Set("Accept", "text/event-stream")
-	response, err := (&http.Client{Timeout: 0}).Do(request)
+	hc, err := httpClientFor(resolved.Server, 0)
+	if err != nil {
+		return false
+	}
+	response, err := hc.Do(request)
 	if err != nil {
 		return false
 	}

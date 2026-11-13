@@ -106,7 +106,7 @@ func newMembersListCommand(opts *Options) *cobra.Command {
 func newAccessCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "access",
-		Short: "Explain effective access",
+		Short: "Explain, request, approve and review access",
 	}
 	cmd.AddCommand(newAccessExplainCommand(opts))
 	cmd.AddCommand(newAccessRequestCommand(opts))

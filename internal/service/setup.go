@@ -19,14 +19,24 @@ type SetupInput struct {
 	OrgSlug     string
 	ProjectName string
 	ProjectSlug string
+	// SkipProject creates no project; the web app asks for the first project
+	// after sign-in. Without it an empty project name means "Default".
+	SkipProject bool
 }
+
+// DefaultOrgName names the first organization when setup does not ask for
+// one. The owner renames it in the welcome flow or in settings.
+const DefaultOrgName = "My organization"
 
 // Setup creates the first user, org, project, and default environments
 // atomically. The caller must have verified the one-time setup token.
 func (s *Service) Setup(ctx context.Context, user *store.User, in SetupInput) (*store.Org, *store.Project, []store.Environment, error) {
 	orgName := strings.TrimSpace(in.OrgName)
-	if orgName == "" || len(orgName) > 100 {
-		return nil, nil, nil, fmt.Errorf("%w: organization name is required", ErrValidation)
+	if orgName == "" {
+		orgName = DefaultOrgName
+	}
+	if len(orgName) > 100 {
+		return nil, nil, nil, fmt.Errorf("%w: organization name must be under 100 characters", ErrValidation)
 	}
 	if strings.TrimSpace(in.OrgSlug) == "" {
 		in.OrgSlug = Slugify(orgName)
@@ -63,24 +73,28 @@ func (s *Service) Setup(ctx context.Context, user *store.User, in SetupInput) (*
 	}
 	defer orgKey.Zero()
 
-	projectID := uuid.NewString()
-	projectKey, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, nil, nil, err
+	var project *store.Project
+	var envs []store.Environment
+	if !in.SkipProject {
+		projectID := uuid.NewString()
+		projectKey, err := crypto.GenerateKey()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		defer projectKey.Zero()
+		wrappedProject, err := crypto.WrapProjectKey(orgKey, orgID, projectID, projectKey)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		project = &store.Project{
+			ID:                projectID,
+			OrgID:             orgID,
+			Slug:              projectSlug,
+			Name:              projectName,
+			WrappedProjectKey: wrappedProject,
+		}
+		envs = defaultEnvironments(projectID)
 	}
-	defer projectKey.Zero()
-	wrappedProject, err := crypto.WrapProjectKey(orgKey, orgID, projectID, projectKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	project := &store.Project{
-		ID:                projectID,
-		OrgID:             orgID,
-		Slug:              projectSlug,
-		Name:              projectName,
-		WrappedProjectKey: wrappedProject,
-	}
-	envs := defaultEnvironments(projectID)
 	roles, ownerRoleID := builtinRoles(orgID)
 
 	if err := s.Store.SetupInstance(ctx, user, org, roles, ownerRoleID, project, ptrEnvs(envs)); err != nil {
@@ -88,13 +102,15 @@ func (s *Service) Setup(ctx context.Context, user *store.User, in SetupInput) (*
 	}
 
 	actor := audit.Actor{ID: user.ID, Kind: string(authz.SubjectUser), Name: user.Name}
-	for _, ev := range []struct {
+	type setupEvent struct {
 		action   string
 		resource audit.Resource
-	}{
-		{"org.create", audit.Resource{Type: "org", ID: org.ID, Name: org.Slug}},
-		{"project.create", audit.Resource{Type: "project", ID: project.ID, Name: project.Slug}},
-	} {
+	}
+	events := []setupEvent{{"org.create", audit.Resource{Type: "org", ID: org.ID, Name: org.Slug}}}
+	if project != nil {
+		events = append(events, setupEvent{"project.create", audit.Resource{Type: "project", ID: project.ID, Name: project.Slug}})
+	}
+	for _, ev := range events {
 		if err := s.record(ctx, actor, org.ID, ev.action, ev.resource, audit.Details{}, AuditMeta{}); err != nil {
 			s.Logger.Error("audit setup event failed", "action", ev.action, "error", err)
 		}
