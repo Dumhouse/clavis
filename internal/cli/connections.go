@@ -236,12 +236,19 @@ func newConnectionsRotateCommand(opts *Options) *cobra.Command {
 }
 
 func newConnectionsTestCommand(opts *Options) *cobra.Command {
-	return &cobra.Command{
+	var repo, org string
+	cmd := &cobra.Command{
 		Use:   "test ID",
-		Short: "Check that a connection's credential is accepted by the provider",
-		Args:  cobra.ExactArgs(1),
+		Short: "Check that a connection works for the syncs that use it",
+		Long: "Checks that the provider accepts the credential. For Forgejo it also checks " +
+			"Actions access in every repository or organization the connection's syncs push to; " +
+			"--repo or --org adds one more destination to check.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()
+			if repo != "" && org != "" {
+				return fmt.Errorf("use --repo or --org, not both")
+			}
 			resolved, base, err := opts.connectionsBase()
 			if err != nil {
 				return err
@@ -250,24 +257,46 @@ func newConnectionsTestCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			var body any
+			switch {
+			case repo != "":
+				body = map[string]string{"forgejo_scope": "repo", "forgejo_repo": repo}
+			case org != "":
+				body = map[string]string{"forgejo_scope": "org", "forgejo_repo": org}
+			}
 			var result struct {
 				OK       bool   `json:"ok"`
 				Detail   string `json:"detail"`
 				Identity string `json:"identity,omitempty"`
+				Checks   []struct {
+					Target string `json:"target"`
+					OK     bool   `json:"ok"`
+					Detail string `json:"detail"`
+				} `json:"checks"`
 			}
-			if err := c.Post(cmd.Context(), base+"/"+url.PathEscape(args[0])+"/test", nil, &result); err != nil {
+			if err := c.Post(cmd.Context(), base+"/"+url.PathEscape(args[0])+"/test", body, &result); err != nil {
 				return err
 			}
 			if opts.JSON {
 				return out.PrintJSON(result)
 			}
+			for _, check := range result.Checks {
+				mark := "ok  "
+				if !check.OK {
+					mark = "FAIL"
+				}
+				out.Info("%s %s: %s", mark, check.Target, check.Detail)
+			}
 			if !result.OK {
 				return fmt.Errorf("connection test failed: %s", result.Detail)
 			}
-			out.Success("%s.", result.Detail)
+			out.Success("%s", result.Detail)
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&repo, "repo", "", "Forgejo repository (owner/name) to check as well")
+	cmd.Flags().StringVar(&org, "org", "", "Forgejo organization to check as well")
+	return cmd
 }
 
 func newConnectionsDeleteCommand(opts *Options) *cobra.Command {

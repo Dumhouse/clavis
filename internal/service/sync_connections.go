@@ -92,6 +92,23 @@ type ConnectionTest struct {
 	OK       bool
 	Detail   string
 	Identity string
+	// Checks lists each probe for providers that check more than the
+	// credential (Forgejo checks every repository or org its syncs push to).
+	Checks []ConnectionCheck
+}
+
+// ConnectionCheck is one probe in a connection test.
+type ConnectionCheck struct {
+	Target string
+	OK     bool
+	Detail string
+}
+
+// ConnectionTestTarget is an extra destination to probe, typed by the user
+// before a sync exists.
+type ConnectionTestTarget struct {
+	ForgejoScope string
+	ForgejoRepo  string
 }
 
 // ConnectionInUseError refuses to delete a connection that syncs still use.
@@ -629,7 +646,7 @@ func (s *Service) connectionFromSync(ctx context.Context, actor authz.Actor, org
 
 // TestSyncConnection makes one cheap authenticated call to the provider. A
 // rejected credential is a failed test, not an error.
-func (s *Service) TestSyncConnection(ctx context.Context, actor authz.Actor, orgSlug, id string) (*ConnectionTest, error) {
+func (s *Service) TestSyncConnection(ctx context.Context, actor authz.Actor, orgSlug, id string, target *ConnectionTestTarget) (*ConnectionTest, error) {
 	org, err := s.connectionOrg(ctx, actor, orgSlug, authz.SyncsManage)
 	if err != nil {
 		return nil, err
@@ -648,6 +665,9 @@ func (s *Service) TestSyncConnection(ctx context.Context, actor authz.Actor, org
 	config.BaseURL = conn.BaseURL
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
+	if conn.Provider == "forgejo" {
+		return s.testForgejoConnection(ctx, org, conn, config, target)
+	}
 	identity, err := s.probeConnection(ctx, org, conn, config)
 	if err != nil {
 		return &ConnectionTest{OK: false, Detail: err.Error()}, nil

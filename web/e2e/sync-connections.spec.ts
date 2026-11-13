@@ -66,5 +66,9 @@ test('a saved connection is picked instead of pasting the token again', async ({
 
   // Testing an unreachable server reports a clear failure.
   await connections.getByRole('button', { name: 'Test' }).click()
-  await expect(page.getByText(/E2E Forgejo: forgejo:/)).toBeVisible()
+  const result = connections.getByRole('status')
+  await expect(result).toContainText('Something needs fixing')
+  await expect(result).toContainText(/Cannot reach https:\/\/git\.example\.test/)
+  await result.getByRole('button', { name: 'Dismiss test result' }).click()
+  await expect(result).toBeHidden()
 })

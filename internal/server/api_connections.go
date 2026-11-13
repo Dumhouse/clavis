@@ -86,11 +86,27 @@ type updateConnectionInput struct {
 	}
 }
 
+type testConnectionInput struct {
+	Org  string `path:"org"`
+	ID   string `path:"id"`
+	Body *struct {
+		ForgejoScope string `json:"forgejo_scope,omitempty" enum:"repo,org" doc:"Scope of the extra destination to check"`
+		ForgejoRepo  string `json:"forgejo_repo,omitempty" maxLength:"300" doc:"owner/name, or an organization name, to check besides the syncs that use the connection"`
+	}
+}
+
+type connectionCheckBody struct {
+	Target string `json:"target"`
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail"`
+}
+
 type testConnectionOutput struct {
 	Body struct {
-		OK       bool   `json:"ok"`
-		Detail   string `json:"detail"`
-		Identity string `json:"identity,omitempty"`
+		OK       bool                  `json:"ok"`
+		Detail   string                `json:"detail"`
+		Identity string                `json:"identity,omitempty"`
+		Checks   []connectionCheckBody `json:"checks"`
 	}
 }
 
@@ -216,10 +232,14 @@ func (s *Server) registerConnectionRoutes() error {
 	huma.Register(s.api, huma.Operation{
 		OperationID: "test-connection", Method: http.MethodPost, Path: base + "/{id}/test",
 		Summary: "Test a sync connection", Tags: []string{"connections"},
-		Description: "Makes one cheap authenticated call to the provider. A rejected credential returns ok=false with the reason.",
-	}, func(ctx context.Context, in *connectionPath) (*testConnectionOutput, error) {
+		Description: "Makes cheap authenticated calls to the provider. A rejected credential returns ok=false with the reason. For Forgejo it also checks Actions access in every destination its syncs use, plus an optional extra one.",
+	}, func(ctx context.Context, in *testConnectionInput) (*testConnectionOutput, error) {
 		actor, _ := actorFrom(ctx)
-		result, err := s.svc.TestSyncConnection(ctx, actor, in.Org, in.ID)
+		var target *service.ConnectionTestTarget
+		if in.Body != nil && in.Body.ForgejoRepo != "" {
+			target = &service.ConnectionTestTarget{ForgejoScope: in.Body.ForgejoScope, ForgejoRepo: in.Body.ForgejoRepo}
+		}
+		result, err := s.svc.TestSyncConnection(ctx, actor, in.Org, in.ID, target)
 		if err != nil {
 			return nil, s.apiError(ctx, err)
 		}
@@ -227,6 +247,10 @@ func (s *Server) registerConnectionRoutes() error {
 		out.Body.OK = result.OK
 		out.Body.Detail = result.Detail
 		out.Body.Identity = result.Identity
+		out.Body.Checks = []connectionCheckBody{}
+		for _, check := range result.Checks {
+			out.Body.Checks = append(out.Body.Checks, connectionCheckBody{Target: check.Target, OK: check.OK, Detail: check.Detail})
+		}
 		return out, nil
 	})
 
