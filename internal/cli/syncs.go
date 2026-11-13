@@ -14,6 +14,7 @@ type syncJSON struct {
 	ID           string     `json:"id"`
 	Environment  string     `json:"environment"`
 	Provider     string     `json:"provider"`
+	ConnectionID string     `json:"connection_id,omitempty"`
 	Status       string     `json:"status"`
 	Confirmed    bool       `json:"confirmed"`
 	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
@@ -53,6 +54,7 @@ func newSyncsCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newSyncsLogsCommand(opts))
 	cmd.AddCommand(newSyncsDriftCommand(opts))
 	cmd.AddCommand(newSyncsBehaviorCommand(opts))
+	cmd.AddCommand(newSyncsUseConnectionCommand(opts))
 	return cmd
 }
 
@@ -112,6 +114,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
 	var vaultMount, vaultPath string
 	var forgejoURL, forgejoRepo, forgejoScope string
+	var connection string
 	var vaultVersion int
 	var protected, masked, deleteMissing bool
 	cmd := &cobra.Command{
@@ -171,6 +174,17 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"forgejo_repo": forgejoRepo, "forgejo_scope": forgejoScope,
 				"delete_missing": deleteMissing,
 			}
+			if connection != "" {
+				// The connection supplies the credential, base URL, and
+				// (unless --provider is set) the provider.
+				body["connection_id"] = connection
+				if !cmd.Flags().Changed("provider") {
+					body["provider"] = ""
+				}
+				if !cmd.Flags().Changed("gitlab-url") && !cmd.Flags().Changed("forgejo-url") && !cmd.Flags().Changed("vault-url") {
+					body["base_url"] = ""
+				}
+			}
 			if err := c.Post(cmd.Context(), syncsBase(resolved), body, &created); err != nil {
 				return err
 			}
@@ -227,6 +241,48 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
 	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
 	cmd.Flags().StringVar(&token, "cloudflare-token", "", "Cloudflare API token")
+	cmd.Flags().StringVar(&connection, "connection", "", "use a saved connection's credential instead of a token flag (see `clavis connections ls`)")
+	return cmd
+}
+
+func newSyncsUseConnectionCommand(opts *Options) *cobra.Command {
+	var connection, name string
+	cmd := &cobra.Command{
+		Use:   "use-connection ID",
+		Short: "Move a sync onto a shared connection, dropping its own credential",
+		Long: "Point an existing sync at a saved connection (--connection), or turn the sync's own\n" +
+			"credential into a new connection (--name) that other syncs can reuse.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if (connection == "") == (name == "") {
+				return fmt.Errorf("pass exactly one of --connection or --name")
+			}
+			out := opts.output()
+			resolved, err := opts.syncContext()
+			if err != nil {
+				return err
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			var result struct {
+				Sync       syncJSON       `json:"sync"`
+				Connection connectionJSON `json:"connection"`
+			}
+			path := syncsBase(resolved) + "/" + url.PathEscape(args[0]) + "/connection"
+			if err := c.Put(cmd.Context(), path, map[string]string{"connection_id": connection, "name": name}, &result); err != nil {
+				return err
+			}
+			if opts.JSON {
+				return out.PrintJSON(result)
+			}
+			out.Success("Sync %s now uses connection %q (%s).", result.Sync.ID, result.Connection.Name, result.Connection.ID)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&connection, "connection", "", "existing connection ID")
+	cmd.Flags().StringVar(&name, "name", "", "create a connection with this name from the sync's credential")
 	return cmd
 }
 

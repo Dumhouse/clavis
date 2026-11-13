@@ -116,6 +116,19 @@ func (s *Server) apiError(ctx context.Context, err error) error {
 		return p
 	}
 
+	var inUse *service.ConnectionInUseError
+	if errors.As(err, &inUse) {
+		p := problem.New(http.StatusConflict, "connection_in_use", "Connection in use",
+			"Delete these syncs or move them to another connection first.")
+		for _, usage := range inUse.Usage {
+			p.Errors = append(p.Errors, problem.FieldError{
+				Field:  "syncs." + usage.SyncID,
+				Detail: usage.ProjectSlug + "/" + usage.Environment + " (" + usage.Provider + ")",
+			})
+		}
+		return withRequestID(ctx, p)
+	}
+
 	switch {
 	case errors.Is(err, service.ErrValidation):
 		detail := strings.TrimPrefix(err.Error(), "service: validation failed: ")
