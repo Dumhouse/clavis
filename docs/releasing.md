@@ -22,6 +22,34 @@ and publishes it to each channel below.
 Channels whose secret is missing are skipped, so a release never fails because
 a token has not been set up yet.
 
+After the release job, a **Verify published release** job pulls and runs both
+container images, checks that the release has the expected archives and
+packages, and checks that the Homebrew cask and Scoop manifest list the new
+version. A failure there fails the run.
+
+## What is in a GitHub release
+
+A release page lists about 40 files. Most are signatures and software bills of
+materials for the few files you actually download:
+
+| Files | Count | Purpose |
+| --- | --- | --- |
+| `clavis_<version>_<os>_<arch>.tar.gz` / `.zip` | 6 | The CLI and server, for Linux, macOS and Windows on amd64 and arm64 |
+| `.deb`, `.rpm`, `.apk` | 6 | The same binary as Linux packages |
+| `*.sbom.json` | 6 | A software bill of materials for each archive |
+| `*.sigstore.json` | 24 | A cosign signature for every archive, package and SBOM |
+| `checksums.txt` and its `.sigstore.json` | 2 | SHA-256 of every artifact, signed |
+| `multiple.intoto.jsonl` | 1 | SLSA provenance for the archives |
+
+Users normally need one archive or package. The rest exist so anyone can verify
+what they downloaded, and the install script checks the archive's signature when
+`cosign` is installed. See [Supply chain](./supply-chain).
+
+If the list is too long, the usual cut is to sign only `checksums.txt` (set
+`signs.artifacts: checksum` in `.goreleaser.yaml`), which removes about 18
+signature files. That also removes the per-archive signature the install script
+and the supply-chain docs rely on, so those would need updating first.
+
 ## Cut a release
 
 1. Add the version's notes to `CHANGELOG.md`.
