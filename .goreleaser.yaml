@@ -125,8 +125,10 @@ winget:
       - security
       - devops
       - cli
-    # Skipped until the WINGET_TOKEN secret exists, so releases keep working.
-    skip_upload: '{{ if index .Env "WINGET_TOKEN" }}false{{ else }}true{{ end }}'
+    # Off until WINGET_ENABLED is "true" and WINGET_TOKEN exists. A failure here
+    # (for example a token that cannot open a pull request on microsoft/winget-pkgs)
+    # would otherwise fail the whole release before the later steps run.
+    skip_upload: '{{ if and (index .Env "WINGET_TOKEN") (eq (index .Env "WINGET_ENABLED") "true") }}false{{ else }}true{{ end }}'
     repository:
       owner: dumhouse
       name: winget-pkgs

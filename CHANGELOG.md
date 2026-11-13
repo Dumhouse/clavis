@@ -1,8 +1,8 @@
 # Changelog
 
-## v0.2.4 — 2026-11-13
+## v0.2.5 — unreleased
 
-Includes everything that v0.2.3 was meant to ship.
+Includes everything that v0.2.3 and v0.2.4 were meant to ship.
 
 
 ### Added
@@ -21,14 +21,21 @@ Includes everything that v0.2.3 was meant to ship.
 
 - Publishing the Homebrew, Scoop and winget updates failed in v0.2.3 because of
   how the repository tokens were written in the release configuration.
+- The winget submission is off until `WINGET_ENABLED` is set, so a problem with
+  it can no longer stop a release before the later steps run.
 - GoReleaser no longer fails a local snapshot when the Homebrew or Scoop token
   is unset.
 - `deploy/compose.yaml` pulls `ghcr.io/dumhouse/clavis` instead of an image
   name that does not exist.
 
+## v0.2.4 — 2026-11-13
+
+Incomplete release: the winget submission failed and stopped publishing before the
+Cloudsmith upload, Docker Hub description and verification. Use v0.2.5.
+
 ## v0.2.3 — 2026-11-13
 
-Incomplete release: publishing stopped partway. Use v0.2.4.
+Incomplete release: publishing stopped partway. Use v0.2.5.
 
 ## v0.2.2 — 2026-11-13
 
