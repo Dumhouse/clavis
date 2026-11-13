@@ -20,7 +20,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      # Cached per ISO week so the tool still picks up new releases.
+      - id: week
+        run: echo "week=$(date +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: govulncheck
+        with:
+          path: ~/go/bin/govulncheck
+          key: govulncheck-${{ runner.os }}-${{ steps.week.outputs.week }}
+      - if: steps.govulncheck.outputs.cache-hit != 'true'
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - run: ./scripts/govulncheck.sh
 
   fuzz:
