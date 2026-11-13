@@ -1,4 +1,5 @@
 import { ExternalLink, KeyRound, Loader2, Lock } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import { api } from '@/api/client'
@@ -13,7 +14,7 @@ type Env = components['schemas']['EnvBody']
 type Body = components['schemas']['CreateSyncInputBody']
 type BodyKey = Exclude<keyof Body, 'environment' | 'provider'>
 
-type FieldSpec = {
+export type FieldSpec = {
   key: BodyKey
   label: string
   placeholder?: string
@@ -35,6 +36,44 @@ export type Provider = {
   docs: string
   /** Where to create the credential, given the form values (e.g. the instance URL). */
   tokenUrl?: (values: Record<string, string>) => string
+}
+
+/**
+ * Fields that belong to the credential rather than the destination. For every
+ * provider except HTTP they can live in a reusable org connection.
+ */
+const credentialKeys = new Set<BodyKey>([
+  'base_url',
+  'token',
+  'aws_access_key',
+  'aws_secret_key',
+  'aws_session_token',
+  'gcp_service_account',
+])
+
+export function supportsConnections(provider: Provider) {
+  return provider.id !== 'http'
+}
+
+/** The fields a connection for this provider stores. */
+export function connectionFields(provider: Provider) {
+  return supportsConnections(provider)
+    ? provider.fields.filter((field) => credentialKeys.has(field.key))
+    : []
+}
+
+/** A readable default name, e.g. "Forgejo Actions · git.example.com". */
+export function defaultConnectionName(provider: Provider, values: Record<string, string>) {
+  const raw = values.base_url?.trim()
+  let host = ''
+  if (raw) {
+    try {
+      host = new URL(raw).host
+    } catch {
+      host = raw
+    }
+  }
+  return host ? `${provider.name} · ${host}` : provider.name
 }
 
 export const providers: Provider[] = [
@@ -68,6 +107,12 @@ export const providers: Provider[] = [
         placeholder: 'production',
         showIf: (values) => values.github_scope === 'environment',
         required: true,
+      },
+      {
+        key: 'base_url',
+        label: 'API URL',
+        placeholder: 'https://api.github.com',
+        hint: 'Only for GitHub Enterprise Server.',
       },
       { key: 'token', label: 'Access token', secret: true, required: true },
     ],
@@ -207,6 +252,7 @@ export const providers: Provider[] = [
       { key: 'aws_prefix', label: 'Path prefix', placeholder: 'acme/web/prod' },
       { key: 'aws_access_key', label: 'Access key ID', required: true },
       { key: 'aws_secret_key', label: 'Secret access key', secret: true, required: true },
+      { key: 'aws_session_token', label: 'Session token', secret: true },
     ],
   },
   {
@@ -296,6 +342,134 @@ export function ProviderMark({
   )
 }
 
+/** One provider field: a segmented choice, select, textarea, or input. */
+export function SpecField({
+  field,
+  value,
+  onChange,
+  required = field.required,
+  placeholder = field.placeholder,
+  labelSuffix,
+}: {
+  field: FieldSpec
+  value: string
+  onChange: (value: string) => void
+  required?: boolean | undefined
+  placeholder?: string | undefined
+  labelSuffix?: string
+}) {
+  const label = field.label + (labelSuffix ?? (required ? '' : ' (optional)'))
+  if (field.options && field.options.length <= 3) {
+    return (
+      <fieldset>
+        <legend className="mb-1.5 text-sm font-medium">{label}</legend>
+        <div
+          className="grid gap-1.5"
+          style={{
+            gridTemplateColumns: `repeat(${String(field.options.length)}, minmax(0, 1fr))`,
+          }}
+        >
+          {field.options.map(([optionValue, optionLabel]) => {
+            const checked = value === optionValue
+            return (
+              <label
+                key={optionValue}
+                className={cn(
+                  'flex cursor-pointer items-center justify-center rounded-app-sm border px-2 py-1.5 text-center text-xs transition-colors',
+                  checked
+                    ? 'border-accent-line bg-accent-soft font-medium text-accent-text'
+                    : 'border-border text-muted hover:bg-hover hover:text-text',
+                )}
+              >
+                <input
+                  type="radio"
+                  className="sr-only"
+                  name={field.key}
+                  value={optionValue}
+                  checked={checked}
+                  onChange={() => {
+                    onChange(optionValue)
+                  }}
+                />
+                {optionLabel}
+              </label>
+            )
+          })}
+        </div>
+        {field.hint && <p className="mt-1 text-2xs text-dim">{field.hint}</p>}
+      </fieldset>
+    )
+  }
+  return (
+    <Field label={label} hint={field.hint}>
+      {field.options ? (
+        <Select
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
+        >
+          {field.options.map(([optionValue, optionLabel]) => (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          ))}
+        </Select>
+      ) : field.multiline ? (
+        <Textarea
+          mono
+          rows={4}
+          required={required}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
+        />
+      ) : (
+        <Input
+          type={field.secret ? 'password' : 'text'}
+          mono={field.secret === true}
+          required={required}
+          autoComplete={field.secret ? 'new-password' : 'off'}
+          spellCheck={false}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
+        />
+      )}
+    </Field>
+  )
+}
+
+/** Where to create a token, with the provider's scope advice. */
+export function TokenHelp({ provider, link }: { provider: Provider; link?: string | undefined }) {
+  return (
+    <div className="rounded-app-sm border border-border-soft bg-panel px-3 py-2.5 text-xs leading-relaxed text-muted">
+      <p className="flex items-start gap-1.5">
+        <KeyRound className="mt-0.5 size-3.5 shrink-0 text-dim" />
+        <span>{provider.docs}</span>
+      </p>
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1.5 inline-flex items-center gap-1 font-medium text-accent-text hover:underline"
+        >
+          Create a token <ExternalLink className="size-3" />
+        </a>
+      )}
+    </div>
+  )
+}
+
+const NEW_CONNECTION = 'new'
+
 export function CreateSyncDialog({
   orgSlug,
   projectSlug,
@@ -311,6 +485,7 @@ export function CreateSyncDialog({
   onClose: () => void
   onCreated: () => void
 }) {
+  const queryClient = useQueryClient()
   const [env, setEnv] = useState(envs[0]?.slug ?? '')
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -322,108 +497,46 @@ export function CreateSyncDialog({
   const [deleteMissing, setDeleteMissing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Connection choice: an existing connection ID, or NEW_CONNECTION. Unset
+  // means "the first saved connection, if any".
+  const [picked, setPicked] = useState<string | null>(null)
+  const [connectionName, setConnectionName] = useState('')
+  const [saveConnection, setSaveConnection] = useState(true)
+
+  const shared = supportsConnections(provider)
+  const connections = useQuery({
+    queryKey: ['connections', orgSlug, provider.id],
+    enabled: shared,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/connections', {
+        params: { path: { org: orgSlug }, query: { provider: provider.id } },
+      })
+      if (result.error)
+        throw new Error(apiErrorMessage(result.error, 'Could not load connections.'))
+      return result.data?.connections ?? []
+    },
+  })
+  const saved = connections.data ?? []
+  const choice = picked ?? saved[0]?.id ?? NEW_CONNECTION
+  const chosen = saved.find((connection) => connection.id === choice)
+
   const target = envs.find((candidate) => candidate.slug === env)
   const visible = provider.fields.filter((field) => !field.showIf || field.showIf(values))
-
-  const destination = visible.filter((field) => !field.secret)
-  const credentials = visible.filter((field) => field.secret)
-  const tokenLink = provider.tokenUrl?.(values)
+  const credentialSet = new Set(connectionFields(provider).map((field) => field.key))
+  const destination = visible.filter((field) =>
+    shared ? !credentialSet.has(field.key) : !field.secret,
+  )
+  const credentials = visible.filter((field) =>
+    shared ? credentialSet.has(field.key) : field.secret,
+  )
+  const tokenLink = provider.tokenUrl?.(chosen ? { ...values, base_url: chosen.base_url } : values)
   const where = destination
     .filter((field) => !field.options)
     .map((field) => values[field.key]?.trim())
     .find(Boolean)
   const summary = `${env || '…'} → ${provider.name}${where ? ` · ${where}` : ''}`
-
-  function renderField(field: FieldSpec) {
-    const set = (value: string) => {
-      setValues((state) => ({ ...state, [field.key]: value }))
-    }
-    const label = field.label + (field.required ? '' : ' (optional)')
-    if (field.options && field.options.length <= 3) {
-      return (
-        <fieldset key={field.key}>
-          <legend className="mb-1.5 text-sm font-medium">{label}</legend>
-          <div
-            className="grid gap-1.5"
-            style={{
-              gridTemplateColumns: `repeat(${String(field.options.length)}, minmax(0, 1fr))`,
-            }}
-          >
-            {field.options.map(([value, optionLabel]) => {
-              const checked = (values[field.key] ?? '') === value
-              return (
-                <label
-                  key={value}
-                  className={cn(
-                    'flex cursor-pointer items-center justify-center rounded-app-sm border px-2 py-1.5 text-center text-xs transition-colors',
-                    checked
-                      ? 'border-accent-line bg-accent-soft font-medium text-accent-text'
-                      : 'border-border text-muted hover:bg-hover hover:text-text',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    className="sr-only"
-                    name={field.key}
-                    value={value}
-                    checked={checked}
-                    onChange={() => {
-                      set(value)
-                    }}
-                  />
-                  {optionLabel}
-                </label>
-              )
-            })}
-          </div>
-          {field.hint && <p className="mt-1 text-2xs text-dim">{field.hint}</p>}
-        </fieldset>
-      )
-    }
-    return (
-      <Field key={field.key} label={label} hint={field.hint}>
-        {field.options ? (
-          <Select
-            value={values[field.key] ?? ''}
-            onChange={(event) => {
-              set(event.target.value)
-            }}
-          >
-            {field.options.map(([value, optionLabel]) => (
-              <option key={value} value={value}>
-                {optionLabel}
-              </option>
-            ))}
-          </Select>
-        ) : field.multiline ? (
-          <Textarea
-            mono
-            rows={4}
-            required={field.required}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={field.placeholder}
-            value={values[field.key] ?? ''}
-            onChange={(event) => {
-              set(event.target.value)
-            }}
-          />
-        ) : (
-          <Input
-            type={field.secret ? 'password' : 'text'}
-            mono={field.secret === true}
-            required={field.required}
-            autoComplete={field.secret ? 'new-password' : 'off'}
-            spellCheck={false}
-            placeholder={field.placeholder}
-            value={values[field.key] ?? ''}
-            onChange={(event) => {
-              set(event.target.value)
-            }}
-          />
-        )}
-      </Field>
-    )
+  const set = (key: string) => (value: string) => {
+    setValues((state) => ({ ...state, [key]: value }))
   }
 
   async function submit(event: FormEvent) {
@@ -435,11 +548,37 @@ export function CreateSyncDialog({
       environment: env,
       delete_missing: deleteMissing,
     }
-    for (const field of visible) {
-      const value = values[field.key]?.trim()
-      if (!value) continue
-      body[field.key] = field.key === 'vault_version' ? Number(value) : value
+    const fill = (fields: FieldSpec[], into: Record<string, unknown>) => {
+      for (const field of fields) {
+        const value = values[field.key]?.trim()
+        if (!value) continue
+        into[field.key] = field.key === 'vault_version' ? Number(value) : value
+      }
     }
+    fill(destination, body)
+    let connectionID = chosen?.id
+    if (shared && !chosen && saveConnection) {
+      const connectionBody: Record<string, unknown> = {
+        provider: provider.id,
+        name: connectionName.trim() || defaultConnectionName(provider, values),
+      }
+      fill(credentials, connectionBody)
+      const created = await api.POST('/api/v1/orgs/{org}/connections', {
+        params: { path: { org: orgSlug } },
+        body: connectionBody as components['schemas']['CreateConnectionInputBody'],
+      })
+      if (created.error) {
+        setBusy(false)
+        setError(apiErrorMessage(created.error, 'Could not save the connection.'))
+        return
+      }
+      connectionID = created.data.id
+      // A retry after a failed sync reuses the connection just saved.
+      setPicked(connectionID)
+      await queryClient.invalidateQueries({ queryKey: ['connections', orgSlug] })
+    }
+    if (connectionID) body.connection_id = connectionID
+    else fill(credentials, body)
     const result = await api.POST('/api/v1/orgs/{org}/projects/{project}/syncs', {
       params: { path: { org: orgSlug, project: projectSlug } },
       body: body as Body,
@@ -449,6 +588,7 @@ export function CreateSyncDialog({
       setError(apiErrorMessage(result.error, 'Could not create the sync.'))
       return
     }
+    await queryClient.invalidateQueries({ queryKey: ['connections', orgSlug] })
     onCreated()
   }
 
@@ -495,32 +635,104 @@ export function CreateSyncDialog({
           </FormSection>
 
           <FormSection step={2} title={`Where in ${provider.name}`}>
-            {destination.map(renderField)}
+            {destination.map((field) => (
+              <SpecField
+                key={field.key}
+                field={field}
+                value={values[field.key] ?? ''}
+                onChange={set(field.key)}
+              />
+            ))}
           </FormSection>
 
           {credentials.length > 0 && (
-            <FormSection step={3} title="Credentials">
-              <div className="rounded-app-sm border border-border-soft bg-panel px-3 py-2.5 text-xs leading-relaxed text-muted">
-                <p className="flex items-start gap-1.5">
-                  <KeyRound className="mt-0.5 size-3.5 shrink-0 text-dim" />
-                  <span>{provider.docs}</span>
-                </p>
-                {tokenLink && (
-                  <a
-                    href={tokenLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1.5 inline-flex items-center gap-1 font-medium text-accent-text hover:underline"
-                  >
-                    Create a token <ExternalLink className="size-3" />
-                  </a>
-                )}
-              </div>
-              {credentials.map(renderField)}
-              <p className="flex items-center gap-1.5 text-2xs text-dim">
-                <Lock className="size-3" /> Encrypted with the organization key and never shown
-                again.
-              </p>
+            <FormSection step={3} title={shared ? 'Connection' : 'Credentials'}>
+              {shared && (
+                <fieldset className="space-y-1.5">
+                  <legend className="sr-only">Connection</legend>
+                  {saved.map((connection) => (
+                    <ConnectionChoice
+                      key={connection.id}
+                      checked={choice === connection.id}
+                      onSelect={() => {
+                        setPicked(connection.id)
+                      }}
+                      title={connection.name}
+                      detail={[
+                        connection.base_url,
+                        connection.sync_count === 1
+                          ? 'used by 1 sync'
+                          : `used by ${String(connection.sync_count)} syncs`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    />
+                  ))}
+                  <ConnectionChoice
+                    checked={choice === NEW_CONNECTION}
+                    onSelect={() => {
+                      setPicked(NEW_CONNECTION)
+                    }}
+                    title={saved.length > 0 ? 'Add another connection' : 'Add a connection'}
+                    detail={`Enter a ${provider.name} credential once; later syncs just pick it.`}
+                  />
+                  {connections.isLoading && (
+                    <p className="flex items-center gap-1.5 text-2xs text-dim">
+                      <Loader2 className="size-3 animate-spin" /> Loading saved connections…
+                    </p>
+                  )}
+                </fieldset>
+              )}
+              {!chosen && (
+                <>
+                  <TokenHelp provider={provider} link={tokenLink} />
+                  {credentials.map((field) => (
+                    <SpecField
+                      key={field.key}
+                      field={field}
+                      value={values[field.key] ?? ''}
+                      onChange={set(field.key)}
+                    />
+                  ))}
+                  {shared && (
+                    <div className="space-y-2 rounded-app-sm border border-border-soft px-3 py-2.5">
+                      <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={saveConnection}
+                          onChange={(event) => {
+                            setSaveConnection(event.target.checked)
+                          }}
+                        />
+                        <span>
+                          Save as a connection for other syncs
+                          <span className="block text-2xs text-dim">
+                            Needs org-wide sync permission. Off stores the credential on this sync
+                            only.
+                          </span>
+                        </span>
+                      </label>
+                      {saveConnection && (
+                        <Field label="Connection name">
+                          <Input
+                            value={connectionName}
+                            placeholder={defaultConnectionName(provider, values)}
+                            maxLength={100}
+                            onChange={(event) => {
+                              setConnectionName(event.target.value)
+                            }}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                  )}
+                  <p className="flex items-center gap-1.5 text-2xs text-dim">
+                    <Lock className="size-3" /> Encrypted with the organization key and never shown
+                    again.
+                  </p>
+                </>
+              )}
             </FormSection>
           )}
 
@@ -556,6 +768,39 @@ export function CreateSyncDialog({
         </ModalFooter>
       </form>
     </Modal>
+  )
+}
+
+function ConnectionChoice({
+  checked,
+  onSelect,
+  title,
+  detail,
+}: {
+  checked: boolean
+  onSelect: () => void
+  title: string
+  detail: string
+}) {
+  return (
+    <label
+      className={cn(
+        'flex cursor-pointer items-start gap-2.5 rounded-app-sm border px-3 py-2 text-sm transition-colors',
+        checked ? 'border-accent-line bg-accent-soft' : 'border-border-soft hover:bg-hover',
+      )}
+    >
+      <input
+        type="radio"
+        name="connection"
+        className="mt-1"
+        checked={checked}
+        onChange={onSelect}
+      />
+      <span className="min-w-0">
+        <span className="block font-medium">{title}</span>
+        <span className="block truncate text-2xs text-dim">{detail}</span>
+      </span>
+    </label>
   )
 }
 
