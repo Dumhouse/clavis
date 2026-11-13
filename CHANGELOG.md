@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.2 — 2026-11-13
+
 ### Added
 
 - `CLAVIS_OUTBOUND_ALLOWLIST` (`security.outbound_allowlist`): IPs or CIDRs that syncs,
