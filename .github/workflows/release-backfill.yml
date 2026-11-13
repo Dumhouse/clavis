@@ -1,0 +1,70 @@
+name: Release backfill
+
+# Re-runs the release steps that come after GoReleaser (Cloudsmith packages,
+# the Docker Hub description and the Helm chart) for a tag whose Release run
+# stopped before them.
+# Safe to repeat: Cloudsmith uploads use --republish.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v0.3.0"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-26.04
+    environment: release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Download the deb and rpm packages from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mkdir -p dist
+          gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --dir dist \
+            --pattern '*.deb' --pattern '*.rpm'
+          ls -l dist
+      - name: Publish deb and rpm packages to Cloudsmith
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          CLOUDSMITH_REPO: ${{ vars.CLOUDSMITH_REPO || 'dumhouse/clavis' }}
+        run: |
+          if [ -z "$CLOUDSMITH_API_KEY" ]; then
+            echo "CLOUDSMITH_API_KEY is not set; skipping Cloudsmith upload."
+            exit 0
+          fi
+          # A private venv: newer Ubuntu runners refuse pip installs into the system
+          # Python (PEP 668).
+          python3 -m venv "$RUNNER_TEMP/cloudsmith"
+          "$RUNNER_TEMP/cloudsmith/bin/pip" install --quiet cloudsmith-cli
+          export PATH="$RUNNER_TEMP/cloudsmith/bin:$PATH"
+          for f in dist/*.deb; do cloudsmith push deb "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
+          for f in dist/*.rpm; do cloudsmith push rpm "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
+      - name: Update the Docker Hub description
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: dumhouse/clavis
+          short-description: Open-source secrets management for humans, machines, and AI agents.
+          readme-filepath: deploy/DOCKERHUB.md
+
+  helm:
+    name: Publish Helm chart
+    # The chart from the tag, published by the current helm.yml (the tag's own
+    # copy may predate workflow_call). Needs the Helm workflow from main.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/helm.yml
+    with:
+      tag: ${{ inputs.tag }}
