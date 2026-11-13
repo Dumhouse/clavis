@@ -8,17 +8,22 @@ name: Helm chart
 # created with GITHUB_TOKEN never fires a `release: published` trigger, which
 # is why this used to be a workflow that never ran. Run it by hand from the
 # Actions tab to publish the chart outside a release.
+#
+# A release publishes the chart with the release's version as both the chart
+# version and appVersion, so `--version 0.3.0` always means Clavis 0.3.0 and
+# a later release never overwrites an earlier chart. Without a version input,
+# the version and appVersion in Chart.yaml are used as they are.
 on:
   workflow_call:
     inputs:
       version:
-        description: "Release tag (v0.2.6) or version; becomes the chart's appVersion and default image tag"
+        description: "Release tag (v0.3.0) or version; becomes the chart version and appVersion"
         type: string
         default: ""
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag (v0.2.6) or version; empty keeps appVersion from Chart.yaml"
+        description: "Release tag (v0.3.0) or version; empty uses the versions in Chart.yaml"
         type: string
         default: ""
 
@@ -34,26 +39,39 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: helm lint deploy/helm/clavis
       - name: Package
+        id: package
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          args=()
-          if [ -n "${VERSION}" ]; then args+=(--app-version "${VERSION#v}"); fi
-          helm package deploy/helm/clavis --destination dist "${args[@]}"
+          version="${VERSION#v}"
+          if [ -z "${version}" ]; then
+            version="$(sed -n 's/^version: *//p' deploy/helm/clavis/Chart.yaml | tr -d '"')"
+            helm package deploy/helm/clavis --destination dist
+          else
+            helm package deploy/helm/clavis --destination dist --version "${version}" --app-version "${version}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
       - name: Push
         env:
           GH_ACTOR: ${{ github.actor }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHART_VERSION: ${{ steps.package.outputs.version }}
         run: |
           echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${GH_ACTOR}" --password-stdin
-          helm push dist/clavis-*.tgz oci://ghcr.io/dumhouse/charts
+          helm push "dist/clavis-${CHART_VERSION}.tgz" oci://ghcr.io/dumhouse/charts
           helm registry logout ghcr.io
       - name: Anonymous install works
         # A new ghcr.io package is private. The chart is only useful when
         # anyone can pull it, so fail loudly until its visibility is Public.
+        # Retries cover the short delay before a fresh push is pullable.
+        env:
+          CHART_VERSION: ${{ steps.package.outputs.version }}
         run: |
-          version="$(sed -n 's/^version: *//p' deploy/helm/clavis/Chart.yaml | tr -d '"')"
-          if ! helm pull oci://ghcr.io/dumhouse/charts/clavis --version "${version}" --destination "$(mktemp -d)"; then
-            echo "::error::Chart ${version} was pushed but cannot be pulled anonymously. Make the package public: https://github.com/orgs/Dumhouse/packages/container/charts%2Fclavis/settings (Danger zone, Change visibility)."
-            exit 1
-          fi
+          for attempt in 1 2 3 4 5; do
+            if helm pull oci://ghcr.io/dumhouse/charts/clavis --version "${CHART_VERSION}" --destination "$(mktemp -d)"; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Chart ${CHART_VERSION} was pushed but cannot be pulled anonymously. Make the package public: https://github.com/orgs/Dumhouse/packages/container/charts%2Fclavis/settings (Danger zone, Change visibility)."
+          exit 1
