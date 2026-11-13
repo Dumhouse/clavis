@@ -45,8 +45,22 @@ their values.
 ## Quick start
 
 ```sh
-docker run -p 8080:8080 -v clavis-data:/data ghcr.io/dumhouse/clavis:latest
+docker run -p 8080:8080 -v clavis-data:/data dumhouse/clavis:latest
 ```
+
+The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
+`dumhouse/clavis:0.2.5` for production.
+
+**Install the CLI** (it is the same binary as the server):
+
+| Platform | Command |
+| --- | --- |
+| macOS | `brew install dumhouse/tap/clavis` |
+| Windows | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket && scoop install clavis` |
+| Linux or macOS | `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \| bash` |
+| Debian, Ubuntu, Fedora, Alpine | `.deb`, `.rpm` and `.apk` files on the [releases page](https://github.com/Dumhouse/clavis/releases) |
+
+All methods, including `go install`, are listed in the [CLI docs](https://dumhouse.github.io/clavis/cli).
 
 1. Open <http://localhost:8080> and paste the one-time setup token Clavis
    printed (also written to `/data/setup-token`).
