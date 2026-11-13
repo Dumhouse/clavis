@@ -20,6 +20,10 @@ on:
         description: "Release tag (v0.3.0) or version; becomes the chart version and appVersion"
         type: string
         default: ""
+      ref:
+        description: "Git ref to package the chart from; empty uses the ref that triggered the run"
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       version:
@@ -36,6 +40,8 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
       - uses: azure/setup-helm@v4
       - run: helm lint deploy/helm/clavis
       - name: Package
