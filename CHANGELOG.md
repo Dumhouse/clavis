@@ -8,6 +8,8 @@
   Fedora and RHEL systems can install from an apt or rpm repository.
 - A post-release check pulls and runs both container images and confirms the
   release assets, Homebrew cask and Scoop manifest list the new version.
+- Releases open a pull request to `microsoft/winget-pkgs`, so Windows users can
+  install with `winget install Dumhouse.Clavis` once the package is accepted.
 - Release notes open with install commands and explain which file to download.
 - The container image carries OCI title, description, documentation and vendor
   labels, and its Docker Hub overview is published on every release.
