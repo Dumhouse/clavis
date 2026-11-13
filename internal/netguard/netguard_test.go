@@ -121,10 +121,13 @@ func TestNewRejectsInvalidAllowlist(t *testing.T) {
 }
 
 func TestBlockedErrorExplainsTheFix(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 	defer server.Close()
 	g, _ := New(nil)
-	_, err := g.Client().Get(server.URL)
+	resp, err := g.Client().Get(server.URL)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
 	if !errors.Is(err, ErrBlocked) || !strings.Contains(err.Error(), "outbound_allowlist") {
 		t.Fatalf("error = %v", err)
 	}
