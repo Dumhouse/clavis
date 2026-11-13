@@ -47,6 +47,22 @@ defaults to a 10 Gi persistent volume claim mounted at `/data`. Set
 `persistence.storageClass` or `persistence.existingClaim` to use your storage
 class or an existing claim.
 
+## Verify the chart
+
+Every published chart is signed keylessly with
+[cosign](https://docs.sigstore.dev/cosign/), the same way as the Clavis images
+and binaries. The signature proves the chart was built by the Clavis release
+workflow from a release tag. Check it before installing:
+
+```sh
+cosign verify ghcr.io/dumhouse/charts/clavis:0.3.0 \
+  --certificate-identity-regexp '^https://github\.com/Dumhouse/clavis/\.github/workflows/helm\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+A published chart version is never replaced, so a verified `0.3.0` stays the
+same chart.
+
 ## Image and database settings
 
 The chart runs the server image of its own release by default: chart `0.3.0`
