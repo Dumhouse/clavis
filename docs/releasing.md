@@ -173,12 +173,19 @@ One-time setup:
 
 1. Fork `microsoft/winget-pkgs` into the organization, so the fork is
    `Dumhouse/winget-pkgs`. Keep the name.
-2. Create a fine-grained token with the organization as owner, only the
-   `winget-pkgs` fork selected, and *Contents: Read and write* plus
-   *Pull requests: Read and write*. If the organization restricts tokens, the
-   pull request itself is created against `microsoft/winget-pkgs`, so a classic
-   token with `public_repo` scope is the fallback.
-3. Store it as the secret `WINGET_TOKEN`. Until it exists the step is skipped.
+2. Create a **classic** personal access token with the `public_repo` scope,
+   from an account that can push to the fork (details below).
+3. Store it as the secret `WINGET_TOKEN`.
+4. Turn the step on by creating the repository **variable** `WINGET_ENABLED` with
+   the value `true` (Settings → Secrets and variables → Actions → Variables).
+   Until then the step is skipped, so a problem with the token cannot fail a
+   release.
+
+The token must be able to open a pull request on `microsoft/winget-pkgs`, a
+repository the organization does not own. A fine-grained token cannot do that,
+because its resource owner can only be the organization or your account. Use a
+**classic** token with the `public_repo` scope, created by an account that owns or
+can push to the fork.
 
 What to expect:
 

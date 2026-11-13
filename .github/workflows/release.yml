@@ -54,6 +54,7 @@ jobs:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          WINGET_ENABLED: ${{ vars.WINGET_ENABLED }}
       - name: Update the Docker Hub description
         uses: peter-evans/dockerhub-description@v5
         with:
