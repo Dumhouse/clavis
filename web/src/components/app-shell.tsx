@@ -407,7 +407,13 @@ export function AppShell() {
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto" data-scroll-region>
-          <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">
+          <div
+            className={cn(
+              'mx-auto w-full px-4 py-6 md:px-8 md:py-8',
+              // The secrets grid needs room for long values.
+              /^\/projects\/[^/]+\/?$/.test(pathname) ? 'max-w-[110rem]' : 'max-w-6xl',
+            )}
+          >
             <Outlet />
           </div>
         </main>

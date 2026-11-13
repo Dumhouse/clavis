@@ -21,6 +21,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
 import { ensureReauth } from '@/lib/reauth'
+import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Cmd, PageIntro } from '@/components/page-intro'
@@ -37,6 +38,11 @@ export function IdentitiesPage() {
   const { org } = useCurrentOrg()
   const queryClient = useQueryClient()
   const [creating, setCreating] = useState(false)
+  useShortcuts({
+    n: () => {
+      setCreating(true)
+    },
+  })
   const [token, setToken] = useState<{ value: string; name: string; agent: boolean } | null>(null)
   const [copied, setCopied] = useState(false)
   const [editingCommands, setEditingCommands] = useState<Identity | null>(null)

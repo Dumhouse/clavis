@@ -9,7 +9,7 @@ export const globalShortcuts: Shortcut[] = [
   { keys: 'G then R', label: 'Go to requests' },
   { keys: 'G then H', label: 'Go to health' },
   { keys: 'G then A', label: 'Go to access (members)' },
-  { keys: 'J / K', label: 'Next / previous row' },
+  { keys: 'J / K', label: 'Scroll down / up' },
 ]
 
 export const pageHints: Record<string, PageHints> = {
@@ -51,10 +51,7 @@ export const pageHints: Record<string, PageHints> = {
   },
   '/projects/$project/environments': {
     title: 'Environments',
-    keys: [
-      { keys: '↑ / ↓', label: 'Reorder environment' },
-      { keys: 'N', label: 'New environment' },
-    ],
+    keys: [{ keys: 'N', label: 'New environment' }],
     cmds: [
       { cmd: 'clavis env ls', description: 'List environments' },
       { cmd: 'clavis env diff dev prod', description: 'Compare key names' },
@@ -69,7 +66,7 @@ export const pageHints: Record<string, PageHints> = {
     title: 'Audit log',
     keys: [
       { keys: '/', label: 'Filter events' },
-      { keys: 'J / K', label: 'Move through rows' },
+      { keys: 'J / K', label: 'Scroll down / up' },
     ],
     cmds: [{ cmd: 'clavis admin audit verify', description: 'Verify the audit chain' }],
     tips: [
@@ -80,10 +77,7 @@ export const pageHints: Record<string, PageHints> = {
   },
   '/members': {
     title: 'Members',
-    keys: [
-      { keys: 'N', label: 'Invite member' },
-      { keys: '/', label: 'Filter members' },
-    ],
+    keys: [{ keys: 'N', label: 'Invite member' }],
     cmds: [
       { cmd: 'clavis members ls', description: 'List members and roles' },
       { cmd: 'clavis access explain', description: 'Explain why someone has access' },
