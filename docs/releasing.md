@@ -16,6 +16,7 @@ and publishes it to each channel below.
 | `dumhouse/clavis` on Docker Hub | The same image | `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` |
 | Homebrew tap | A cask in `Dumhouse/homebrew-tap` | `HOMEBREW_TAP_TOKEN` |
 | Scoop bucket | A manifest in `Dumhouse/scoop-bucket` | `SCOOP_BUCKET_TOKEN` |
+| apt and rpm repositories | Hosted `.deb` and `.rpm` on Cloudsmith | `CLOUDSMITH_API_KEY` |
 | Helm chart | OCI chart at `ghcr.io/dumhouse/charts` | Nothing extra (separate workflow) |
 
 Channels whose secret is missing are skipped, so a release never fails because
@@ -108,13 +109,18 @@ open-source hosting and signs packages for you.
 
 1. Contact Cloudsmith about their open-source plan for public projects and wait
    for approval.
-2. Create an organization and a repository (for example `dumhouse/clavis`).
+2. Create an organization and a repository (for example `dumhouse/clavis`). If
+   yours has a different `owner/repository` name, set the repository variable
+   `CLOUDSMITH_REPO` to it (Settings → Secrets and variables → Actions →
+   Variables).
 3. Create an API key and store it as the secret `CLOUDSMITH_API_KEY`.
-4. Add a release step that uploads each package with the Cloudsmith CLI
-   (`cloudsmith push deb` / `cloudsmith push rpm`). Cloudsmith then shows a
-   one-line setup command for users.
 
-Until this is done, install the packages from the release page.
+The release workflow then uploads every `.deb` and `.rpm` with the Cloudsmith CLI
+(`cloudsmith push deb` and `cloudsmith push rpm`). Without the secret that step is
+skipped. Cloudsmith shows a one-line setup command for users on the repository's
+page.
+
+Until the repository is set up, install the packages from the release page.
 
 ## winget
 
