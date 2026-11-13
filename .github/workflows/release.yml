@@ -75,7 +75,11 @@ jobs:
             echo "CLOUDSMITH_API_KEY is not set; skipping Cloudsmith upload."
             exit 0
           fi
-          pip install --quiet cloudsmith-cli
+          # A private venv: newer Ubuntu runners refuse pip installs into the system
+          # Python (PEP 668).
+          python3 -m venv "$RUNNER_TEMP/cloudsmith"
+          "$RUNNER_TEMP/cloudsmith/bin/pip" install --quiet cloudsmith-cli
+          export PATH="$RUNNER_TEMP/cloudsmith/bin:$PATH"
           for f in dist/*.deb; do cloudsmith push deb "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
           for f in dist/*.rpm; do cloudsmith push rpm "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
       - id: subjects

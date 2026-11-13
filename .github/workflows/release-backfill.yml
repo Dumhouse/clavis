@@ -1,7 +1,8 @@
 name: Release backfill
 
-# Re-runs the release steps that come after GoReleaser (Cloudsmith packages and
-# the Docker Hub description) for a tag whose Release run stopped before them.
+# Re-runs the release steps that come after GoReleaser (Cloudsmith packages,
+# the Docker Hub description and the Helm chart) for a tag whose Release run
+# stopped before them.
 # Safe to repeat: Cloudsmith uploads use --republish.
 on:
   workflow_dispatch:
@@ -40,7 +41,11 @@ jobs:
             echo "CLOUDSMITH_API_KEY is not set; skipping Cloudsmith upload."
             exit 0
           fi
-          pip install --quiet cloudsmith-cli
+          # A private venv: newer Ubuntu runners refuse pip installs into the system
+          # Python (PEP 668).
+          python3 -m venv "$RUNNER_TEMP/cloudsmith"
+          "$RUNNER_TEMP/cloudsmith/bin/pip" install --quiet cloudsmith-cli
+          export PATH="$RUNNER_TEMP/cloudsmith/bin:$PATH"
           for f in dist/*.deb; do cloudsmith push deb "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
           for f in dist/*.rpm; do cloudsmith push rpm "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
       - name: Update the Docker Hub description
@@ -51,3 +56,15 @@ jobs:
           repository: dumhouse/clavis
           short-description: Open-source secrets management for humans, machines, and AI agents.
           readme-filepath: deploy/DOCKERHUB.md
+
+  helm:
+    name: Publish Helm chart
+    # The chart from the tag, published by the current helm.yml (the tag's own
+    # copy may predate workflow_call). Needs the Helm workflow from main.
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/helm.yml
+    with:
+      version: ${{ inputs.tag }}
+      ref: ${{ inputs.tag }}
