@@ -130,6 +130,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     uses: ./.github/workflows/helm.yml
     with:
-      version: ${{ github.ref_name }}
+      tag: ${{ github.ref_name }}
