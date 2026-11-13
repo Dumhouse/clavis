@@ -33,21 +33,52 @@ func (s *Service) ForgotPassword(ctx context.Context, email, ip string) (string,
 		}
 		return "", nil, err
 	}
-	token, hash, err := randomToken()
+	token, err := s.createResetToken(ctx, user, ResetTokenTTL)
 	if err != nil {
 		return "", nil, err
+	}
+	return token, user, nil
+}
+
+// AdminResetLink creates a reset token for email without rate limiting or
+// email delivery. It is for operators with shell access to the server (for
+// example `clavis admin reset-password` through docker exec), typically on
+// installs without SMTP. Unknown accounts return store.ErrNotFound.
+func (s *Service) AdminResetLink(ctx context.Context, email string, ttl time.Duration) (string, *store.User, error) {
+	normalized, err := NormalizeEmail(email)
+	if err != nil {
+		return "", nil, err
+	}
+	user, err := s.store.GetUserByEmail(ctx, normalized)
+	if err != nil {
+		return "", nil, err
+	}
+	if ttl <= 0 {
+		ttl = ResetTokenTTL
+	}
+	token, err := s.createResetToken(ctx, user, ttl)
+	if err != nil {
+		return "", nil, err
+	}
+	return token, user, nil
+}
+
+func (s *Service) createResetToken(ctx context.Context, user *store.User, ttl time.Duration) (string, error) {
+	token, hash, err := randomToken()
+	if err != nil {
+		return "", err
 	}
 	reset := &store.PasswordReset{
 		ID:        uuid.NewString(),
 		UserID:    user.ID,
 		TokenHash: hash,
 		CreatedAt: s.now().UTC(),
-		ExpiresAt: s.now().UTC().Add(ResetTokenTTL),
+		ExpiresAt: s.now().UTC().Add(ttl),
 	}
 	if err := s.store.CreatePasswordReset(ctx, reset); err != nil {
-		return "", nil, err
+		return "", err
 	}
-	return token, user, nil
+	return token, nil
 }
 
 // ResetPassword validates the token, sets a new password, and revokes sessions.

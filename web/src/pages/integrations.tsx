@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
   Cable,
+  KeyRound,
   Loader2,
   Play,
   Plus,
@@ -26,9 +27,10 @@ import {
   providers,
   type Provider,
 } from '@/pages/integration-create'
+import { ConnectionsSection, useConnections } from '@/pages/integration-connections'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
-import { confirmAction } from '@/components/ui/dialogs'
+import { confirmAction, promptDialog } from '@/components/ui/dialogs'
 
 type Project = components['schemas']['ProjectBody']
 type Sync = components['schemas']['SyncBody']
@@ -104,8 +106,11 @@ export function IntegrationsPage() {
     },
   })
 
+  const connections = useConnections(org?.slug)
+
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['syncs', org?.slug, project] })
+    await queryClient.invalidateQueries({ queryKey: ['connections', org?.slug] })
     await queryClient.invalidateQueries({
       queryKey: ['sync-runs', org?.slug, project, selected?.id],
     })
@@ -122,11 +127,19 @@ export function IntegrationsPage() {
       return result.data
     },
     onSuccess: async (data, input) => {
-      setNotice(
-        input.confirm
-          ? `Sync ${data?.run?.status ?? 'started'} with ${String(data?.run?.secret_count ?? 0)} keys.`
-          : `Preview: ${String(data?.preview?.count ?? 0)} keys → ${data?.preview?.destination ?? ''}`,
-      )
+      // A failed push is still a 200: the run records the provider's error.
+      if (data?.run?.status === 'failed') {
+        toast(`Sync failed: ${data.run.error || 'the provider returned no details.'}`, {
+          tone: 'error',
+        })
+        setSelected(input.sync)
+      } else {
+        setNotice(
+          input.confirm
+            ? `Sync ${data?.run?.status ?? 'started'} with ${String(data?.run?.secret_count ?? 0)} keys.`
+            : `Preview: ${String(data?.preview?.count ?? 0)} keys → ${data?.preview?.destination ?? ''}`,
+        )
+      }
       await invalidate()
     },
     onError: (cause: unknown) => {
@@ -170,6 +183,38 @@ export function IntegrationsPage() {
     onSuccess: invalidate,
     onError: (cause: unknown) => {
       setNotice(cause instanceof Error ? cause.message : 'Could not update the sync.')
+    },
+  })
+
+  // Migration path: turn a sync's own credential into a reusable connection.
+  const share = useMutation({
+    mutationFn: async (sync: Sync) => {
+      if (!org) throw new Error('No organization.')
+      const meta = providers.find((candidate) => candidate.id === sync.provider)
+      const name = await promptDialog({
+        title: 'Save this credential as a connection?',
+        body: 'Other syncs can then pick it instead of asking for the token again. Rotating the connection later updates every sync that uses it.',
+        label: 'Connection name',
+        placeholder: meta?.name ?? sync.provider,
+        confirmLabel: 'Save connection',
+      })
+      if (name === null) return null
+      const result = await api.PUT('/api/v1/orgs/{org}/projects/{project}/syncs/{id}/connection', {
+        params: { path: { org: org.slug, project, id: sync.id } },
+        body: { name: name.trim() || (meta?.name ?? sync.provider) },
+      })
+      if (result.error)
+        throw new Error(apiErrorMessage(result.error, 'Could not save the connection.'))
+      return result.data
+    },
+    onSuccess: async (data) => {
+      if (data) toast(`This sync now uses the connection “${data.connection.name}”.`)
+      await invalidate()
+    },
+    onError: (cause: unknown) => {
+      toast(cause instanceof Error ? cause.message : 'Could not save the connection.', {
+        tone: 'error',
+      })
     },
   })
 
@@ -249,7 +294,36 @@ export function IntegrationsPage() {
                   })()}
                   <span className="text-dim">←</span>
                   <span className="font-mono text-xs text-muted">{sync.environment}</span>
-                  <span
+                  {sync.connection_id ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-elev px-1.5 py-0.5 text-2xs text-muted"
+                      title="Uses a shared connection"
+                    >
+                      <KeyRound className="size-3" />
+                      {connections.data?.find((item) => item.id === sync.connection_id)?.name ??
+                        'connection'}
+                    </span>
+                  ) : (
+                    sync.provider !== 'http' && (
+                      <button
+                        type="button"
+                        className="rounded-full px-1.5 py-0.5 text-2xs text-dim hover:bg-hover hover:text-text"
+                        title="This sync stores its own credential. Save it as a connection to reuse it."
+                        disabled={share.isPending}
+                        onClick={() => {
+                          share.mutate(sync)
+                        }}
+                      >
+                        own token · share
+                      </button>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    title="Show run history"
+                    onClick={() => {
+                      setSelected(sync)
+                    }}
                     className={
                       sync.status === 'success'
                         ? 'rounded-full bg-success-bg px-1.5 py-0.5 text-2xs font-semibold text-success'
@@ -259,7 +333,7 @@ export function IntegrationsPage() {
                     }
                   >
                     {sync.status}
-                  </span>
+                  </button>
                   {!sync.confirmed && (
                     <span className="rounded-full bg-amber-bg px-1.5 py-0.5 text-2xs font-semibold text-amber-fg">
                       first run unconfirmed
@@ -357,6 +431,8 @@ export function IntegrationsPage() {
           )}
         </div>
       </section>
+
+      {org && <ConnectionsSection orgSlug={org.slug} />}
 
       <section aria-labelledby="add-integration">
         <h2 id="add-integration" className="mb-2 text-base font-semibold">

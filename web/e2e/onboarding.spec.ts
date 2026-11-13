@@ -52,15 +52,24 @@ test('setup → project → secret → reveal → audit', async ({ page }) => {
   await page.getByLabel('Your name').fill('E2E Owner')
   await page.getByLabel('Email').fill('e2e@example.com')
   await page.locator('input[type="password"]').fill('correct horse battery staple')
-  await page.getByLabel('Organization').fill('E2E Org')
-  await page.getByLabel('First project').fill('Payments API')
-  await page.getByRole('button', { name: 'Create instance' }).click()
+  await page.getByRole('button', { name: 'Create owner account' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible()
-  const project = page.getByRole('link', { name: /Payments API/ })
-  await expect(project).toBeVisible()
+  // Welcome flow: organization, first project and stack, connect commands.
+  await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible()
+  await page.getByLabel('Organization name').fill('E2E Org')
+  await page.getByRole('button', { name: 'Continue' }).click()
 
-  await project.click()
+  await expect(page.getByRole('heading', { name: 'Your first project' })).toBeVisible()
+  await page.getByLabel('Project name').fill('Payments API')
+  await page.getByRole('radio', { name: 'Python' }).click()
+  await page.getByRole('button', { name: 'Create project' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Connect your app' })).toBeVisible()
+  await expect(page.getByText('clavis run python app.py')).toBeVisible()
+  await expect(page.getByText('clavis init --org e2e-org --project payments-api')).toBeVisible()
+  await expectNoViolations(page)
+  await page.getByRole('button', { name: 'Add your first secret' }).click()
+
   await expect(page.getByRole('heading', { name: 'Payments API', level: 1 })).toBeVisible()
 
   const accessibility = await new AxeBuilder({ page })
@@ -235,4 +244,76 @@ test('agent identities start deny-all and accept an allowlist', async ({ page })
   await page.getByLabel('Command patterns').fill('go test ./...\nnpm test')
   await page.getByRole('button', { name: 'Save allowlist' }).click()
   await expect(page.getByText(/2 allowed command patterns/)).toBeVisible()
+})
+
+test('keyboard shortcuts from the hint bar work on every page that advertises them', async ({
+  page,
+}) => {
+  await signIn(page)
+
+  // Projects: N opens New project.
+  await page.keyboard.press('n')
+  await expect(page.getByRole('dialog').getByText('New project').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // Global: G then A goes to members; J scrolls without error.
+  await page.keyboard.press('g')
+  await page.keyboard.press('a')
+  await expect(page).toHaveURL(/\/members$/)
+  // Members: N opens the invite form.
+  await expect(page.getByRole('button', { name: 'Invite member' })).toBeVisible()
+  await page.keyboard.press('n')
+  await expect(page.getByRole('heading', { name: 'Invite member' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Global: G then S returns to projects.
+  await page.keyboard.press('g')
+  await page.keyboard.press('s')
+  await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible()
+
+  // Project secrets: N add, P paste, / filter.
+  await openProject(page)
+  await page.keyboard.press('n')
+  await expect(page.getByRole('heading', { name: 'Add secret' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('p')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('/')
+  await expect(page.getByLabel('Filter keys')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await page.locator('body').click({ position: { x: 1, y: 1 } })
+
+  // Typing in a field must not trigger shortcuts.
+  await page.getByLabel('Filter keys').fill('npn')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('Filter keys').fill('')
+
+  // Environments: N opens New environment.
+  await page.getByRole('button', { name: 'Tools' }).click()
+  await page.getByRole('link', { name: 'Environments', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Environments', level: 1 })).toBeVisible()
+  await page.locator('body').click({ position: { x: 1, y: 1 } })
+  await page.keyboard.press('n')
+  await expect(page.getByRole('heading', { name: 'New environment' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Agents & machines: N opens the add dialog.
+  await page.getByRole('link', { name: 'Agents & machines', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Agents & machines', level: 1 })).toBeVisible()
+  await page.keyboard.press('n')
+  await expect(page.getByRole('heading', { name: 'Add agent or machine' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  // Audit: / focuses the event filter.
+  await page.getByRole('link', { name: 'Audit log', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible()
+  await page.keyboard.press('/')
+  await expect(page.getByLabel('Filter events')).toBeFocused()
+
+  // ? opens the shortcuts sheet.
+  await page.locator('body').click({ position: { x: 1, y: 1 } })
+  await page.keyboard.press('?')
+  await expect(page.getByRole('heading', { name: 'Shortcuts & commands' })).toBeVisible()
 })

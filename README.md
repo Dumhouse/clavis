@@ -17,7 +17,7 @@ No unseal ceremony. No enterprise edition. Every feature free.
 
 **[Website](https://dumhouse.github.io/clavis/)** ·
 [Quickstart](docs/quickstart.md) ·
-[CLI](docs/commands.md) ·
+[CLI reference](https://dumhouse.github.io/clavis/reference/) ·
 [AI agents](docs/agents.md) ·
 [Security](docs/security.md) ·
 [FAQ](#faq)
@@ -45,8 +45,15 @@ their values.
 ## Quick start
 
 ```sh
-docker run -p 8080:8080 -v clavis-data:/data dumhouse/clavis:latest
+docker run -d --name clavis --restart unless-stopped \
+  -p 80:8080 -v clavis-data:/data \
+  dumhouse/clavis:latest
 ```
+
+Running it on a server or in a home lab? The
+[install wizard](https://dumhouse.github.io/clavis/install) writes a compose
+file with HTTPS (self-signed, or Let's Encrypt even for a LAN-only server) and a
+ready setup link.
 
 The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
 `dumhouse/clavis:0.2.5` for production.
@@ -62,16 +69,33 @@ The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
 
 All methods, including `go install`, are listed in the [CLI docs](https://dumhouse.github.io/clavis/cli).
 
-1. Open <http://localhost:8080> and paste the one-time setup token Clavis
-   printed (also written to `/data/setup-token`).
-2. Create the owner account and organization. Setup then closes for good.
+1. Open the setup link from the log (`docker logs clavis 2>&1 | grep setup_url`),
+   or open <http://localhost/setup> and paste the token from
+   `docker exec clavis clavis setup-token`.
+2. Create the owner account. A welcome flow then asks for your organization,
+   first project and stack, and shows the commands for your OS. Setup closes for good.
 3. Link a repo and run your app with secrets injected:
 
 ```sh
 clavis login
 clavis link --project web-app --env development
-clavis run -- pnpm dev            # output is masked against injected values
+clavis run pnpm dev            # output is masked against injected values
 ```
+
+Clavis flags go before your command and `--` is optional, so
+`clavis run rails s -p 3001` passes `-p 3001` to Rails. Save the command once
+in `.clavis.yaml` and a plain `clavis run` starts it:
+
+```yaml
+# .clavis.yaml (commit it, it holds no secrets)
+project: web-app
+env: development
+run: pnpm dev
+```
+
+Locked out on a server without email? `docker exec clavis clavis admin reset-password you@example.com`
+prints a one-time reset link. Every command, with flags and examples, is in the
+[CLI reference](https://dumhouse.github.io/clavis/reference/).
 
 > [!IMPORTANT]
 > The data directory holds the SQLite database **and** the root key. Back up the
@@ -126,7 +150,7 @@ schema next to your code and let CI reject bad values.
 **CI gate**<br />
 <sub><code>clavis check</code> exits 6 on any missing or invalid value, so drift never reaches production.</sub>
 
-[Explore the schema →](docs/commands.md#schema-and-validation)
+[Explore the schema →](https://dumhouse.github.io/clavis/reference/schema)
 
 </td>
 <td width="64%">
@@ -324,7 +348,7 @@ releases before relying on it for critical systems. See the [roadmap](ROADMAP.md
 
 | Get started | Operate | Reference |
 |---|---|---|
-| [Quickstart](docs/quickstart.md) | [Self-hosting](docs/self-hosting.md) | [CLI commands](docs/commands.md) |
+| [Quickstart](docs/quickstart.md) | [Self-hosting](docs/self-hosting.md) | [CLI reference](https://dumhouse.github.io/clavis/reference/) |
 | [CI and machine tokens](docs/ci.md) | [Security design](docs/security.md) | [Architecture](docs/architecture.md) |
 | [AI agents and MCP](docs/agents.md) | [Supply chain](docs/supply-chain.md) | [Data model](docs/data-model.md) |
 | [Migration guides](docs/migrations/index.md) | [Reproducible builds](docs/reproducible-builds.md) | [API stability](docs/api-stability.md) |

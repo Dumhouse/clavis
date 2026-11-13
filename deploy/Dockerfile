@@ -36,7 +36,7 @@ USER nonroot:nonroot
 # distroless has no shell for mkdir/chown). Without it Docker creates the
 # volume mount point as root and the server cannot write clavis.db.
 WORKDIR /data
-EXPOSE 8080
+EXPOSE 8080 8443
 ENV CLAVIS_SERVER_ADDR=:8080 \
     CLAVIS_DATA_DIR=/data \
     CLAVIS_LOG_FORMAT=json

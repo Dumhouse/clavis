@@ -10,7 +10,7 @@ keeps the source system readable until you cut over.
 - [`.env` files and directories](dotenv.md)
 
 The importer CLI supports the same providers; see
-[`clavis import`](../commands.md).
+[`clavis import`](../reference/import.md).
 
 ```sh
 clavis import --provider infisical --dry-run

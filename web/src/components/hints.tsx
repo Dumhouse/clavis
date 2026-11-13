@@ -59,30 +59,8 @@ export function HintBar({ pathname, onShowSheet }: { pathname: string; onShowShe
     }, 1500)
   }
 
-  if (!enabled) {
-    return (
-      <div className="hidden h-8 shrink-0 items-center gap-2 border-t border-border bg-panel sm:flex px-4 text-xs text-dim">
-        <button
-          type="button"
-          className="rounded px-1.5 py-0.5 hover:bg-hover hover:text-text"
-          onClick={onShowSheet}
-        >
-          ? Shortcuts
-        </button>
-        <button
-          type="button"
-          className="ml-auto rounded px-1.5 py-0.5 hover:bg-hover hover:text-text"
-          onClick={() => {
-            localStorage.setItem(hintsEnabledKey, 'true')
-            setEnabled(true)
-            window.dispatchEvent(new CustomEvent('clavis:hints'))
-          }}
-        >
-          Show hints
-        </button>
-      </div>
-    )
-  }
+  // Hidden means hidden: re-enable from Settings, the command palette, or `?`.
+  if (!enabled) return null
 
   return (
     <div className="hidden h-[34px] shrink-0 items-center gap-4 border-t sm:flex border-border bg-panel px-4 text-xs text-dim">

@@ -103,6 +103,15 @@ func WithWebAuthn(rp *webauthn.WebAuthn) Option {
 	return func(s *Service) { s.webauthn = rp }
 }
 
+// WithSetupToken presets the first-run setup token (CLAVIS_SETUP_TOKEN).
+func WithSetupToken(token string) Option {
+	return func(s *Service) {
+		if token != "" {
+			s.setup.SetPreset(token)
+		}
+	}
+}
+
 // NewService builds an auth service. The dummy hash equalizes timing for
 // unknown accounts.
 func NewService(st *store.Store, logger *slog.Logger, setupPath string, opts ...Option) (*Service, error) {

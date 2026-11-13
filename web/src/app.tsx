@@ -7,10 +7,11 @@ import { AuthLoading, LoginPage, SetupPage } from '@/pages/auth'
 import { JoinPage } from '@/pages/join'
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from '@/pages/password-reset'
 import { SharePage } from '@/pages/share'
+import { WelcomePage } from '@/pages/welcome'
 import { ApprovalPage } from '@/pages/approval'
 
 export function App() {
-  const { status } = useAuth()
+  const { status, onboarding } = useAuth()
   if (window.location.pathname.startsWith('/share/')) return <SharePage />
   if (window.location.pathname === '/approvals') return <ApprovalPage />
   if (status === 'loading') return <AuthLoading />
@@ -20,6 +21,7 @@ export function App() {
   if (window.location.pathname === '/reset') return <ResetPasswordPage />
   if (window.location.pathname === '/verify') return <VerifyEmailPage />
   if (status === 'anonymous') return <LoginPage />
+  if (onboarding) return <WelcomePage />
   return (
     <OrgProvider>
       <RouterProvider router={router} />

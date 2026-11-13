@@ -14,7 +14,7 @@ import (
 )
 
 func (s *Service) driftAWS(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values map[string]string) ([]string, error) {
-	secretKey, err := s.decryptOrgSecret(org, sync.ID, "aws_secret", config.AWSSecret)
+	secretKey, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "aws_secret", config.AWSSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (s *Service) driftAWS(ctx context.Context, org *store.Org, sync *store.Sync
 }
 
 func (s *Service) driftGCP(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values map[string]string) ([]string, error) {
-	rawAccount, err := s.decryptOrgSecret(org, sync.ID, "gcp_service_account", config.GCPServiceAccount)
+	rawAccount, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "gcp_service_account", config.GCPServiceAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (s *Service) driftGCP(ctx context.Context, org *store.Org, sync *store.Sync
 }
 
 func (s *Service) driftNetlify(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values map[string]string) ([]string, error) {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (s *Service) driftNetlify(ctx context.Context, org *store.Org, sync *store.
 }
 
 func (s *Service) driftVercel(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) ([]string, error) {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func (s *Service) driftCloudflare(ctx context.Context, org *store.Org, sync *sto
 	if config.CFMode == "workers" {
 		return nil, nil
 	}
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return nil, err
 	}

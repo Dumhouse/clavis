@@ -28,7 +28,7 @@ import (
 
 const forgejoDefaultURL = "https://codeberg.org"
 
-func validateForgejoConfig(config *syncConfig, in SyncInput) error {
+func validateForgejoConfig(config *syncConfig, in SyncInput, inline bool) error {
 	config.ForgejoRepo = strings.Trim(strings.TrimSpace(in.ForgejoRepo), "/")
 	config.ForgejoScope = strings.ToLower(strings.TrimSpace(in.ForgejoScope))
 	if config.ForgejoScope == "" {
@@ -55,7 +55,7 @@ func validateForgejoConfig(config *syncConfig, in SyncInput) error {
 	if !strings.HasPrefix(config.BaseURL, "https://") && !strings.HasPrefix(config.BaseURL, "http://") {
 		return fmt.Errorf("%w: Forgejo URL must be http(s)", ErrValidation)
 	}
-	if in.Token == "" {
+	if inline && in.Token == "" {
 		return fmt.Errorf("%w: Forgejo access token is required", ErrValidation)
 	}
 	return nil
@@ -87,7 +87,7 @@ func (s *Service) forgejoClient() *http.Client {
 }
 
 func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (s *Service) postForgejo(ctx context.Context, org *store.Org, sync *store.S
 // driftForgejo compares variable values and checks that every secret exists;
 // secret values are write-only and cannot be compared.
 func (s *Service) driftForgejo(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values, kinds map[string]string) ([]string, error) {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return nil, err
 	}

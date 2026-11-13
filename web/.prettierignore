@@ -5,3 +5,4 @@ src/api/schema.d.ts
 test-results
 playwright-report
 .e2e-data-dir
+src/lib/cli-reference.json

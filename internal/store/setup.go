@@ -7,7 +7,7 @@ import (
 )
 
 // SetupInstance inserts the first user, org, built-in roles, owner membership,
-// first project, and default environments in one transaction. This keeps
+// first project (optional), and default environments in one transaction. This keeps
 // first-run setup all-or-nothing so a failure cannot lock the instance.
 func (s *Store) SetupInstance(ctx context.Context, user *User, org *Org, roles []*Role, ownerRoleID string, project *Project, envs []*Environment) error {
 	now := time.Now().UTC()
@@ -29,14 +29,16 @@ func (s *Store) SetupInstance(ctx context.Context, user *User, org *Org, roles [
 	if org.Settings == "" {
 		org.Settings = "{}"
 	}
-	if project.CreatedAt.IsZero() {
-		project.CreatedAt = now
-	}
-	if project.UpdatedAt.IsZero() {
-		project.UpdatedAt = now
-	}
-	if project.KeyVersion == 0 {
-		project.KeyVersion = 1
+	if project != nil {
+		if project.CreatedAt.IsZero() {
+			project.CreatedAt = now
+		}
+		if project.UpdatedAt.IsZero() {
+			project.UpdatedAt = now
+		}
+		if project.KeyVersion == 0 {
+			project.KeyVersion = 1
+		}
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -83,6 +85,12 @@ func (s *Store) SetupInstance(ctx context.Context, user *User, org *Org, roles [
 		return fmt.Errorf("store: setup membership: %w", err)
 	}
 
+	if project == nil {
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("store: commit setup: %w", err)
+		}
+		return nil
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO projects
 		(id, org_id, slug, name, wrapped_project_key, key_version, created_at, updated_at)
 		VALUES (?,?,?,?,?,?,?,?)`,

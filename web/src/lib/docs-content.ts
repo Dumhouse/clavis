@@ -19,7 +19,7 @@ export type DocGuide = {
   note?: { title: string; body: string }
 }
 
-/** In-app guides. Keep commands in sync with docs/commands.md. */
+/** In-app guides. The command reference comes from cli-reference.json (make docs-cli). */
 export const guides: DocGuide[] = [
   {
     id: 'start',
@@ -51,10 +51,13 @@ export const guides: DocGuide[] = [
       },
       {
         title: 'Run your app with secrets',
-        body: 'Secrets are injected as environment variables and masked in output. export writes them to a file or stdout when a tool needs that instead.',
+        body: 'Secrets are injected as environment variables and masked in output. Clavis flags go before your command and -- is optional, so clavis run rails s -p 3001 works. Save the command as run: in .clavis.yaml (clavis init does this for common projects) and a plain clavis run starts it. export writes values to a file or stdout when a tool needs that instead.',
         snippets: [
-          { code: 'clavis run -- npm run dev' },
-          { code: 'clavis run --watch -- npm run dev' },
+          { code: 'clavis run npm run dev' },
+          {
+            code: '# .clavis.yaml\nrun: npm run dev\n\n# then, from any folder in the repo:\nclavis run',
+          },
+          { code: 'clavis run --watch npm run dev' },
           { code: 'clavis export --format dotenv -o .env.local' },
         ],
       },
@@ -65,7 +68,7 @@ export const guides: DocGuide[] = [
           {
             code: 'clavis identities create ci-deploy --role Developer --project web-app --identity-env staging',
           },
-          { code: 'export CLAVIS_TOKEN=clv_mt_…\nclavis run -- npm test' },
+          { code: 'export CLAVIS_TOKEN=clv_mt_…\nclavis run npm test' },
         ],
       },
     ],
@@ -243,7 +246,7 @@ export const guides: DocGuide[] = [
         title: 'Overlays and branch environments',
         body: 'Overlays resolve per-region or per-tenant values without duplicating every key. Branch environments can be created from a git branch and inherit from their parent.',
         snippets: [
-          { code: 'clavis --overlay eu run -- npm run build' },
+          { code: 'clavis --overlay eu run npm run build' },
           { code: 'clavis env branch feat/new-checkout' },
         ],
       },
@@ -315,7 +318,7 @@ export const guides: DocGuide[] = [
         body: 'The encrypted cache is opt-in per repository. Add cache: true to .clavis.yaml to keep the last resolved set in the OS keychain for 24 hours; clavis run falls back to it when the server is unreachable. CLAVIS_CACHE_DIR changes where the cache is stored.',
         snippets: [
           { code: '# .clavis.yaml\ncache: true' },
-          { code: 'CLAVIS_CACHE_DIR=~/.cache/clavis clavis run -- npm test' },
+          { code: 'CLAVIS_CACHE_DIR=~/.cache/clavis clavis run npm test' },
         ],
       },
     ],

@@ -2,10 +2,32 @@ import { Check, Loader2 } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
+import { CopyCommand } from '@/components/copy-command'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { AuthLayout } from '@/pages/auth'
 import { Input } from '@/components/ui/field'
+
+/** Servers without SMTP can't email a link; an admin can print one instead. */
+function NoEmailHelp({ email }: { email: string }) {
+  return (
+    <details className="group rounded-app-sm border border-border-soft px-3 py-2 text-left">
+      <summary className="cursor-pointer text-xs text-muted hover:text-text">
+        No email on this server?
+      </summary>
+      <div className="mt-2 space-y-2 text-xs text-muted">
+        <p>Whoever runs the server can print a one-time reset link on it:</p>
+        <CopyCommand
+          command={`docker exec clavis clavis admin reset-password ${email.trim() || 'you@example.com'}`}
+        />
+        <p className="text-dim">
+          Without Docker: <code className="font-mono">clavis admin reset-password EMAIL</code> on
+          the server.
+        </p>
+      </div>
+    </details>
+  )
+}
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -39,6 +61,9 @@ export function ForgotPasswordPage() {
           <p className="text-sm text-muted">
             The link expires in 30 minutes and can be used once. Check spam if it does not arrive.
           </p>
+          <div className="w-full">
+            <NoEmailHelp email={email} />
+          </div>
           <a className="text-sm text-accent-text hover:underline" href="/">
             Back to sign in
           </a>
@@ -77,6 +102,7 @@ export function ForgotPasswordPage() {
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
           {busy && <Loader2 className="size-4 animate-spin" />} Send reset link
         </Button>
+        <NoEmailHelp email={email} />
         <p className="text-center text-xs text-dim">
           <a className="text-accent-text hover:underline" href="/">
             Back to sign in

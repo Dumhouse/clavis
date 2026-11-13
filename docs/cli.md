@@ -12,7 +12,7 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | Homebrew | `brew install dumhouse/tap/clavis` | Available |
 | Scoop | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket` then `scoop install clavis` | Available |
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
-| Docker (server) | `docker run dumhouse/clavis server` or `ghcr.io/dumhouse/clavis` | Available |
+| Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis` (see the [install wizard](./install)) or `ghcr.io/dumhouse/clavis` | Available |
 
 winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. Hosted apt and rpm repositories are published to Cloudsmith from each release.
 
@@ -27,10 +27,23 @@ winget is set up in the release pipeline and goes live once Microsoft accepts th
 
 ## Commands
 
-See [commands.md](commands.md) for the complete, authoritative list of every
-implemented command, flag, example, environment variable, and exit code.
+The [CLI reference](./reference/) has a page for every command with its
+usage, flags and examples. It is generated from the command tree and
+`internal/cli/reference.yaml`, the same source as `clavis <command> --help`,
+so it always matches the binary. Run `make docs-cli` after changing a command.
 
-Run `clavis --help` or `clavis <command> --help` for live help.
+The everyday loop:
+
+```sh
+clavis login --server https://clavis.example.com
+clavis init                 # link this folder, writes .clavis.yaml
+clavis run npm run dev      # your command, with secrets as env vars
+```
+
+`--` before the command is optional: Clavis stops reading its own flags at
+the first word of your command, so `clavis run rails s -p 3001` passes
+`-p 3001` to Rails. Clavis flags go before the command
+(`clavis run --env staging npm start`).
 
 ## `.clavis.yaml`
 
@@ -40,9 +53,15 @@ org: acme
 project: web-app
 env: dev               # default env
 path: /                # default folder
+run: npm run dev       # what a plain `clavis run` starts
 branch_envs: true      # map git branches to dev/<branch>
 cache: true            # encrypted offline cache
 ```
+
+With `run:` set, a plain `clavis run` starts your app. `clavis init` fills it
+in when it recognizes the project (npm, pnpm, yarn or bun scripts, Rails,
+Django, Laravel, Go, Rust, Maven, Gradle, Docker Compose). See
+[`.clavis.yaml`](./reference/clavis-yaml) for every key.
 
 ## Agent-safe mode (`clavis mcp`)
 

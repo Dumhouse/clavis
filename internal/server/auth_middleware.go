@@ -46,14 +46,14 @@ func metaFrom(ctx context.Context) service.AuditMeta {
 }
 
 func (s *Server) sessionCookieName() string {
-	if s.cfg.Server.Dev {
+	if s.plainCookies() {
 		return "clavis_session"
 	}
 	return "__Host-clavis_session"
 }
 
 func (s *Server) csrfCookieName() string {
-	if s.cfg.Server.Dev {
+	if s.plainCookies() {
 		return "clavis_csrf"
 	}
 	return "__Host-clavis_csrf"
@@ -61,8 +61,36 @@ func (s *Server) csrfCookieName() string {
 
 func (s *Server) cookieSecure() bool {
 	// __Host- cookies require Secure; production deployments terminate TLS at
-	// the server or a reverse proxy. Dev mode uses a non-prefixed cookie.
-	return !s.cfg.Server.Dev
+	// the server or a reverse proxy. Dev mode and plain-HTTP deployments use
+	// non-prefixed, non-Secure cookies, which browsers would reject otherwise.
+	return !s.plainCookies()
+}
+
+// plainCookies reports whether session cookies must be sent without the
+// __Host- prefix and Secure flag. That is the case in dev mode and when the
+// operator configured a plain http:// base URL on a non-loopback host (for
+// example a home-lab server at http://192.168.1.10). Browsers silently drop
+// Secure cookies there, so the user would be signed out immediately after
+// signing in. Loopback hosts keep Secure cookies: browsers allow them on
+// http://localhost.
+func (s *Server) plainCookies() bool {
+	return s.cfg.Server.Dev || PlainHTTPBaseURL(s.cfg.Server.BaseURL)
+}
+
+// PlainHTTPBaseURL reports whether baseURL is http:// on a non-loopback host.
+func PlainHTTPBaseURL(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme != "http" {
+		return false
+	}
+	host := u.Hostname()
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return false
+	}
+	return host != ""
 }
 
 func (s *Server) authenticate(next http.Handler) http.Handler {

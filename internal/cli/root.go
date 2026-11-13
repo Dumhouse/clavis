@@ -59,6 +59,7 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 
 	root.AddCommand(newVersionCommand(opts))
 	root.AddCommand(newServerCommand(opts))
+	root.AddCommand(newSetupTokenCommand(opts))
 	root.AddCommand(newLoginCommand(opts))
 	root.AddCommand(newLogoutCommand(opts))
 	root.AddCommand(newWhoamiCommand(opts))
@@ -88,8 +89,11 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newAgentsCommand(opts))
 	root.AddCommand(newMCPCommand(opts))
 	root.AddCommand(newSyncsCommand(opts))
+	root.AddCommand(newConnectionsCommand(opts))
 	root.AddCommand(newSetsCommand(opts))
 	root.AddCommand(newAccessCommand(opts))
+	root.AddCommand(newTrustCommand(opts))
+	applyReferenceExamples(root)
 	return root
 }
 
