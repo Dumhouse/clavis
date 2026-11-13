@@ -83,9 +83,10 @@ goreleaser check
 goreleaser release --snapshot --clean --skip=publish,sign,docker,sbom
 ```
 
-The empty variables are needed because the config reads each token as
-`{{ .Env.NAME }}`; GoReleaser requires exactly that form for repository tokens and
-fails when the variable does not exist. The release workflow always defines them.
+The empty variables are needed because the config reads each repository token
+through GoReleaser's `.Env` template map, which must be written in exactly that
+form and fails when the variable does not exist. The release workflow always
+defines them.
 `sbom` needs `syft` (`brew install syft`); drop it from `--skip` if you have it.
 
 The second command builds everything into `dist/` and publishes nothing.
