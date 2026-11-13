@@ -113,6 +113,10 @@ GoReleaser pushes into two other repositories, so it needs a token that can.
    namespace. The `dumhouse/clavis` repository is created on first push.
 3. Add `DOCKERHUB_USERNAME` (your Docker Hub username) and `DOCKERHUB_TOKEN`
    as repository secrets.
+4. Docker Hub only lets a token change a repository's description if the token
+   has *Read, Write, Delete* access. With *Read & Write* the image still pushes,
+   but the description step of the release fails. The description comes from
+   `deploy/DOCKERHUB.md` and is updated on every release.
 
 ## Homebrew details
 

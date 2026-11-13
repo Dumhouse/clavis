@@ -1,6 +1,6 @@
 services:
   clavis:
-    image: clavis/clavis:latest
+    image: ghcr.io/dumhouse/clavis:latest
     build:
       context: ..
       dockerfile: deploy/Dockerfile
