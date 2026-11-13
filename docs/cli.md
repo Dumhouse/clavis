@@ -14,7 +14,7 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
 | Docker (server) | `docker run dumhouse/clavis server` or `ghcr.io/dumhouse/clavis` | Available |
 
-winget and hosted apt/rpm repositories are planned.
+winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. Hosted apt and rpm repositories are published to Cloudsmith from each release.
 
 ## UX rules
 
