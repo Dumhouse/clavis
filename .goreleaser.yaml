@@ -85,10 +85,8 @@ homebrew_casks:
     # The binary is not notarized by Apple, so clear the download quarantine flag.
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/clavis"]
-          end
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/clavis"]
 
 scoops:
   - name: clavis
