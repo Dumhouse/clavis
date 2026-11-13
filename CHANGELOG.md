@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.2.3 — unreleased
+
+### Added
+
+- Releases upload `.deb` and `.rpm` packages to Cloudsmith, so Debian, Ubuntu,
+  Fedora and RHEL systems can install from an apt or rpm repository.
+- A post-release check pulls and runs both container images and confirms the
+  release assets, Homebrew cask and Scoop manifest list the new version.
+- Release notes open with install commands and explain which file to download.
+- The container image carries OCI title, description, documentation and vendor
+  labels, and its Docker Hub overview is published on every release.
+
+### Fixed
+
+- GoReleaser no longer fails a local snapshot when the Homebrew or Scoop token
+  is unset.
+- `deploy/compose.yaml` pulls `ghcr.io/dumhouse/clavis` instead of an image
+  name that does not exist.
+
+## v0.2.2 — 2026-11-13
+
+### Added
+
+- Container image published to Docker Hub (`dumhouse/clavis`) as well as
+  `ghcr.io/dumhouse/clavis`, as one multi-arch image.
+- Homebrew install through a cask: `brew install dumhouse/tap/clavis`. It
+  replaces the formula published in v0.2.1.
+- Releasing guide covering tags, tokens and each distribution channel.
+
+### Changed
+
+- Release configuration moved to GoReleaser's `dockers_v2` and
+  `homebrew_casks`.
+
+## v0.2.1 — 2026-11-13
+
+### Added
+
+- `.deb`, `.rpm` and `.apk` packages attached to every release.
+- Scoop bucket for Windows: `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket`.
+- Homebrew tap with a formula (replaced by a cask in v0.2.2).
+- Helm chart metadata for Artifact Hub, and a workflow that publishes the chart
+  to `oci://ghcr.io/dumhouse/charts`.
+- Documentation: guides for replacing `.env` files, GitHub Actions and coding
+  agents; comparison pages for Vault, Infisical and Doppler; a Changelog page; a
+  custom 404 page; per-page meta descriptions.
+
+### Fixed
+
+- Install documentation described Homebrew, Scoop, winget, apt and a Docker Hub
+  image that did not exist yet; it now describes what ships.
+- The account menu and appearance switch now include their visible text in their
+  accessible names.
+- A malformed SAML response now fails the login instead of risking a panic in the
+  response parser.
+
 ## v0.2.0 — 2026-11-13
 
 ### Added
