@@ -78,9 +78,16 @@ commit is not in the project history.
 Install GoReleaser (`brew install goreleaser`), then:
 
 ```sh
+export HOMEBREW_TAP_TOKEN= SCOOP_BUCKET_TOKEN= WINGET_TOKEN=
 goreleaser check
-goreleaser release --snapshot --clean --skip=publish,sign,docker
+goreleaser release --snapshot --clean --skip=publish,sign,docker,sbom
 ```
+
+The empty variables are needed because the config reads each repository token
+through GoReleaser's `.Env` template map, which must be written in exactly that
+form and fails when the variable does not exist. The release workflow always
+defines them.
+`sbom` needs `syft` (`brew install syft`); drop it from `--skip` if you have it.
 
 The second command builds everything into `dist/` and publishes nothing.
 `goreleaser check` also prints deprecation warnings for options that still work.

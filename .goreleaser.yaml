@@ -82,7 +82,7 @@ homebrew_casks:
     repository:
       owner: dumhouse
       name: homebrew-tap
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
     homepage: https://dumhouse.github.io/clavis/
     description: Open-source secrets management for humans, machines, and AI agents.
     # Skipped until the HOMEBREW_TAP_TOKEN secret exists, so releases keep working.
@@ -98,7 +98,7 @@ scoops:
     repository:
       owner: dumhouse
       name: scoop-bucket
-      token: '{{ index .Env "SCOOP_BUCKET_TOKEN" }}'
+      token: '{{ .Env.SCOOP_BUCKET_TOKEN }}'
     homepage: https://dumhouse.github.io/clavis/
     description: Open-source secrets management for humans, machines, and AI agents.
     license: Apache-2.0
@@ -131,7 +131,7 @@ winget:
       owner: dumhouse
       name: winget-pkgs
       branch: 'clavis-{{ .Version }}'
-      token: '{{ index .Env "WINGET_TOKEN" }}'
+      token: '{{ .Env.WINGET_TOKEN }}'
       pull_request:
         enabled: true
         base:
