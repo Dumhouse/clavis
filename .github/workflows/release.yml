@@ -53,6 +53,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+      - name: Publish deb and rpm packages to Cloudsmith
+        env:
+          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+          # owner/repository on Cloudsmith; override with a repository variable.
+          CLOUDSMITH_REPO: ${{ vars.CLOUDSMITH_REPO || 'dumhouse/clavis' }}
+        run: |
+          if [ -z "$CLOUDSMITH_API_KEY" ]; then
+            echo "CLOUDSMITH_API_KEY is not set; skipping Cloudsmith upload."
+            exit 0
+          fi
+          pip install --quiet cloudsmith-cli
+          for f in dist/*.deb; do cloudsmith push deb "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
+          for f in dist/*.rpm; do cloudsmith push rpm "$CLOUDSMITH_REPO/any-distro/any-version" "$f" --republish; done
       - id: subjects
         run: echo "hashes=$(cd dist && sha256sum *.tar.gz *.zip | base64 -w0)" >> "$GITHUB_OUTPUT"
 
