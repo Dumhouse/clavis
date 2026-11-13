@@ -721,6 +721,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List sync connections
+         * @description Org-level provider credentials that syncs can share. Credentials are never returned.
+         */
+        get: operations["list-connections"];
+        put?: never;
+        /** Create a sync connection */
+        post: operations["create-connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a sync connection
+         * @description Refused with 409 connection_in_use while any sync uses the connection.
+         */
+        delete: operations["delete-connection"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, move, or rotate a sync connection
+         * @description Empty fields are unchanged. Any credential field replaces the whole credential (rotation); every sync using the connection picks it up on its next run.
+         */
+        patch: operations["update-connection"];
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/connections/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test a sync connection
+         * @description Makes one cheap authenticated call to the provider. A rejected credential returns ok=false with the reason.
+         */
+        post: operations["test-connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/groups": {
         parameters: {
             query?: never;
@@ -1976,6 +2041,26 @@ export interface paths {
         patch: operations["update-sync"];
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Move a sync onto a connection
+         * @description With connection_id, the sync uses that connection and its own credential is dropped. With name, a new connection is created from the sync's credential first (needs org-wide syncs:manage).
+         */
+        put: operations["use-sync-connection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/syncs/{id}/drift": {
         parameters: {
             query?: never;
@@ -2572,6 +2657,35 @@ export interface components {
             name: string;
             slug: string;
         };
+        ConnectionBody: {
+            /**
+             * @description Kind of stored credential; the credential itself is never returned
+             * @enum {string}
+             */
+            auth: "token" | "github_app" | "aws_keys" | "service_account";
+            base_url: string;
+            /** Format: date-time */
+            created_at: string;
+            created_by: string;
+            id: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            name: string;
+            provider: string;
+            /** Format: int64 */
+            sync_count: number;
+            syncs?: components["schemas"]["ConnectionUsageBody"][] | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ConnectionUsageBody: {
+            environment: string;
+            project: string;
+            sync_id: string;
+        };
+        ConnectionsOutputBody: {
+            connections: components["schemas"]["ConnectionBody"][] | null;
+        };
         CreateAccessRequestInputBody: {
             /**
              * Format: int64
@@ -2587,6 +2701,21 @@ export interface components {
             required_approvals: number;
             /** @default Developer */
             role: string;
+        };
+        CreateConnectionInputBody: {
+            aws_access_key?: string;
+            aws_secret_key?: string;
+            aws_session_token?: string;
+            /** @description Provider API or instance URL; defaults to the public service */
+            base_url?: string;
+            gcp_service_account?: string;
+            github_app_id?: string;
+            github_installation_id?: string;
+            github_private_key?: string;
+            name: string;
+            /** @enum {string} */
+            provider: "aws" | "cloudflare" | "forgejo" | "gcp" | "github" | "gitlab" | "netlify" | "vault" | "vercel";
+            token?: string;
         };
         CreateDynamicConfigInputBody: {
             config: {
@@ -2753,6 +2882,8 @@ export interface components {
             cloudflare_mode?: "workers" | "pages";
             cloudflare_project?: string;
             cloudflare_script?: string;
+            /** @description Use an org connection's credential and base URL instead of an inline token */
+            connection_id?: string;
             delete_missing?: boolean;
             endpoint?: string;
             environment: string;
@@ -3728,6 +3859,8 @@ export interface components {
         };
         SyncBody: {
             confirmed: boolean;
+            /** @description Connection whose credential this sync uses; empty for an inline credential */
+            connection_id?: string;
             /** Format: date-time */
             created_at: string;
             delete_missing: boolean;
@@ -3767,6 +3900,23 @@ export interface components {
         };
         SyncsOutputBody: {
             syncs: components["schemas"]["SyncBody"][] | null;
+        };
+        TestConnectionOutputBody: {
+            detail: string;
+            identity?: string;
+            ok: boolean;
+        };
+        UpdateConnectionInputBody: {
+            aws_access_key?: string;
+            aws_secret_key?: string;
+            aws_session_token?: string;
+            base_url?: string;
+            gcp_service_account?: string;
+            github_app_id?: string;
+            github_installation_id?: string;
+            github_private_key?: string;
+            name?: string;
+            token?: string;
         };
         UpdateEnvironmentInputBody: {
             name?: string;
@@ -3823,6 +3973,16 @@ export interface components {
             protected_only?: boolean;
             secret?: string;
             url: string;
+        };
+        UseSyncConnectionInputBody: {
+            /** @description Existing connection to use */
+            connection_id?: string;
+            /** @description Create a connection with this name from the sync's own credential */
+            name?: string;
+        };
+        UseSyncConnectionOutputBody: {
+            connection: components["schemas"]["ConnectionBody"];
+            sync: components["schemas"]["SyncBody"];
         };
         UserBody: {
             email: string;
@@ -5314,6 +5474,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditVerifyOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-connections": {
+        parameters: {
+            query?: {
+                /** @description Only connections for this provider */
+                provider?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateConnectionInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConnectionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "test-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestConnectionOutputBody"];
                 };
             };
             /** @description Error */
@@ -8794,6 +9121,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "use-sync-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UseSyncConnectionInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UseSyncConnectionOutputBody"];
                 };
             };
             /** @description Error */

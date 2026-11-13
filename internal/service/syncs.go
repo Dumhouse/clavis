@@ -119,6 +119,9 @@ type SyncInput struct {
 	ForgejoRepo        string
 	ForgejoScope       string
 	DeleteMissing      bool
+	// ConnectionID uses an org connection's credential (and base URL) instead
+	// of an inline token. Inline credential fields must then be empty.
+	ConnectionID string
 }
 
 // SyncView is a sync plus its environment slug.
@@ -163,7 +166,25 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" && provider != "forgejo" {
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
+	var conn *store.SyncConnection
+	if connectionID := strings.TrimSpace(in.ConnectionID); connectionID != "" {
+		if conn, err = s.connectionForSync(ctx, org, strings.ToLower(strings.TrimSpace(in.Provider)), connectionID, in); err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(in.Provider) == "" {
+			provider = conn.Provider
+		}
+		in.BaseURL = conn.BaseURL
+	}
+	// inline is false when the credential comes from a connection.
+	inline := conn == nil
 	id := uuid.NewString()
+	encrypt := func(field, value string) ([]byte, error) {
+		if !inline || value == "" {
+			return nil, nil
+		}
+		return s.encryptOrgSecret(org, id, field, value)
+	}
 	config := syncConfig{Protected: in.Protected, Masked: in.Masked, DeleteMissing: in.DeleteMissing}
 	endpoint := strings.TrimSpace(in.Endpoint)
 	switch provider {
@@ -180,29 +201,25 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 			config.Secret = ciphertext
 		}
 	case "forgejo":
-		if err := validateForgejoConfig(&config, in); err != nil {
+		if err := validateForgejoConfig(&config, in, inline); err != nil {
 			return nil, err
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	case "netlify":
 		config.NetlifyAccount = strings.TrimSpace(in.NetlifyAccount)
 		config.NetlifySite = strings.TrimSpace(in.NetlifySite)
-		if config.NetlifyAccount == "" || in.Token == "" {
+		if config.NetlifyAccount == "" || (inline && in.Token == "") {
 			return nil, fmt.Errorf("%w: Netlify account slug and token are required", ErrValidation)
 		}
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.netlify.com"
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	case "cloudflare":
 		config.CFAccount = strings.TrimSpace(in.CloudflareAccount)
 		config.CFProject = strings.TrimSpace(in.CloudflareProject)
@@ -211,7 +228,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.CFMode == "" {
 			config.CFMode = "workers"
 		}
-		if config.CFAccount == "" || in.Token == "" {
+		if config.CFAccount == "" || (inline && in.Token == "") {
 			return nil, fmt.Errorf("%w: Cloudflare account ID and token are required", ErrValidation)
 		}
 		if config.CFMode == "workers" && config.CFScript == "" {
@@ -227,11 +244,9 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.cloudflare.com"
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	case "vault":
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 		config.VaultMount = strings.Trim(strings.TrimSpace(in.VaultMount), "/")
@@ -246,32 +261,28 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.VaultMount == "" {
 			config.VaultMount = "secret"
 		}
-		if config.BaseURL == "" || in.Token == "" {
+		if config.BaseURL == "" || (inline && in.Token == "") {
 			return nil, fmt.Errorf("%w: Vault address and token are required", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	case "gcp":
 		config.GCPProject = strings.TrimSpace(in.GCPProject)
 		config.GCPPrefix = strings.Trim(strings.TrimSpace(in.GCPPrefix), "-")
-		if config.GCPProject == "" || strings.TrimSpace(in.GCPServiceAccount) == "" {
+		if config.GCPProject == "" || (inline && strings.TrimSpace(in.GCPServiceAccount) == "") {
 			return nil, fmt.Errorf("%w: GCP project and service account JSON are required", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "gcp_service_account", in.GCPServiceAccount)
-		if err != nil {
+		if config.GCPServiceAccount, err = encrypt("gcp_service_account", in.GCPServiceAccount); err != nil {
 			return nil, err
 		}
-		config.GCPServiceAccount = ciphertext
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	case "aws":
 		config.AWSRegion = strings.TrimSpace(in.AWSRegion)
 		config.AWSService = strings.ToLower(strings.TrimSpace(in.AWSService))
 		config.AWSPrefix = strings.Trim(strings.TrimSpace(in.AWSPrefix), "/")
 		config.AWSAccessKey = strings.TrimSpace(in.AWSAccessKey)
-		if config.AWSRegion == "" || config.AWSAccessKey == "" || in.AWSSecretKey == "" {
+		if config.AWSRegion == "" || (inline && (config.AWSAccessKey == "" || in.AWSSecretKey == "")) {
 			return nil, fmt.Errorf("%w: AWS region, access key, and secret key are required", ErrValidation)
 		}
 		if config.AWSService == "" {
@@ -280,15 +291,11 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.AWSService != "ssm" && config.AWSService != "secretsmanager" {
 			return nil, fmt.Errorf("%w: AWS service must be ssm or secretsmanager", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "aws_secret", in.AWSSecretKey)
-		if err != nil {
+		if config.AWSSecret, err = encrypt("aws_secret", in.AWSSecretKey); err != nil {
 			return nil, err
 		}
-		config.AWSSecret = ciphertext
-		if token := strings.TrimSpace(in.AWSSessionToken); token != "" {
-			if config.AWSSessionTokenEnc, err = s.encryptOrgSecret(org, id, "aws_session_token", token); err != nil {
-				return nil, err
-			}
+		if config.AWSSessionTokenEnc, err = encrypt("aws_session_token", strings.TrimSpace(in.AWSSessionToken)); err != nil {
+			return nil, err
 		}
 		config.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	case "vercel":
@@ -301,14 +308,12 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if config.BaseURL == "" {
 			config.BaseURL = "https://api.vercel.com"
 		}
-		if in.Token == "" {
+		if inline && in.Token == "" {
 			return nil, fmt.Errorf("%w: Vercel access token is required", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	case "github":
 		config.GitHubRepo = strings.TrimSpace(in.GitHubRepo)
 		config.GitHubEnv = strings.TrimSpace(in.GitHubEnvironment)
@@ -338,22 +343,14 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		}
 		config.GitHubAppID = strings.TrimSpace(in.GitHubAppID)
 		config.GitHubInstallation = strings.TrimSpace(in.GitHubInstallation)
-		if in.Token == "" && (config.GitHubAppID == "" || config.GitHubInstallation == "" || strings.TrimSpace(in.GitHubPrivateKey) == "") {
+		if inline && in.Token == "" && (config.GitHubAppID == "" || config.GitHubInstallation == "" || strings.TrimSpace(in.GitHubPrivateKey) == "") {
 			return nil, fmt.Errorf("%w: GitHub requires a token or App ID, installation ID, and private key", ErrValidation)
 		}
-		if in.Token != "" {
-			ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-			if err != nil {
-				return nil, err
-			}
-			config.Token = ciphertext
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
+			return nil, err
 		}
-		if in.GitHubPrivateKey != "" {
-			ciphertext, err := s.encryptOrgSecret(org, id, "sync_app_key", in.GitHubPrivateKey)
-			if err != nil {
-				return nil, err
-			}
-			config.GitHubPrivateKey = ciphertext
+		if config.GitHubPrivateKey, err = encrypt("sync_app_key", in.GitHubPrivateKey); err != nil {
+			return nil, err
 		}
 	default:
 		config.Project = strings.TrimSpace(in.GitLabProject)
@@ -367,14 +364,12 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		if !strings.HasPrefix(config.BaseURL, "https://") && !strings.HasPrefix(config.BaseURL, "http://") {
 			return nil, fmt.Errorf("%w: GitLab URL must be http(s)", ErrValidation)
 		}
-		if in.Token == "" {
+		if inline && in.Token == "" {
 			return nil, fmt.Errorf("%w: GitLab access token is required", ErrValidation)
 		}
-		ciphertext, err := s.encryptOrgSecret(org, id, "sync_token", in.Token)
-		if err != nil {
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
 			return nil, err
 		}
-		config.Token = ciphertext
 	}
 	encoded, err := json.Marshal(config) //nolint:gosec // G117: Secret, Token, AWSSecret and AWSSessionTokenEnc hold org-key ciphertext
 	if err != nil {
@@ -384,12 +379,15 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		ID: id, ProjectID: project.ID, EnvironmentID: env.ID, Path: "/",
 		Provider: provider, Config: string(encoded),
 	}
+	if conn != nil {
+		sync.ConnectionID = conn.ID
+	}
 	if err := s.Store.CreateSync(ctx, sync); err != nil {
 		return nil, err
 	}
 	if err := s.record(ctx, toAuditActor(actor), org.ID, "sync.create",
 		audit.Resource{Type: "sync", ID: sync.ID, Name: provider, ProjectID: project.ID, EnvID: env.ID},
-		audit.Details{Environment: env.Slug}, meta); err != nil {
+		audit.Details{Environment: env.Slug, Reason: connectionAuditReason(conn)}, meta); err != nil {
 		s.Logger.Error("audit sync.create failed", "sync_id", sync.ID, "error", err)
 	}
 	return &SyncView{Sync: sync, Environment: env.Slug}, nil
@@ -482,6 +480,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
 		return nil, err
 	}
+	if err := s.applySyncConnection(ctx, org, sync, &config); err != nil {
+		return nil, err
+	}
 	destination := config.Endpoint
 	if sync.Provider == "gitlab" {
 		destination = config.BaseURL + "/" + config.Project
@@ -562,7 +563,7 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	case "forgejo":
 		err2 = s.postForgejo(ctx, org, sync, config, values, kinds)
 	default:
-		secret, err := s.decryptOrgSecret(org, sync.ID, "sync_secret", config.Secret)
+		secret, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_secret", config.Secret)
 		if err != nil {
 			return nil, err
 		}
@@ -576,6 +577,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		}
 	}
 	err = err2
+	if sync.ConnectionID != "" {
+		_ = s.Store.TouchSyncConnection(ctx, sync.ConnectionID, s.Now().UTC())
+	}
 	if err != nil {
 		finished := s.Now().UTC()
 		run.Status = "failed"
@@ -712,7 +716,7 @@ func (s *Service) syncValues(ctx context.Context, org *store.Org, project *store
 }
 
 func (s *Service) postGitLab(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -1043,7 +1047,7 @@ func validGitHubName(name string) bool {
 }
 
 func (s *Service) postVercel(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -1175,7 +1179,7 @@ func vercelStatusError(operation string, status int, body []byte) error {
 }
 
 func (s *Service) postVault(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -1220,13 +1224,13 @@ func (s *Service) postVault(ctx context.Context, org *store.Org, sync *store.Syn
 }
 
 func (s *Service) postAWS(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values, kinds map[string]string) error {
-	secretKey, err := s.decryptOrgSecret(org, sync.ID, "aws_secret", config.AWSSecret)
+	secretKey, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "aws_secret", config.AWSSecret)
 	if err != nil {
 		return err
 	}
 	// config is a copy: swap in the decrypted token for signing.
 	if len(config.AWSSessionTokenEnc) > 0 {
-		if config.AWSSessionToken, err = s.decryptOrgSecret(org, sync.ID, "aws_session_token", config.AWSSessionTokenEnc); err != nil {
+		if config.AWSSessionToken, err = s.decryptOrgSecret(org, syncCredentialOwner(sync), "aws_session_token", config.AWSSessionTokenEnc); err != nil {
 			return err
 		}
 	}
@@ -1321,6 +1325,13 @@ func awsJSONResponse(ctx context.Context, client *http.Client, endpoint, target,
 }
 
 func signAWSJSON(req *http.Request, payload []byte, service string, config syncConfig, secretKey string) {
+	signAWS(req, payload, service, config.AWSRegion, config, secretKey)
+}
+
+// signAWS adds a SigV4 Authorization header. X-Amz-Target is signed only when
+// the request carries it (JSON protocol); query-protocol calls such as STS
+// leave it out.
+func signAWS(req *http.Request, payload []byte, service, region string, config syncConfig, secretKey string) {
 	now := time.Now().UTC()
 	amzDate := now.Format("20060102T150405Z")
 	date := now.Format("20060102")
@@ -1328,27 +1339,39 @@ func signAWSJSON(req *http.Request, payload []byte, service string, config syncC
 	hashHex := hex.EncodeToString(payloadHash[:])
 	req.Header.Set("X-Amz-Date", amzDate)
 	req.Header.Set("X-Amz-Content-Sha256", hashHex)
-	headers := []string{"content-type", "host", "x-amz-content-sha256", "x-amz-date", "x-amz-target"}
-	canonical := "content-type:" + req.Header.Get("Content-Type") + "\n" +
-		"host:" + req.URL.Host + "\n" +
-		"x-amz-content-sha256:" + hashHex + "\n" +
-		"x-amz-date:" + amzDate + "\n" +
-		"x-amz-target:" + req.Header.Get("X-Amz-Target") + "\n"
+	values := map[string]string{
+		"content-type":         req.Header.Get("Content-Type"),
+		"host":                 req.URL.Host,
+		"x-amz-content-sha256": hashHex,
+		"x-amz-date":           amzDate,
+	}
+	if target := req.Header.Get("X-Amz-Target"); target != "" {
+		values["x-amz-target"] = target
+	}
 	if config.AWSSessionToken != "" {
 		req.Header.Set("X-Amz-Security-Token", config.AWSSessionToken)
-		headers = append(headers, "x-amz-security-token")
-		canonical += "x-amz-security-token:" + config.AWSSessionToken + "\n"
+		values["x-amz-security-token"] = config.AWSSessionToken
+	}
+	// SigV4 needs the canonical headers in the same sorted order as the
+	// signed-header list.
+	headers := make([]string, 0, len(values))
+	for name := range values {
+		headers = append(headers, name)
 	}
 	sort.Strings(headers)
+	canonical := ""
+	for _, name := range headers {
+		canonical += name + ":" + values[name] + "\n"
+	}
 	signedHeaders := strings.Join(headers, ";")
 	canonicalRequest := strings.Join([]string{
 		http.MethodPost, req.URL.EscapedPath(), "", canonical, signedHeaders, hashHex,
 	}, "\n")
-	scope := date + "/" + config.AWSRegion + "/" + service + "/aws4_request"
+	scope := date + "/" + region + "/" + service + "/aws4_request"
 	requestHash := sha256.Sum256([]byte(canonicalRequest))
 	stringToSign := "AWS4-HMAC-SHA256\n" + amzDate + "\n" + scope + "\n" + hex.EncodeToString(requestHash[:])
 	key := hmacSHA256Bytes([]byte("AWS4"+secretKey), date)
-	key = hmacSHA256Bytes(key, config.AWSRegion)
+	key = hmacSHA256Bytes(key, region)
 	key = hmacSHA256Bytes(key, service)
 	key = hmacSHA256Bytes(key, "aws4_request")
 	signature := hex.EncodeToString(hmacSHA256Bytes(key, stringToSign))
@@ -1369,7 +1392,7 @@ type gcpServiceAccount struct {
 }
 
 func (s *Service) postGCP(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, project *store.Project, env *store.Environment, values map[string]string) error {
-	rawAccount, err := s.decryptOrgSecret(org, sync.ID, "gcp_service_account", config.GCPServiceAccount)
+	rawAccount, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "gcp_service_account", config.GCPServiceAccount)
 	if err != nil {
 		return err
 	}
@@ -1550,7 +1573,7 @@ func sanitizeGCPName(key string) string {
 }
 
 func (s *Service) postNetlify(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -1650,7 +1673,7 @@ func netlifyStatusError(operation string, status int, body []byte) error {
 }
 
 func (s *Service) postCloudflare(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, env *store.Environment, values, kinds map[string]string) error {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return err
 	}
@@ -1803,6 +1826,9 @@ func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug
 	if err := json.Unmarshal([]byte(sync.Config), &config); err != nil {
 		return nil, err
 	}
+	if err := s.applySyncConnection(ctx, org, sync, &config); err != nil {
+		return nil, err
+	}
 	values, kinds, err := s.syncValues(ctx, org, project, env)
 	if err != nil {
 		return nil, err
@@ -1862,7 +1888,7 @@ func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug
 }
 
 func (s *Service) driftGitLab(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig, values map[string]string) ([]string, error) {
-	token, err := s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+	token, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -1949,9 +1975,9 @@ func (s *Service) UpdateSyncBehavior(ctx context.Context, actor authz.Actor, org
 
 func (s *Service) githubSyncToken(ctx context.Context, org *store.Org, sync *store.Sync, config syncConfig) (string, error) {
 	if len(config.Token) > 0 {
-		return s.decryptOrgSecret(org, sync.ID, "sync_token", config.Token)
+		return s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_token", config.Token)
 	}
-	keyPEM, err := s.decryptOrgSecret(org, sync.ID, "sync_app_key", config.GitHubPrivateKey)
+	keyPEM, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_app_key", config.GitHubPrivateKey)
 	if err != nil {
 		return "", err
 	}

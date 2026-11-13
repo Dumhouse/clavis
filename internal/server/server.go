@@ -488,6 +488,9 @@ func (s *Server) registerRoutes() error {
 	if err := s.registerSyncRoutes(); err != nil {
 		return err
 	}
+	if err := s.registerConnectionRoutes(); err != nil {
+		return err
+	}
 	if err := s.registerSharedSetRoutes(); err != nil {
 		return err
 	}

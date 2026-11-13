@@ -17,6 +17,7 @@ type Sync struct {
 	EnvironmentID  string
 	Path           string
 	Provider       string
+	ConnectionID   string
 	Config         string
 	Status         string
 	Confirmed      bool
@@ -58,9 +59,9 @@ func (s *Store) CreateSync(ctx context.Context, sync *Sync) error {
 		sync.Status = "pending"
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO syncs
-		(id, project_id, environment_id, path, provider, config, status, confirmed, last_synced_at, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-		sync.ID, sync.ProjectID, sync.EnvironmentID, sync.Path, sync.Provider, sync.Config,
+		(id, project_id, environment_id, path, provider, connection_id, config, status, confirmed, last_synced_at, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		sync.ID, sync.ProjectID, sync.EnvironmentID, sync.Path, sync.Provider, sync.ConnectionID, sync.Config,
 		sync.Status, sync.Confirmed, nullableTime(sync.LastSyncedAt), formatTime(sync.CreatedAt), formatTime(sync.UpdatedAt))
 	if err != nil {
 		return fmt.Errorf("store: create sync: %w", err)
@@ -68,7 +69,7 @@ func (s *Store) CreateSync(ctx context.Context, sync *Sync) error {
 	return nil
 }
 
-const syncColumns = `id, project_id, environment_id, path, provider, config, status,
+const syncColumns = `id, project_id, environment_id, path, provider, connection_id, config, status,
 	confirmed, drift_keys, drift_checked_at, last_synced_at, created_at, updated_at`
 
 func scanSync(row rowScanner) (*Sync, error) {
@@ -77,7 +78,7 @@ func scanSync(row rowScanner) (*Sync, error) {
 	var lastSynced, driftChecked sql.NullString
 	var createdAt, updatedAt string
 	if err := row.Scan(&sync.ID, &sync.ProjectID, &sync.EnvironmentID, &sync.Path, &sync.Provider,
-		&sync.Config, &sync.Status, &confirmed, &sync.DriftKeys, &driftChecked,
+		&sync.ConnectionID, &sync.Config, &sync.Status, &confirmed, &sync.DriftKeys, &driftChecked,
 		&lastSynced, &createdAt, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
