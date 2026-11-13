@@ -84,6 +84,20 @@ docker_manifests:
       - "ghcr.io/dumhouse/clavis:{{ .Version }}-amd64"
       - "ghcr.io/dumhouse/clavis:{{ .Version }}-arm64"
 
+brews:
+  - name: clavis
+    repository:
+      owner: dumhouse
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://dumhouse.github.io/clavis/
+    description: Open-source secrets management for humans, machines, and AI agents.
+    license: Apache-2.0
+    # Skipped until the HOMEBREW_TAP_TOKEN secret exists, so releases keep working.
+    skip_upload: '{{ if .Env.HOMEBREW_TAP_TOKEN }}false{{ else }}true{{ end }}'
+    test: |
+      system "#{bin}/clavis", "version"
+
 changelog:
   sort: asc
   filters:
