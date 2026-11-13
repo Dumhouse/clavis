@@ -47,6 +47,12 @@ log:
   level: info
   format: json
 
+security:
+  # Syncs, webhooks, SSO discovery and audit exporters never reach private,
+  # loopback or link-local addresses. List the ones you do mean to reach, for
+  # example a Forgejo or Vault on your LAN. Same as CLAVIS_OUTBOUND_ALLOWLIST.
+  outbound_allowlist: []   # e.g. ["192.168.100.0/24"]
+
 # Optional transactional email for password resets and invites.
 email:
   enabled: false

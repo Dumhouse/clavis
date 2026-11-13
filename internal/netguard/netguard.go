@@ -111,7 +111,7 @@ func (g *Guardian) dialContext(ctx context.Context, network, address string) (ne
 	if lastErr != nil {
 		return nil, lastErr
 	}
-	return nil, ErrBlocked
+	return nil, fmt.Errorf("%w: %s is a private or reserved address; to allow it, add it to security.outbound_allowlist (CLAVIS_OUTBOUND_ALLOWLIST)", ErrBlocked, host)
 }
 
 func (g *Guardian) resolve(ctx context.Context, host string) ([]netip.Addr, error) {

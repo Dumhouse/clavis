@@ -90,6 +90,11 @@ type AuditExporterConfig struct {
 type SecurityConfig struct {
 	BreachCheck    bool   `yaml:"breach_check"`
 	BreachCheckURL string `yaml:"breach_check_url"`
+	// OutboundAllowlist lists IPs or CIDRs that webhooks, syncs, SSO discovery
+	// and audit exporters may reach even though they are private, loopback or
+	// link-local, for example a Forgejo or Vault on the local network.
+	// Everything else private stays blocked.
+	OutboundAllowlist []string `yaml:"outbound_allowlist"`
 }
 
 // EmailConfig controls optional transactional email (password resets, invites).
@@ -426,6 +431,14 @@ func applyEnv(c *Config) error {
 			}
 		}
 	}
+	if v, ok := os.LookupEnv("CLAVIS_OUTBOUND_ALLOWLIST"); ok {
+		c.Security.OutboundAllowlist = nil
+		for _, p := range strings.Split(v, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				c.Security.OutboundAllowlist = append(c.Security.OutboundAllowlist, p)
+			}
+		}
+	}
 	if v, ok := os.LookupEnv("CLAVIS_TRUSTED_PROXIES"); ok {
 		c.Server.TrustedProxies = nil
 		for _, p := range strings.Split(v, ",") {
@@ -473,6 +486,11 @@ func (c *Config) Validate() error {
 	for _, p := range c.Server.TrustedProxies {
 		if _, err := ParseProxyPrefix(p); err != nil {
 			return fmt.Errorf("config: server.trusted_proxies: %w", err)
+		}
+	}
+	for _, p := range c.Security.OutboundAllowlist {
+		if _, err := ParseProxyPrefix(p); err != nil {
+			return fmt.Errorf("config: security.outbound_allowlist: %w", err)
 		}
 	}
 	if c.Server.RateLimitPerMinute < 0 {

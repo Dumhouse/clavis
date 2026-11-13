@@ -33,6 +33,8 @@ type OffboardingReport struct {
 	Done     int
 	Total    int
 	Exported int
+	// Removed is true when the person is no longer an active member.
+	Removed bool
 }
 
 // StartOffboarding creates tasks for every secret the user revealed.
@@ -89,6 +91,9 @@ func (s *Service) OffboardingReport(ctx context.Context, actor authz.Actor, orgS
 		return nil, err
 	}
 	report := &OffboardingReport{UserID: userID}
+	if membership != nil {
+		report.Removed = membership.Status == "removed"
+	}
 	if user != nil {
 		report.Email = user.Email
 		report.Name = user.Name

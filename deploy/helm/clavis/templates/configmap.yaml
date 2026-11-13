@@ -50,6 +50,10 @@ data:
     security:
       breach_check: {{ .Values.security.breachCheck }}
       breach_check_url: {{ .Values.security.breachCheckURL | quote }}
+      {{- /* Only rendered when set: images older than v0.3.2 reject unknown config keys. */}}
+      {{- if .Values.security.outboundAllowlist }}
+      outbound_allowlist: {{ .Values.security.outboundAllowlist | toJson }}
+      {{- end }}
     {{- if .Values.auditExporters }}
     audit:
       exporters:

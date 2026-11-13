@@ -183,6 +183,7 @@ func TestEnvErrors(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	cases := map[string]func(*Config){
+		"bad outbound":      func(c *Config) { c.Security.OutboundAllowlist = []string{"not-an-ip"} },
 		"empty addr":        func(c *Config) { c.Server.Addr = "" },
 		"small body":        func(c *Config) { c.Server.MaxBodyBytes = 1 },
 		"huge body":         func(c *Config) { c.Server.MaxBodyBytes = 1 << 31 },
@@ -322,5 +323,17 @@ func TestACMEDNSTokenFile(t *testing.T) {
 	}
 	if cfg.Server.TLS.ACMEDNSToken != "cf-token" || cfg.Server.TLS.ACMEDNSWait.Duration() != 3*time.Minute {
 		t.Fatalf("token=%q wait=%s", cfg.Server.TLS.ACMEDNSToken, cfg.Server.TLS.ACMEDNSWait)
+	}
+}
+
+func TestOutboundAllowlistEnv(t *testing.T) {
+	t.Setenv("CLAVIS_OUTBOUND_ALLOWLIST", " 192.168.100.0/24, 10.0.0.5 ,")
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := cfg.Security.OutboundAllowlist
+	if len(got) != 2 || got[0] != "192.168.100.0/24" || got[1] != "10.0.0.5" {
+		t.Fatalf("outbound allowlist = %q", got)
 	}
 }

@@ -3306,6 +3306,7 @@ export interface components {
             /** Format: int64 */
             exported: number;
             name?: string;
+            removed: boolean;
             tasks: components["schemas"]["OffboardingTaskBody"][] | null;
             /** Format: int64 */
             total: number;

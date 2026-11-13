@@ -2,9 +2,11 @@ package netguard
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -115,5 +117,18 @@ func TestNewRejectsInvalidAllowlist(t *testing.T) {
 	}
 	if _, err := New([]string{""}); err != nil {
 		t.Fatalf("empty entry: %v", err)
+	}
+}
+
+func TestBlockedErrorExplainsTheFix(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+	defer server.Close()
+	g, _ := New(nil)
+	resp, err := g.Client().Get(server.URL)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	if !errors.Is(err, ErrBlocked) || !strings.Contains(err.Error(), "outbound_allowlist") {
+		t.Fatalf("error = %v", err)
 	}
 }

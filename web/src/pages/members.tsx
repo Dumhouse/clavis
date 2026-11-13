@@ -80,7 +80,8 @@ export function MembersPage() {
   const removeMember = useMutation({
     mutationFn: async (member: Member) => {
       if (!org) throw new Error('No organization.')
-      if (!(await confirmAction(`Remove ${member.name || member.email} from ${org.name}?`))) return
+      if (!(await confirmAction(`Remove ${member.name || member.email} from ${org.name}?`)))
+        return null
       const reauthToken = await ensureReauth()
       const result = await api.DELETE('/api/v1/orgs/{org}/members/{user}', {
         params: { path: { org: org.slug, user: member.user_id } },
@@ -88,8 +89,13 @@ export function MembersPage() {
       })
       if (result.error)
         throw new Error(apiErrorMessage(result.error, 'Could not remove the member.'))
+      return member
     },
-    onSuccess: invalidate,
+    onSuccess: async (removed) => {
+      await invalidate()
+      // The checklist of revealed secrets matters most once the person is gone.
+      if (removed) setOffboarding(removed)
+    },
   })
 
   const revokeInvite = useMutation({
@@ -572,7 +578,10 @@ function OffboardingDialog({
         <div>
           <h2 className="font-head text-md font-semibold">Offboarding review</h2>
           <p className="text-2xs text-muted">
-            {member.email} · revealed secrets to rotate or mark safe
+            {member.email} ·{' '}
+            {report.data?.removed
+              ? 'removed from the organization; rotate what they revealed'
+              : 'revealed secrets to rotate or mark safe'}
           </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">

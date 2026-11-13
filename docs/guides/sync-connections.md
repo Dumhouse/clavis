@@ -71,3 +71,20 @@ API: `GET|POST /api/v1/orgs/{org}/connections`,
 `POST /api/v1/orgs/{org}/connections/{id}/test`, and
 `PUT /api/v1/orgs/{org}/projects/{project}/syncs/{id}/connection`. Syncs accept
 `connection_id` on create.
+
+## Syncing to a server on your network
+
+Clavis refuses to call private, loopback and link-local addresses, so a
+connection or sync to a Forgejo, GitLab or Vault on your LAN fails with
+`destination address is blocked`. This protects the server from being pointed
+at your internal network. To allow specific destinations, list them in the
+server's configuration:
+
+```sh
+CLAVIS_OUTBOUND_ALLOWLIST=192.168.100.0/24,10.0.0.5
+```
+
+The same setting in `clavis.yaml` is `security.outbound_allowlist`; in the Helm
+chart it is `security.outboundAllowlist`. Entries are IPs or CIDRs, everything
+not listed stays blocked, and the list also applies to webhooks, SSO discovery
+and audit exporters. Restart the server after changing it.
