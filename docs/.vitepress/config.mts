@@ -118,7 +118,7 @@ export default defineConfig({
     logo: '/brand/logo-mark.svg',
     siteTitle: 'Clavis',
     nav: [
-      { text: 'Docs', link: '/quickstart', activeMatch: '^/(quickstart|install|https|ci|architecture|self-hosting|migrations)' },
+      { text: 'Docs', link: '/quickstart', activeMatch: '^/(quickstart|install|https|ci|architecture|self-hosting|helm|migrations)' },
       { text: 'CLI', link: '/reference/', activeMatch: '^/(reference|commands)' },
       { text: 'Agents', link: '/agents', activeMatch: '^/agents' },
       { text: 'Security', link: '/security', activeMatch: '^/(security|supply-chain|reproducible-builds|vulnerability-disclosure)' },
@@ -144,6 +144,7 @@ export default defineConfig({
           { text: 'Install wizard (Docker)', link: '/install' },
           { text: 'Product tour', link: '/screenshots' },
           { text: 'CI and machine tokens', link: '/ci' },
+          { text: 'Install with Helm', link: '/helm' },
           { text: 'Concepts', link: '/architecture' },
           { text: 'CLI reference', link: '/reference/' },
         ],
