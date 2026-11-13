@@ -45,7 +45,7 @@ groups:
   - id: automation
     title: "Rotation, leases and syncs"
     description: "Rotate secrets on a schedule, issue short-lived credentials, and push values to other platforms."
-    commands: [rotation, lease, syncs]
+    commands: [rotation, lease, syncs, connections]
   - id: agents
     title: "AI agents"
     description: "Let coding agents use secrets through MCP without seeing their values."
@@ -972,6 +972,32 @@ commands:
     description: "Change a sync's options, such as deleting remote keys that no longer exist in Clavis."
     examples:
       - run: "clavis syncs behavior 123e4567 --delete-missing"
+
+  connections:
+    description: |-
+      A connection stores one provider credential for the whole organization:
+      a Forgejo or GitHub token, AWS keys, a service account. Syncs created
+      with `--connection` reuse it, so you paste a token once and rotating it
+      updates every sync that uses it. Credentials are never shown again.
+    examples:
+      - run: "clavis connections create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
+    related: [syncs create, syncs use-connection]
+  "connections ls":
+    description: "List connections and the syncs that use them. Credentials are never shown."
+  "connections create":
+    description: "Save a provider credential for the organization. Pass `--token -` to read it from stdin."
+  "connections rotate":
+    description: "Replace a connection's credential, or rename it or change its URL. Every sync that uses it picks up the new value."
+  "connections test":
+    description: "Check that the provider accepts the credential. For Forgejo it also checks Actions access in every repository or organization the connection's syncs push to; `--repo` or `--org` adds one more destination."
+    examples:
+      - run: "clavis connections test 123e4567 --repo team/web"
+  "connections rm":
+    description: "Delete a connection that no sync uses. The token itself stays valid at the provider."
+  "syncs use-connection":
+    description: "Point an existing sync at a saved connection, or turn the sync's own credential into a new connection that other syncs can reuse."
+    examples:
+      - run: "clavis syncs use-connection 123e4567 --name \"Home Forgejo\""
 
   # AI agents
 

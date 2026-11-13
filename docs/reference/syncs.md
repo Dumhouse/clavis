@@ -33,6 +33,7 @@ someone changed the other side by hand.
 <a class="cli-card" href="./syncs-logs"><span class="cli-card-name"><code>clavis syncs logs</code></span><span class="cli-card-text">Show recent sync runs</span></a>
 <a class="cli-card" href="./syncs-ls"><span class="cli-card-name"><code>clavis syncs ls</code></span><span class="cli-card-text">List syncs for the linked project</span></a>
 <a class="cli-card" href="./syncs-run"><span class="cli-card-name"><code>clavis syncs run</code></span><span class="cli-card-text">Preview or execute a sync</span></a>
+<a class="cli-card" href="./syncs-use-connection"><span class="cli-card-name"><code>clavis syncs use-connection</code></span><span class="cli-card-text">Move a sync onto a shared connection, dropping its own credential</span></a>
 </div>
 
 <details class="cli-globals"><summary>Global flags</summary>

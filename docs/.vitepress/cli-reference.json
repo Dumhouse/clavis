@@ -87,7 +87,8 @@
       "commands": [
         "rotation",
         "lease",
-        "syncs"
+        "syncs",
+        "connections"
       ]
     },
     {
@@ -976,6 +977,214 @@
         "schema",
         "check"
       ]
+    },
+    {
+      "path": "connections",
+      "slug": "connections",
+      "group": "automation",
+      "usage": "clavis connections \u003ccommand\u003e",
+      "summary": "Manage org-wide provider credentials that syncs share",
+      "description": "A connection stores one provider credential for the whole organization:\na Forgejo or GitHub token, AWS keys, a service account. Syncs created\nwith `--connection` reuse it, so you paste a token once and rotating it\nupdates every sync that uses it. Credentials are never shown again.",
+      "examples": [
+        {
+          "run": "clavis connections create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "connections create",
+        "connections ls",
+        "connections rm",
+        "connections rotate",
+        "connections test"
+      ],
+      "related": [
+        "syncs create",
+        "syncs use-connection"
+      ]
+    },
+    {
+      "path": "connections create",
+      "slug": "connections-create",
+      "parent": "connections",
+      "group": "automation",
+      "usage": "clavis connections create NAME [flags]",
+      "summary": "Save a provider credential for the organization",
+      "description": "Save a provider credential for the organization. Pass `--token -` to read it from stdin.",
+      "examples": [],
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-session-token",
+          "type": "string",
+          "usage": "AWS session token"
+        },
+        {
+          "name": "gcp-service-account-json",
+          "type": "string",
+          "usage": "GCP service account JSON or @file"
+        },
+        {
+          "name": "github-app-id",
+          "type": "string",
+          "usage": "GitHub App ID"
+        },
+        {
+          "name": "github-installation-id",
+          "type": "string",
+          "usage": "GitHub App installation ID"
+        },
+        {
+          "name": "github-private-key",
+          "type": "string",
+          "usage": "GitHub App private key PEM or @file"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "usage": "forgejo, github, gitlab, vercel, netlify, cloudflare, vault, aws, or gcp"
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "usage": "access token (Forgejo, GitHub, GitLab, Vercel, Netlify, Cloudflare, Vault); - reads stdin"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "usage": "instance or API URL (defaults to the public service)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "connections ls",
+      "slug": "connections-ls",
+      "parent": "connections",
+      "group": "automation",
+      "usage": "clavis connections ls [flags]",
+      "summary": "List connections (credentials are never shown)",
+      "description": "List connections and the syncs that use them. Credentials are never shown.",
+      "examples": [],
+      "flags": [
+        {
+          "name": "provider",
+          "type": "string",
+          "usage": "only this provider"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "connections rm",
+      "slug": "connections-rm",
+      "parent": "connections",
+      "group": "automation",
+      "usage": "clavis connections rm ID",
+      "summary": "Delete a connection that no sync uses",
+      "description": "Delete a connection that no sync uses. The token itself stays valid at the provider.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "connections rotate",
+      "slug": "connections-rotate",
+      "parent": "connections",
+      "group": "automation",
+      "usage": "clavis connections rotate ID [flags]",
+      "summary": "Replace a connection's credential (or rename it / change its URL)",
+      "description": "Replace a connection's credential, or rename it or change its URL. Every sync that uses it picks up the new value.",
+      "examples": [],
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-session-token",
+          "type": "string",
+          "usage": "AWS session token"
+        },
+        {
+          "name": "gcp-service-account-json",
+          "type": "string",
+          "usage": "GCP service account JSON or @file"
+        },
+        {
+          "name": "github-app-id",
+          "type": "string",
+          "usage": "GitHub App ID"
+        },
+        {
+          "name": "github-installation-id",
+          "type": "string",
+          "usage": "GitHub App installation ID"
+        },
+        {
+          "name": "github-private-key",
+          "type": "string",
+          "usage": "GitHub App private key PEM or @file"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "usage": "new name"
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "usage": "access token (Forgejo, GitHub, GitLab, Vercel, Netlify, Cloudflare, Vault); - reads stdin"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "usage": "new instance or API URL"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "connections test",
+      "slug": "connections-test",
+      "parent": "connections",
+      "group": "automation",
+      "usage": "clavis connections test ID [flags]",
+      "summary": "Check that a connection works for the syncs that use it",
+      "description": "Check that the provider accepts the credential. For Forgejo it also checks Actions access in every repository or organization the connection's syncs push to; `--repo` or `--org` adds one more destination.",
+      "examples": [
+        {
+          "run": "clavis connections test 123e4567 --repo team/web"
+        }
+      ],
+      "flags": [
+        {
+          "name": "repo",
+          "type": "string",
+          "usage": "Forgejo repository (owner/name) to check as well"
+        }
+      ],
+      "subcommands": [],
+      "related": []
     },
     {
       "path": "env",
@@ -3275,7 +3484,8 @@
         "syncs drift",
         "syncs logs",
         "syncs ls",
-        "syncs run"
+        "syncs run",
+        "syncs use-connection"
       ],
       "related": [
         "export"
@@ -3411,6 +3621,11 @@
           "name": "cloudflare-token",
           "type": "string",
           "usage": "Cloudflare API token"
+        },
+        {
+          "name": "connection",
+          "type": "clavis connections ls",
+          "usage": "use a saved connection's credential instead of a token flag (see clavis connections ls)"
         },
         {
           "name": "delete-missing",
@@ -3661,6 +3876,34 @@
         {
           "name": "yes",
           "usage": "confirm and execute the sync"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "syncs use-connection",
+      "slug": "syncs-use-connection",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs use-connection ID [flags]",
+      "summary": "Move a sync onto a shared connection, dropping its own credential",
+      "description": "Point an existing sync at a saved connection, or turn the sync's own credential into a new connection that other syncs can reuse.",
+      "examples": [
+        {
+          "run": "clavis syncs use-connection 123e4567 --name \"Home Forgejo\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "connection",
+          "type": "string",
+          "usage": "existing connection ID"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "usage": "create a connection with this name from the sync's credential"
         }
       ],
       "subcommands": [],

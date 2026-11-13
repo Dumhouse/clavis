@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 115 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 122 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -102,7 +102,8 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <div class="cli-cards">
 <a class="cli-card" href="./rotation"><span class="cli-card-name"><code>clavis rotation</code><span class="cli-card-meta">8 commands</span></span><span class="cli-card-text">Schedule and run secret rotation</span></a>
 <a class="cli-card" href="./lease"><span class="cli-card-name"><code>clavis lease</code><span class="cli-card-meta">7 commands</span></span><span class="cli-card-text">Create and manage dynamic secret leases</span></a>
-<a class="cli-card" href="./syncs"><span class="cli-card-name"><code>clavis syncs</code><span class="cli-card-meta">6 commands</span></span><span class="cli-card-text">Push secrets to external systems</span></a>
+<a class="cli-card" href="./syncs"><span class="cli-card-name"><code>clavis syncs</code><span class="cli-card-meta">7 commands</span></span><span class="cli-card-text">Push secrets to external systems</span></a>
+<a class="cli-card" href="./connections"><span class="cli-card-name"><code>clavis connections</code><span class="cli-card-meta">5 commands</span></span><span class="cli-card-text">Manage org-wide provider credentials that syncs share</span></a>
 </div>
 
 ## AI agents {#agents}

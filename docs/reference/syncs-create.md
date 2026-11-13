@@ -109,6 +109,7 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 <div class="cli-flag" id="flag-cloudflare-project"><dt><code>--cloudflare-project string</code></dt><dd>Cloudflare Pages project</dd></div>
 <div class="cli-flag" id="flag-cloudflare-script"><dt><code>--cloudflare-script string</code></dt><dd>Cloudflare Workers script name</dd></div>
 <div class="cli-flag" id="flag-cloudflare-token"><dt><code>--cloudflare-token string</code></dt><dd>Cloudflare API token</dd></div>
+<div class="cli-flag" id="flag-connection"><dt><code>--connection clavis connections ls</code></dt><dd>use a saved connection&#39;s credential instead of a token flag (see clavis connections ls)</dd></div>
 <div class="cli-flag" id="flag-delete-missing"><dt><code>--delete-missing</code></dt><dd>delete remote keys not present in Clavis</dd></div>
 <div class="cli-flag" id="flag-endpoint"><dt><code>--endpoint string</code></dt><dd>receiver URL for generic HTTP</dd></div>
 <div class="cli-flag" id="flag-forgejo-repo"><dt><code>--forgejo-repo string</code></dt><dd>Forgejo repository (owner/name) or organization for org scope</dd></div>
