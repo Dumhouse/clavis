@@ -26,6 +26,7 @@ import { Modal } from '@/components/ui/modal'
 import { Switch } from '@/components/ui/switch'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
+import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
 import { confirmAction } from '@/components/ui/dialogs'
 
@@ -67,6 +68,11 @@ export function EnvironmentsPage() {
   const [creating, setCreating] = useState(false)
   const [cloning, setCloning] = useState<Env | null>(null)
   const [inheriting, setInheriting] = useState<Env | null>(null)
+  useShortcuts({
+    n: () => {
+      setCreating(true)
+    },
+  })
 
   const project = useQuery({
     queryKey: ['project', org?.slug, projectSlug],

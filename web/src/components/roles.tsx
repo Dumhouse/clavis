@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Loader2, Pencil, Plus, Shield, Trash2, X } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Check, Loader2, Pencil, Plus, Shield, Table2, Trash2, X } from 'lucide-react'
+import { Fragment, useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
@@ -56,6 +56,7 @@ export function Roles() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Role | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [compare, setCompare] = useState(false)
 
   const roles = useQuery({
     queryKey: ['roles', org?.slug],
@@ -104,6 +105,16 @@ export function Roles() {
           variant="secondary"
           size="sm"
           className="ml-auto"
+          aria-pressed={compare}
+          onClick={() => {
+            setCompare((value) => !value)
+          }}
+        >
+          <Table2 className="size-3.5" /> {compare ? 'Hide comparison' : 'Compare'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => {
             setEditing('new')
             setError(null)
@@ -128,6 +139,8 @@ export function Roles() {
           }}
         />
       )}
+
+      {compare && <RoleComparison roles={roles.data ?? []} />}
 
       <div className="divide-y divide-border-soft">
         {(roles.data ?? []).map((role) => (
@@ -191,6 +204,56 @@ export function Roles() {
         </p>
       )}
     </section>
+  )
+}
+
+function RoleComparison({ roles }: { roles: Role[] }) {
+  const sets = roles.map((role) => new Set(role.permissions ?? []))
+  return (
+    <div className="overflow-x-auto border-b border-border">
+      <table className="w-full min-w-max text-xs">
+        <thead>
+          <tr className="border-b border-border-soft text-left text-muted">
+            <th className="sticky left-0 bg-surface px-4 py-2 font-medium">Permission</th>
+            {roles.map((role) => (
+              <th key={role.id} className="px-3 py-2 text-center font-medium">
+                {role.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {permissionGroups.map((group) => (
+            <Fragment key={group.label}>
+              <tr className="bg-elev">
+                <td
+                  colSpan={roles.length + 1}
+                  className="sticky left-0 px-4 py-1 text-2xs font-semibold uppercase tracking-wide text-dim"
+                >
+                  {group.label}
+                </td>
+              </tr>
+              {group.permissions.map(([value, label]) => (
+                <tr key={value} className="border-b border-border-soft last:border-0">
+                  <td className="sticky left-0 bg-surface px-4 py-1.5">{label}</td>
+                  {roles.map((role, index) => (
+                    <td key={role.id} className="px-3 py-1.5 text-center">
+                      {sets[index]?.has(value) ? (
+                        <Check className="mx-auto size-3.5 text-accent" aria-label="Allowed" />
+                      ) : (
+                        <span className="text-dim" aria-label="Not allowed">
+                          –
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

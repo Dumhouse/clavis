@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Groups } from '@/components/groups'
+import { PageIntro } from '@/components/page-intro'
 import { Roles } from '@/components/roles'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -14,6 +15,7 @@ import { useCurrentOrg } from '@/lib/org'
 import { ensureReauth } from '@/lib/reauth'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Input, Select } from '@/components/ui/field'
+import { useShortcuts } from '@/lib/use-shortcuts'
 
 type Member = components['schemas']['MemberBody']
 type Invite = components['schemas']['InviteBody']
@@ -146,6 +148,26 @@ export function MembersPage() {
         />
       </header>
 
+      <PageIntro
+        id="members"
+        summary="Invite people, set their role, and take their access away when they leave."
+        steps={[
+          {
+            title: 'Invite',
+            body: 'Create an invite link and pick a role. The link expires and can be revoked.',
+          },
+          {
+            title: 'Offboard',
+            body: 'Opens a checklist of every secret the person has revealed, so you can rotate them. It does not remove the person; use it before removing, or for someone who stays.',
+          },
+          {
+            title: 'Remove',
+            body: 'Takes the person out of the organization right away and signs them out. Their tokens and grants are revoked. The last Owner cannot be removed.',
+          },
+        ]}
+        when="Someone leaves: offboard first, rotate what the checklist lists, then remove."
+      />
+
       {inviteLink && (
         <section className="rounded-app border border-accent-line bg-accent-soft p-4">
           <div className="flex items-start justify-between gap-3">
@@ -242,6 +264,8 @@ export function MembersPage() {
                     variant="ghost"
                     size="sm"
                     aria-label={`Offboard ${member.email}`}
+                    title="Review the secrets this person revealed so you can rotate them. Does not remove them."
+
                     onClick={() => {
                       setOffboarding(member)
                     }}
@@ -252,6 +276,8 @@ export function MembersPage() {
                     variant="ghost"
                     size="icon"
                     aria-label={`Remove ${member.email}`}
+                    title="Remove from the organization and sign them out"
+
                     onClick={() => {
                       removeMember.mutate(member)
                     }}
@@ -337,6 +363,11 @@ function InviteForm({
   onDone: () => void
 }) {
   const [open, setOpen] = useState(false)
+  useShortcuts({
+    n: () => {
+      setOpen(true)
+    },
+  })
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('Developer')
   const [days, setDays] = useState(7)

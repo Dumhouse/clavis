@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Search, ShieldAlert, ShieldCheck, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
+import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
 
 type AuditEvent = components['schemas']['AuditEventBody']
@@ -17,6 +18,12 @@ type AuditEvent = components['schemas']['AuditEventBody']
 export function AuditPage() {
   const { org } = useCurrentOrg()
   const [filter, setFilter] = useState('')
+  const filterRef = useRef<HTMLInputElement>(null)
+  useShortcuts({
+    '/': () => {
+      filterRef.current?.focus()
+    },
+  })
   const [category, setCategory] = useState<Category>('all')
   const [selected, setSelected] = useState<AuditEvent | null>(null)
   const queryClient = useQueryClient()
@@ -139,6 +146,7 @@ export function AuditPage() {
           <Search className="size-3.5 text-dim" aria-hidden />
           <span className="sr-only">Filter events</span>
           <input
+            ref={filterRef}
             className="w-full bg-transparent text-sm text-text placeholder:text-dim focus:outline-none"
             placeholder="Key, person, project, reason, IP…"
             value={filter}

@@ -8,6 +8,7 @@ import {
   EyeOff,
   Folder,
   GitCompare,
+  MoveHorizontal,
   KeyRound,
   Loader2,
   Lock,
@@ -40,6 +41,7 @@ import { GenerateSecretDialog } from '@/pages/generate-dialog'
 import { ImportSecretsDialog } from '@/pages/import-dialog'
 import { envClassNames, envShort, SecretSheet } from '@/pages/secret-sheet'
 import { isRequired, validateSchemaValue, type SchemaEntry } from '@/lib/schema'
+import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
 
 type Env = components['schemas']['EnvBody']
@@ -103,35 +105,28 @@ export function SecretsPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  // Wide values: roomy cells for long secrets and connection strings.
+  const [wide, setWide] = useState(() => {
+    try {
+      return window.localStorage.getItem('clavis.secrets.wide') === 'true'
+    } catch {
+      return false
+    }
+  })
+  const cellMax = wide ? 'max-w-[40rem]' : 'max-w-48'
   // Page shortcuts advertised in the hint bar: N add, P import, / filter.
   const filterRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-      const typing =
-        target?.tagName === 'INPUT' ||
-        target?.tagName === 'TEXTAREA' ||
-        target?.tagName === 'SELECT' ||
-        target?.isContentEditable === true
-      if (typing || event.metaKey || event.ctrlKey || event.altKey) return
-      if (document.querySelector('dialog[open]')) return
-      const key = event.key.toLowerCase()
-      if (key === 'n') {
-        event.preventDefault()
-        setAdding(true)
-      } else if (key === 'p') {
-        event.preventDefault()
-        setPasting(true)
-      } else if (event.key === '/') {
-        event.preventDefault()
-        filterRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => {
-      window.removeEventListener('keydown', handler)
-    }
-  }, [])
+  useShortcuts({
+    n: () => {
+      setAdding(true)
+    },
+    p: () => {
+      setPasting(true)
+    },
+    '/': () => {
+      filterRef.current?.focus()
+    },
+  })
 
   useOrgEvents(org?.slug, (event) => {
     if (event.project && event.project !== projectSlug) return
@@ -739,6 +734,23 @@ export function SecretsPage() {
         >
           <GitCompare className="size-3.5" /> Compare
         </Button>
+        <Button
+          variant={wide ? 'primary' : 'secondary'}
+          size="sm"
+          aria-pressed={wide}
+          title="Show longer values in each cell"
+          onClick={() => {
+            const next = !wide
+            setWide(next)
+            try {
+              window.localStorage.setItem('clavis.secrets.wide', String(next))
+            } catch {
+              // Storage can be unavailable; the toggle still works for this visit.
+            }
+          }}
+        >
+          <MoveHorizontal className="size-3.5" /> Wide values
+        </Button>
         {overlaySlugs.length > 0 && (
           <>
             <Select
@@ -995,7 +1007,8 @@ export function SecretsPage() {
                                   autoComplete="off"
                                   spellCheck={false}
                                   className={cn(
-                                    'h-7 w-full min-w-36 rounded border border-accent-line bg-bg px-2 font-mono text-xs text-text focus:outline-none',
+                                    'h-7 w-full rounded border border-accent-line bg-bg px-2 font-mono text-xs text-text focus:outline-none',
+                                    wide ? 'min-w-96' : 'min-w-36',
                                     validation && 'border-danger',
                                   )}
                                   value={edit.value}
@@ -1051,7 +1064,10 @@ export function SecretsPage() {
                             <div className="flex items-center gap-1">
                               {plain ? (
                                 <span
-                                  className="inline-flex h-6 max-w-48 items-center truncate rounded border border-transparent px-1 font-mono text-xs text-muted"
+                                  className={cn(
+                                    'inline-flex h-6 items-center truncate rounded border border-transparent px-1 font-mono text-xs text-muted',
+                                    cellMax,
+                                  )}
                                   title={shown ?? ''}
                                 >
                                   {shown || <span className="text-dim">(empty)</span>}
@@ -1062,7 +1078,10 @@ export function SecretsPage() {
                                   onClick={() => {
                                     void toggleCell(env, key)
                                   }}
-                                  className="inline-flex h-6 max-w-48 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted hover:border-accent-line hover:text-text"
+                                  className={cn(
+                                    'inline-flex h-6 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted hover:border-accent-line hover:text-text',
+                                    cellMax,
+                                  )}
                                   aria-label={
                                     cell?.revealed
                                       ? `Hide ${key} in ${env.slug}`
