@@ -25,6 +25,9 @@ ingress controller:
 server:
   baseURL: https://clavis.example.com
 
+image:
+  tag: "0.2.5"
+
 ingress:
   enabled: true
   className: nginx
@@ -50,9 +53,10 @@ class or an existing claim.
 
 ## Image and database settings
 
-The chart version passed to Helm selects the chart package. `image.tag` selects
-the server image and defaults to the chart's `appVersion`; set it when you need
-to run a different server image version. The default image repository is
+The example pins server image `0.2.5`. The chart version passed to Helm selects
+the chart package; `image.tag` selects the server image. If `image.tag` is
+omitted, the chart uses its `appVersion`. Update the image tag when choosing a
+different server release. The default image repository is
 `ghcr.io/dumhouse/clavis`.
 
 SQLite is the default database and stores `/data/clavis.db` on the persistent
