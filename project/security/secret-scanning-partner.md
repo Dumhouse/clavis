@@ -12,5 +12,5 @@ The suffix is a CRC32 checksum over `<kind>_<body>`, so scanners can reduce fals
 positives. Tokens are high-entropy and shown once. Revocation is immediate by
 deleting the token record; identity deletion revokes all tokens.
 
-Owner: security@clavis.dev
+Owner: dumhousestudio@gmail.com
 Policy: https://github.com/dumhouse/clavis/security/policy
