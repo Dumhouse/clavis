@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4 # brings the committed .clavis.yaml
-      - run: clavis run -- npm test
+      - run: clavis run npm test
         env:
           CLAVIS_SERVER: https://clavis.example.com
           CLAVIS_TOKEN: ${{ secrets.CLAVIS_TOKEN }}

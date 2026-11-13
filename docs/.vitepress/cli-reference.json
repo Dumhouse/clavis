@@ -1,0 +1,4012 @@
+{
+  "groups": [
+    {
+      "id": "get-started",
+      "title": "Get started",
+      "description": "Sign in, link a folder to a project, and check who you are.",
+      "commands": [
+        "login",
+        "logout",
+        "whoami",
+        "init",
+        "link",
+        "unlink",
+        "trust"
+      ]
+    },
+    {
+      "id": "run",
+      "title": "Run and export",
+      "description": "Give secrets to your app: run it with them, open a shell, write files, generate typed config, or share one value.",
+      "commands": [
+        "run",
+        "shell",
+        "export",
+        "codegen",
+        "share"
+      ]
+    },
+    {
+      "id": "secrets",
+      "title": "Secrets",
+      "description": "Read, write, generate, version, roll back and override secrets.",
+      "commands": [
+        "secrets"
+      ]
+    },
+    {
+      "id": "import",
+      "title": "Import and scan",
+      "description": "Bring existing `.env` files and other secret managers in, and find secrets that leaked into code.",
+      "commands": [
+        "import",
+        "scan"
+      ]
+    },
+    {
+      "id": "schema",
+      "title": "Schema and validation",
+      "description": "Describe the keys an app needs, then check every environment against it.",
+      "commands": [
+        "schema",
+        "check"
+      ]
+    },
+    {
+      "id": "environments",
+      "title": "Environments",
+      "description": "Create and compare environments, preview branches, freezes, and promotion.",
+      "commands": [
+        "env",
+        "promote"
+      ]
+    },
+    {
+      "id": "access",
+      "title": "Team and access",
+      "description": "Members, machine identities, just-in-time access, and the audit log.",
+      "commands": [
+        "members",
+        "identities",
+        "access",
+        "audit"
+      ]
+    },
+    {
+      "id": "sets",
+      "title": "Shared sets",
+      "description": "Values shared by many projects, such as one Stripe key used by several apps.",
+      "commands": [
+        "sets"
+      ]
+    },
+    {
+      "id": "automation",
+      "title": "Rotation, leases and syncs",
+      "description": "Rotate secrets on a schedule, issue short-lived credentials, and push values to other platforms.",
+      "commands": [
+        "rotation",
+        "lease",
+        "syncs"
+      ]
+    },
+    {
+      "id": "agents",
+      "title": "AI agents",
+      "description": "Let coding agents use secrets through MCP without seeing their values.",
+      "commands": [
+        "agents",
+        "mcp"
+      ]
+    },
+    {
+      "id": "server",
+      "title": "Server and administration",
+      "description": "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades.",
+      "commands": [
+        "server",
+        "setup-token",
+        "admin",
+        "health",
+        "upgrade",
+        "version"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "path": "access",
+      "slug": "access",
+      "group": "access",
+      "usage": "clavis access \u003ccommand\u003e",
+      "summary": "Explain, request, approve and review access",
+      "description": "Find out why someone has access, and grant temporary access instead of\npermanent roles: request it for an hour, get it approved, and it expires\non its own.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "access approve",
+        "access break-glass",
+        "access explain",
+        "access reject",
+        "access request",
+        "access requests",
+        "access review"
+      ],
+      "related": [
+        "members",
+        "audit"
+      ]
+    },
+    {
+      "path": "access approve",
+      "slug": "access-approve",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access approve REQUEST_ID",
+      "summary": "Approve an access request",
+      "description": "Approve a request. The last required approval creates the time-limited grant. You can't approve your own request.",
+      "examples": [
+        {
+          "run": "clavis access approve 4f2a9c"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "access reject",
+        "access requests"
+      ]
+    },
+    {
+      "path": "access break-glass",
+      "slug": "access-break-glass",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access break-glass [flags]",
+      "summary": "Immediately grant break-glass access and lift an active freeze",
+      "description": "For incidents: immediately grant yourself Admin access for a short\nwindow, lift any active freeze, and write a loud audit event. Needs the\n`settings:manage` permission.",
+      "examples": [
+        {
+          "run": "clavis access break-glass --env prod --reason \"SEV-1 checkout outage\" --duration 1h"
+        }
+      ],
+      "flags": [
+        {
+          "name": "duration",
+          "type": "duration",
+          "default": "1h",
+          "usage": "access duration (5m–4h)"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "usage": "incident reason (required)"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "default": "Admin",
+          "usage": "role to grant"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "env freeze"
+      ]
+    },
+    {
+      "path": "access explain",
+      "slug": "access-explain",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access explain \u003cuser|group\u003e [flags]",
+      "summary": "Explain why a user or group has access",
+      "description": "Explain why a member or group does or does not have a permission, step by step through roles and groups.",
+      "examples": [
+        {
+          "run": "clavis access explain ada@example.com --permission secrets:write --env prod"
+        },
+        {
+          "run": "clavis access explain platform-team --permission secrets:read-values --project web-app"
+        }
+      ],
+      "flags": [
+        {
+          "name": "environment",
+          "type": "string",
+          "usage": "environment glob (default: * or --env)"
+        },
+        {
+          "name": "group",
+          "type": "string",
+          "usage": "group name or ID"
+        },
+        {
+          "name": "permission",
+          "type": "string",
+          "usage": "permission to explain, e.g. secrets:write"
+        },
+        {
+          "name": "user",
+          "type": "string",
+          "usage": "member email, name, or user ID"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "access reject",
+      "slug": "access-reject",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access reject REQUEST_ID",
+      "summary": "Reject an access request",
+      "description": "Reject a request.",
+      "examples": [
+        {
+          "run": "clavis access reject 4f2a9c"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "access approve"
+      ]
+    },
+    {
+      "path": "access request",
+      "slug": "access-request",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access request [flags]",
+      "summary": "Request temporary project/environment access",
+      "description": "Ask for temporary access to an environment. Approvers get an email and, if configured, Slack, Teams or Discord buttons.",
+      "examples": [
+        {
+          "run": "clavis access request --env prod --role Developer --duration 1h \\\n  --reason \"Debugging checkout latency\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "approvals",
+          "type": "int",
+          "default": "1",
+          "usage": "required approvals"
+        },
+        {
+          "name": "duration",
+          "type": "duration",
+          "default": "1h",
+          "usage": "access duration (5m–24h)"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "usage": "why access is needed"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "default": "Developer",
+          "usage": "role to request"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "access requests",
+        "access approve"
+      ]
+    },
+    {
+      "path": "access requests",
+      "slug": "access-requests",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access requests [flags]",
+      "summary": "List access requests",
+      "description": "List access requests. Members see their own; admins see everyone's.",
+      "examples": [
+        {
+          "run": "clavis access requests"
+        },
+        {
+          "run": "clavis access requests --status approved"
+        }
+      ],
+      "flags": [
+        {
+          "name": "status",
+          "type": "string",
+          "default": "pending",
+          "usage": "pending, approved, or rejected"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "access review",
+      "slug": "access-review",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access review [flags]",
+      "summary": "Report who can read values in an environment",
+      "description": "List every member and group that can read values in an environment, for periodic access reviews.",
+      "examples": [
+        {
+          "run": "clavis access review --env prod"
+        },
+        {
+          "run": "clavis access review --env prod --format csv \u003e access-review.csv"
+        }
+      ],
+      "flags": [
+        {
+          "name": "format",
+          "type": "string",
+          "default": "table",
+          "usage": "table or csv"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "admin",
+      "slug": "admin",
+      "group": "server",
+      "usage": "clavis admin \u003ccommand\u003e",
+      "summary": "Instance administration",
+      "description": "Maintenance commands that work on the database and keys directly. Run\nthem on the server (`docker exec clavis clavis admin ...`). Commands\nthat change keys or restore data need the server to be stopped.",
+      "examples": [
+        {
+          "run": "docker exec clavis clavis admin reset-password you@example.com"
+        },
+        {
+          "run": "docker exec clavis clavis admin backup --out /data/backup.enc"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "admin audit",
+        "admin backup",
+        "admin migrate-db",
+        "admin reset-password",
+        "admin restore",
+        "admin rotate-root-key",
+        "admin shamir",
+        "admin tls-info",
+        "admin unseal"
+      ],
+      "related": [
+        "server"
+      ]
+    },
+    {
+      "path": "admin audit",
+      "slug": "admin-audit",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin audit \u003ccommand\u003e",
+      "summary": "Audit log administration",
+      "description": "Verify and sign the audit log's hash chain.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "admin audit checkpoint",
+        "admin audit verify"
+      ],
+      "related": [
+        "audit"
+      ]
+    },
+    {
+      "path": "admin audit checkpoint",
+      "slug": "admin-audit-checkpoint",
+      "parent": "admin audit",
+      "group": "server",
+      "usage": "clavis admin audit checkpoint",
+      "summary": "Sign the current audit chain head",
+      "description": "Sign the current head of the audit chain with the instance's Ed25519 key.",
+      "examples": [
+        {
+          "run": "clavis admin audit checkpoint"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "admin audit verify",
+      "slug": "admin-audit-verify",
+      "parent": "admin audit",
+      "group": "server",
+      "usage": "clavis admin audit verify",
+      "summary": "Verify the audit hash chain and signed checkpoints",
+      "description": "Recompute the audit hash chain and check signed checkpoints. Any edited or deleted event breaks the chain.",
+      "examples": [
+        {
+          "run": "clavis admin audit verify"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "admin backup",
+      "slug": "admin-backup",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin backup [flags]",
+      "summary": "Create an encrypted consistent database backup",
+      "description": "Write an encrypted, consistent snapshot of the database (SQLite\n`VACUUM INTO` or `pg_dump`). The backup contains wrapped organization\nkeys, so keep the root key separately: without it the backup can't be\nread.",
+      "examples": [
+        {
+          "run": "clavis admin backup --out clavis-backup.enc"
+        },
+        {
+          "title": "Docker",
+          "run": "docker exec clavis clavis admin backup --out /data/backup.enc\ndocker cp clavis:/data/backup.enc ./"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file"
+        },
+        {
+          "name": "out",
+          "shorthand": "o",
+          "type": "string",
+          "usage": "output backup file"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin restore"
+      ]
+    },
+    {
+      "path": "admin migrate-db",
+      "slug": "admin-migrate-db",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin migrate-db [flags]",
+      "summary": "Copy a SQLite database into Postgres",
+      "description": "Copy a SQLite database into Postgres. The target is migrated and must be empty unless you pass `--force`.",
+      "examples": [
+        {
+          "run": "clavis admin migrate-db --from ./data/clavis.db --to \"$CLAVIS_DB_DSN\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file for defaults"
+        },
+        {
+          "name": "force",
+          "usage": "replace existing destination rows"
+        },
+        {
+          "name": "from",
+          "type": "string",
+          "usage": "SQLite database path"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "usage": "Postgres DSN"
+        },
+        {
+          "name": "yes",
+          "usage": "skip confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "admin reset-password",
+      "slug": "admin-reset-password",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin reset-password EMAIL [flags]",
+      "summary": "Print a one-time password reset link for a user (no email needed)",
+      "description": "Print a one-time link that sets a new password for a user. Use it when\nsomeone, including the only owner, is locked out and the server has no\nemail (SMTP) configured. The link is valid for 24 hours by default and\nthe reset is recorded in the audit log.",
+      "examples": [
+        {
+          "title": "Docker",
+          "run": "docker exec clavis clavis admin reset-password you@example.com"
+        },
+        {
+          "title": "Valid for one hour",
+          "run": "clavis admin reset-password ada@example.com --valid-for 1h"
+        }
+      ],
+      "notes": "Anyone with the link can set the password, so send it over a channel you trust.",
+      "flags": [
+        {
+          "name": "config",
+          "shorthand": "c",
+          "type": "string",
+          "usage": "path to clavis.yaml"
+        },
+        {
+          "name": "valid-for",
+          "type": "duration",
+          "default": "24h",
+          "usage": "how long the link stays valid (max 168h)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin",
+        "audit ls"
+      ]
+    },
+    {
+      "path": "admin restore",
+      "slug": "admin-restore",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin restore FILE [flags]",
+      "summary": "Restore an encrypted database backup",
+      "description": "Restore an encrypted backup while the server is stopped. The previous SQLite database is kept with a timestamp suffix.",
+      "examples": [
+        {
+          "run": "clavis admin restore clavis-backup.enc --yes"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file"
+        },
+        {
+          "name": "yes",
+          "usage": "confirm replacing the database"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin backup"
+      ]
+    },
+    {
+      "path": "admin rotate-root-key",
+      "slug": "admin-rotate-root-key",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin rotate-root-key [flags]",
+      "summary": "Initialise or rotate the instance root key while the server is stopped",
+      "description": "Create (`--init`) or rotate the root key while the server is stopped.\nEvery organization key and TOTP secret is re-encrypted, and the old key\nis backed up.",
+      "examples": [
+        {
+          "run": "clavis admin rotate-root-key --init"
+        },
+        {
+          "run": "clavis admin rotate-root-key --yes"
+        },
+        {
+          "run": "clavis admin rotate-root-key --config /etc/clavis/clavis.yaml"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file (default: CLAVIS_CONFIG or data defaults)"
+        },
+        {
+          "name": "init",
+          "usage": "create the root key if it does not exist"
+        },
+        {
+          "name": "yes",
+          "usage": "skip the confirmation prompt"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "admin shamir",
+      "slug": "admin-shamir",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin shamir \u003ccommand\u003e",
+      "summary": "Split the root key into Shamir shares",
+      "description": "Split the root key into shares so that several people must come together to start the server.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "admin shamir split"
+      ],
+      "related": [
+        "admin unseal"
+      ]
+    },
+    {
+      "path": "admin shamir split",
+      "slug": "admin-shamir-split",
+      "parent": "admin shamir",
+      "group": "server",
+      "usage": "clavis admin shamir split [flags]",
+      "summary": "Split the root key into threshold shares",
+      "description": "Split the root key into `--shares` pieces, any `--threshold` of which rebuild it. `--seal` removes the root key, so the server won't start until unsealed.",
+      "examples": [
+        {
+          "run": "clavis admin shamir split --shares 5 --threshold 3 --out ./shares --seal --yes"
+        }
+      ],
+      "notes": "Shares are as sensitive as the root key. Store them offline, with different people.",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file"
+        },
+        {
+          "name": "out",
+          "type": "string",
+          "default": ".",
+          "usage": "directory for share files"
+        },
+        {
+          "name": "seal",
+          "usage": "remove the root key file after writing shares"
+        },
+        {
+          "name": "shares",
+          "type": "int",
+          "default": "5",
+          "usage": "number of shares"
+        },
+        {
+          "name": "threshold",
+          "type": "int",
+          "default": "3",
+          "usage": "shares required to unseal"
+        },
+        {
+          "name": "yes",
+          "usage": "confirm sealing"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin unseal"
+      ]
+    },
+    {
+      "path": "admin tls-info",
+      "slug": "admin-tls-info",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin tls-info [flags]",
+      "summary": "Show the server's HTTPS certificate and its fingerprint",
+      "description": "Show the certificate the server presents: TLS mode, names, issuer,\nexpiry, and the SHA-256 fingerprints of the certificate and of its\npublic key. Share the fingerprint with your team so they can check it\nwhen `clavis login` asks them to trust a self-signed server.\n\nWith `CLAVIS_ACME_DNS`, it also says whether the Let's Encrypt\ncertificate has been issued yet, or whether the temporary self-signed\none is still in use.",
+      "examples": [
+        {
+          "title": "Docker",
+          "run": "docker exec clavis clavis admin tls-info"
+        },
+        {
+          "title": "Machine-readable",
+          "run": "clavis admin tls-info --json"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "shorthand": "c",
+          "type": "string",
+          "usage": "path to clavis.yaml"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "trust",
+        "server"
+      ]
+    },
+    {
+      "path": "admin unseal",
+      "slug": "admin-unseal",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin unseal [flags]",
+      "summary": "Reconstruct the root key from Shamir shares",
+      "description": "Rebuild the root key from enough shares, verify it, and let the server start again.",
+      "examples": [
+        {
+          "run": "clavis admin unseal --share share-01.key --share share-03.key --share share-05.key"
+        }
+      ],
+      "notes": "Needs `keys.provider=file`.",
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file"
+        },
+        {
+          "name": "force",
+          "usage": "overwrite an existing root key file"
+        },
+        {
+          "name": "share",
+          "type": "stringArray",
+          "usage": "share file (repeat for each share)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin shamir split"
+      ]
+    },
+    {
+      "path": "agents",
+      "slug": "agents",
+      "group": "agents",
+      "usage": "clavis agents \u003ccommand\u003e",
+      "summary": "Manage AI agent identities and command allowlists",
+      "description": "Agent identities let coding agents (Claude Code, Cursor, Codex, ...)\nrun approved commands with secrets, through [`clavis mcp`](./mcp),\nwithout seeing the values. Allowlists are deny-all by default and live\non the server, so an agent can't edit its own.",
+      "examples": [
+        {
+          "run": "clavis agents allow coding-agent \"npm test\""
+        },
+        {
+          "run": "clavis agents ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "agents allow",
+        "agents ls",
+        "agents revoke"
+      ],
+      "related": [
+        "mcp",
+        "identities"
+      ]
+    },
+    {
+      "path": "agents allow",
+      "slug": "agents-allow",
+      "parent": "agents",
+      "group": "agents",
+      "usage": "clavis agents allow IDENTITY COMMAND...",
+      "summary": "Add command patterns to an agent allowlist",
+      "description": "Approve command patterns for an agent. Patterns support `*` and `?`; a bare `*` is refused.",
+      "examples": [
+        {
+          "run": "clavis agents allow coding-agent \"npm test\""
+        },
+        {
+          "run": "clavis agents allow coding-agent \"go test ./...\" \"pnpm dev\""
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "agents ls",
+      "slug": "agents-ls",
+      "parent": "agents",
+      "group": "agents",
+      "usage": "clavis agents ls",
+      "summary": "List agent identities",
+      "description": "List agent identities and whether their allowlist is still deny-all.",
+      "examples": [
+        {
+          "run": "clavis agents ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "agents revoke",
+      "slug": "agents-revoke",
+      "parent": "agents",
+      "group": "agents",
+      "usage": "clavis agents revoke IDENTITY [COMMAND...] [flags]",
+      "summary": "Remove command patterns from an agent allowlist",
+      "description": "Remove patterns, or `--clear` to go back to deny-all.",
+      "examples": [
+        {
+          "run": "clavis agents revoke coding-agent \"pnpm dev\""
+        },
+        {
+          "run": "clavis agents revoke coding-agent --clear"
+        }
+      ],
+      "flags": [
+        {
+          "name": "clear",
+          "usage": "remove every command pattern (deny all)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "audit",
+      "slug": "audit",
+      "group": "access",
+      "usage": "clavis audit \u003ccommand\u003e",
+      "summary": "Read the organization audit log",
+      "description": "Every read, write, reveal, sign-in and admin action is recorded in a tamper-evident audit log. Values are never in it.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "audit ls"
+      ],
+      "related": [
+        "admin audit"
+      ]
+    },
+    {
+      "path": "audit ls",
+      "slug": "audit-ls",
+      "parent": "audit",
+      "group": "access",
+      "usage": "clavis audit ls [flags]",
+      "summary": "List recent audit events",
+      "description": "List recent audit events for the organization.",
+      "examples": [
+        {
+          "run": "clavis audit ls"
+        },
+        {
+          "run": "clavis audit ls --limit 200 --after 1234"
+        },
+        {
+          "run": "clavis audit ls --json"
+        }
+      ],
+      "flags": [
+        {
+          "name": "after",
+          "type": "int",
+          "usage": "only events after this sequence number"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "default": "50",
+          "usage": "number of events (1-200)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "check",
+      "slug": "check",
+      "group": "schema",
+      "usage": "clavis check [flags]",
+      "summary": "Validate an environment against the project's secret schema",
+      "description": "Validate an environment against the project schema. Missing required\nkeys, wrong types, pattern failures and invalid enum values are errors;\nmissing optional keys and keys not in the schema are warnings.",
+      "examples": [
+        {
+          "run": "clavis check"
+        },
+        {
+          "run": "clavis check --env production"
+        },
+        {
+          "title": "Every environment",
+          "run": "clavis check --all"
+        }
+      ],
+      "notes": "Exits with code `6` when a check fails, so `clavis check --env production` can gate a deploy in CI.",
+      "flags": [
+        {
+          "name": "all",
+          "usage": "check every environment in the project"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "schema",
+        "codegen"
+      ]
+    },
+    {
+      "path": "codegen",
+      "slug": "codegen",
+      "group": "run",
+      "usage": "clavis codegen [flags]",
+      "summary": "Generate typed config loaders from the project schema",
+      "description": "Generate a typed config loader from the project [schema](./schema), so\nyour app fails at startup with a clear message when a key is missing or\nmalformed.",
+      "examples": [
+        {
+          "title": "TypeScript (zod)",
+          "run": "clavis codegen --lang ts -o src/config.ts"
+        },
+        {
+          "title": "Go",
+          "run": "clavis codegen --lang go --package config -o internal/config/config.go"
+        },
+        {
+          "title": "Python (pydantic)",
+          "run": "clavis codegen --lang python -o app/config.py"
+        }
+      ],
+      "notes": "- TypeScript exports a zod schema, the inferred type and `loadConfig`.\n- Go exports a struct, `Load`, `LoadFor(envType)` and `LoadFrom(environ)`.\n- Python exports a pydantic `Config` and `load_config`.\n\nLoaders parse env-style strings: integers become numbers, booleans accept\n`true/false/1/0/yes/no`, JSON fields are decoded, enums and patterns are\nchecked. Keys required in any environment type are required fields.",
+      "flags": [
+        {
+          "name": "lang",
+          "type": "string",
+          "default": "ts",
+          "usage": "ts, go, or python"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "default": "Config",
+          "usage": "generated type/class name"
+        },
+        {
+          "name": "out",
+          "shorthand": "o",
+          "type": "string",
+          "usage": "output file (default stdout)"
+        },
+        {
+          "name": "package",
+          "type": "string",
+          "default": "config",
+          "usage": "Go package name"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "schema",
+        "check"
+      ]
+    },
+    {
+      "path": "env",
+      "slug": "env",
+      "group": "environments",
+      "usage": "clavis env \u003ccommand\u003e",
+      "summary": "Manage environments",
+      "description": "Each project has environments such as Development, Staging and\nProduction. Child environments inherit values from their parent and can\noverride them.",
+      "examples": [
+        {
+          "run": "clavis env ls"
+        },
+        {
+          "run": "clavis env diff dev prod"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "env branch",
+        "env create",
+        "env diff",
+        "env freeze",
+        "env freezes",
+        "env ls",
+        "env unfreeze"
+      ],
+      "related": [
+        "promote"
+      ]
+    },
+    {
+      "path": "env branch",
+      "slug": "env-branch",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env branch [BRANCH] [flags]",
+      "summary": "Create or refresh a preview environment for a git branch",
+      "description": "Create or refresh a preview environment for a git branch (the current\none by default). It inherits from the first development environment and\nexpires after the organization's preview retention period; running the\ncommand again extends it.",
+      "examples": [
+        {
+          "run": "clavis env branch"
+        },
+        {
+          "run": "clavis env branch feature/checkout"
+        }
+      ],
+      "notes": "Set `branch_envs: true` in [`.clavis.yaml`](./clavis-yaml) to use the branch environment automatically when it exists.",
+      "flags": [
+        {
+          "name": "branch",
+          "shorthand": "b",
+          "type": "string",
+          "usage": "git branch (default: current branch)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "env create",
+      "slug": "env-create",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env create NAME [flags]",
+      "summary": "Create an environment",
+      "description": "Create an environment. Types: `development`, `preview`, `staging`, `production`.",
+      "examples": [
+        {
+          "run": "clavis env create QA --slug qa --type staging"
+        }
+      ],
+      "flags": [
+        {
+          "name": "slug",
+          "type": "string",
+          "usage": "environment slug"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "default": "development",
+          "usage": "development, preview, staging, or production"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "env diff",
+      "slug": "env-diff",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env diff SOURCE TARGET",
+      "summary": "Compare key names between two environments",
+      "description": "Compare two environments by key name: which keys exist in only one of\nthem. Values are not compared or shown. Use [`clavis promote`](./promote)\nto see value differences and copy them.",
+      "examples": [
+        {
+          "run": "clavis env diff dev prod"
+        },
+        {
+          "run": "clavis env diff staging production --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "promote"
+      ]
+    },
+    {
+      "path": "env freeze",
+      "slug": "env-freeze",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env freeze [flags]",
+      "summary": "Schedule a write freeze for the linked environment",
+      "description": "Schedule a window in which secret writes, promotions, syncs and overlay edits are blocked for the linked environment, for example during a release.",
+      "examples": [
+        {
+          "run": "clavis env freeze --reason \"Release freeze\" --hours 4"
+        },
+        {
+          "run": "clavis env freeze --start 2026-11-27T09:00:00Z --hours 8 --reason \"Black Friday\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "hours",
+          "type": "int",
+          "default": "4",
+          "usage": "freeze duration in hours"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "usage": "why the environment is frozen"
+        },
+        {
+          "name": "start",
+          "type": "string",
+          "usage": "start time in RFC3339 (default now)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "env freezes",
+        "env unfreeze",
+        "access break-glass"
+      ]
+    },
+    {
+      "path": "env freezes",
+      "slug": "env-freezes",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env freezes",
+      "summary": "List freeze windows",
+      "description": "List upcoming and active freeze windows.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "env freeze"
+      ]
+    },
+    {
+      "path": "env ls",
+      "slug": "env-ls",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env ls",
+      "summary": "List environments",
+      "description": "List the project's environments with their type and parent.",
+      "examples": [
+        {
+          "run": "clavis env ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "env unfreeze",
+      "slug": "env-unfreeze",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env unfreeze FREEZE_ID",
+      "summary": "Delete a freeze window",
+      "description": "Delete a freeze window. Break-glass access also lifts an active freeze.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "env freeze"
+      ]
+    },
+    {
+      "path": "export",
+      "slug": "export",
+      "group": "run",
+      "usage": "clavis export [flags]",
+      "summary": "Export an environment's secrets",
+      "description": "Write an environment's resolved values in another format: a `.env`\nfile, a Docker env-file, JSON, YAML, shell `export` lines, or a\nKubernetes Secret manifest. Exports are audited.",
+      "examples": [
+        {
+          "title": "Dotenv to stdout",
+          "run": "clavis export"
+        },
+        {
+          "title": "Docker env-file",
+          "run": "clavis export --format docker \u003e .env"
+        },
+        {
+          "title": "Kubernetes Secret",
+          "run": "clavis export --env production --format k8s \u003e secret.yaml"
+        },
+        {
+          "title": "Load into the current shell",
+          "run": "eval \"$(clavis export --format shell)\""
+        },
+        {
+          "title": "Only non-secret variables (needs no read-values permission)",
+          "run": "clavis export --variables-only"
+        }
+      ],
+      "notes": "Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`. Prefer `clavis run` where you can: it writes nothing to disk.",
+      "flags": [
+        {
+          "name": "format",
+          "type": "string",
+          "default": "dotenv",
+          "usage": "dotenv, json, yaml, shell, docker, or k8s"
+        },
+        {
+          "name": "out",
+          "shorthand": "o",
+          "type": "string",
+          "usage": "output file (default stdout, - for stdout)"
+        },
+        {
+          "name": "variables-only",
+          "usage": "export only variables (no read-values permission needed)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "run",
+        "import"
+      ]
+    },
+    {
+      "path": "health",
+      "slug": "health",
+      "group": "server",
+      "usage": "clavis health [flags]",
+      "summary": "Show organization health findings",
+      "description": "A health score with findings: stale and unused secrets, keys without\nrotation, expiring secrets, members without two-factor authentication,\nand identity tokens that never expire. The **Health** page shows the\nsame.",
+      "examples": [
+        {
+          "run": "clavis health"
+        },
+        {
+          "run": "clavis health --project web-app"
+        },
+        {
+          "run": "clavis health --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "rotation status"
+      ]
+    },
+    {
+      "path": "identities",
+      "slug": "identities",
+      "group": "access",
+      "usage": "clavis identities \u003ccommand\u003e",
+      "summary": "Manage machine and workload identities",
+      "description": "Identities are non-human users: CI pipelines, servers, Kubernetes\nworkloads and AI agents. They get a token, or exchange a workload OIDC\ntoken (GitHub Actions, GitLab, Kubernetes, AWS, GCP) for a short-lived\none, so no long-lived secret sits in CI.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "identities create",
+        "identities ls",
+        "identities revoke"
+      ],
+      "related": [
+        "agents"
+      ]
+    },
+    {
+      "path": "identities create",
+      "slug": "identities-create",
+      "parent": "identities",
+      "group": "access",
+      "usage": "clavis identities create NAME [flags]",
+      "summary": "Create a machine or workload identity and its first token",
+      "description": "Create a machine identity and print its first token (shown once), or set up keyless OIDC trust.",
+      "examples": [
+        {
+          "title": "Token for a deploy server",
+          "run": "clavis identities create deploy-bot --role Developer --project web-app --identity-env prod"
+        },
+        {
+          "title": "GitHub Actions, no stored token",
+          "run": "clavis identities create github-actions \\\n  --oidc github --repo acme/web --branch main --gh-environment production \\\n  --role Developer --project web-app --identity-env prod"
+        },
+        {
+          "title": "GitLab CI",
+          "run": "clavis identities create gitlab-ci \\\n  --oidc gitlab --repo group/project --branch main --audience clavis"
+        },
+        {
+          "title": "Kubernetes service account",
+          "run": "clavis identities create k8s-deployer \\\n  --oidc kubernetes --issuer https://kubernetes.default.svc.cluster.local \\\n  --audience clavis --k8s-namespace apps --k8s-service-account deployer"
+        },
+        {
+          "title": "AWS IAM role",
+          "run": "clavis identities create aws-ci --aws-account 123456789012 \\\n  --aws-arn 'arn:aws:iam::123456789012:role/github-*' \\\n  --project web-app --identity-env dev"
+        },
+        {
+          "title": "Google Cloud service account",
+          "run": "clavis identities create gcp-deployer \\\n  --oidc gcp --gcp-service-account deployer@project.iam.gserviceaccount.com"
+        },
+        {
+          "title": "Any OIDC issuer",
+          "run": "clavis identities create ci \\\n  --oidc generic --issuer https://idp.example.com --audience clavis \\\n  --claim ref=refs/heads/main"
+        }
+      ],
+      "notes": "With OIDC, the pipeline exchanges its own token at `POST /api/v1/auth/oidc` (AWS: a signed STS `GetCallerIdentity` request at `/api/v1/auth/aws`) for a short-lived Clavis token.",
+      "flags": [
+        {
+          "name": "audience",
+          "type": "string",
+          "usage": "OIDC audience (default clavis for GitHub/GitLab)"
+        },
+        {
+          "name": "aws-account",
+          "type": "string",
+          "usage": "AWS account ID for SigV4 trust"
+        },
+        {
+          "name": "aws-arn",
+          "type": "string",
+          "usage": "AWS ARN glob for SigV4 trust"
+        },
+        {
+          "name": "aws-user-id",
+          "type": "string",
+          "usage": "AWS user ID glob for SigV4 trust"
+        },
+        {
+          "name": "branch",
+          "type": "string",
+          "usage": "branch claim"
+        },
+        {
+          "name": "claim",
+          "type": "stringArray",
+          "usage": "additional OIDC claim condition key=value"
+        },
+        {
+          "name": "expires-in-days",
+          "type": "int",
+          "usage": "token lifetime (agents default to 1 day, max 7)"
+        },
+        {
+          "name": "gcp-service-account",
+          "type": "string",
+          "usage": "GCP service account email claim"
+        },
+        {
+          "name": "gh-environment",
+          "type": "string",
+          "usage": "GitHub environment claim"
+        },
+        {
+          "name": "identity-env",
+          "type": "string",
+          "usage": "environment glob scope"
+        },
+        {
+          "name": "issuer",
+          "type": "string",
+          "usage": "OIDC issuer URL"
+        },
+        {
+          "name": "k8s-namespace",
+          "type": "string",
+          "usage": "Kubernetes namespace for service account auth"
+        },
+        {
+          "name": "k8s-service-account",
+          "type": "string",
+          "usage": "Kubernetes service account name"
+        },
+        {
+          "name": "oidc",
+          "type": "string",
+          "usage": "oidc provider preset: github, gitlab, kubernetes, gcp, or generic"
+        },
+        {
+          "name": "repo",
+          "type": "string",
+          "usage": "repository claim (GitHub owner/name or GitLab project path)"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "usage": "role granted to a machine identity (agents always get read-names + use)"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "default": "machine",
+          "usage": "machine or agent"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "identities ls",
+        "identities revoke"
+      ]
+    },
+    {
+      "path": "identities ls",
+      "slug": "identities-ls",
+      "parent": "identities",
+      "group": "access",
+      "usage": "clavis identities ls",
+      "summary": "List identities",
+      "description": "List machine, workload and agent identities.",
+      "examples": [
+        {
+          "run": "clavis identities ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "identities revoke",
+      "slug": "identities-revoke",
+      "parent": "identities",
+      "group": "access",
+      "usage": "clavis identities revoke NAME",
+      "summary": "Revoke an identity and its tokens",
+      "description": "Delete an identity and revoke all its tokens immediately.",
+      "examples": [
+        {
+          "run": "clavis identities revoke deploy-bot"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "import",
+      "slug": "import",
+      "group": "import",
+      "usage": "clavis import [FILE] [flags]",
+      "summary": "Import secrets from files or external providers",
+      "description": "Import `.env`, JSON or YAML files, or pull everything from another secret\nmanager. A folder is walked recursively and each file's directory becomes\nthe secret folder. Try `--dry-run` first: it shows what would be new,\nchanged or unchanged, never values.",
+      "examples": [
+        {
+          "title": "A .env file",
+          "run": "clavis import .env"
+        },
+        {
+          "title": "Preview a folder",
+          "run": "clavis import ./config/ --dry-run"
+        },
+        {
+          "title": "Rename keys while importing",
+          "run": "clavis import .env --map import-map.yaml"
+        },
+        {
+          "title": "Infisical",
+          "run": "clavis import --provider infisical \\\n  --remote-project \"$INFISICAL_PROJECT\" --remote-env dev \\\n  --token \"$INFISICAL_TOKEN\" --dry-run"
+        },
+        {
+          "title": "Doppler",
+          "run": "clavis import --provider doppler \\\n  --remote-project my-project --remote-env dev \\\n  --token \"$DOPPLER_TOKEN\" --dry-run"
+        },
+        {
+          "title": "HashiCorp Vault or OpenBao (KV v1 or v2)",
+          "run": "clavis import --provider vault \\\n  --base-url \"$VAULT_ADDR\" --vault-mount secret --vault-version 2 \\\n  --remote-path apps/web --token \"$VAULT_TOKEN\" --dry-run"
+        },
+        {
+          "title": "1Password Connect",
+          "run": "clavis import --provider onepassword \\\n  --base-url \"$OP_CONNECT_HOST\" --op-vault \"$OP_VAULT\" \\\n  --token \"$OP_CONNECT_TOKEN\" --dry-run"
+        },
+        {
+          "title": "AWS Secrets Manager",
+          "run": "clavis import --provider aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-prefix app/ --dry-run"
+        },
+        {
+          "title": "Google Secret Manager",
+          "run": "clavis import --provider gcp --gcp-project my-project \\\n  --gcp-service-account service-account.json --gcp-prefix APP_ --dry-run"
+        }
+      ],
+      "notes": "A map file renames keys and folders; an empty target drops the key:\n\n```yaml\nkeys:\n  OLD_DATABASE_URL: DATABASE_URL\n  DROP_ME: \"\"\nfolders:\n  \"\": /imported\n  legacy: /legacy\n```\n\nProvider credentials can also come from their usual environment\nvariables: `INFISICAL_TOKEN`, `DOPPLER_TOKEN`, `VAULT_ADDR`,\n`VAULT_TOKEN`, `OPENBAO_ADDR`, `OPENBAO_TOKEN`, `OP_CONNECT_HOST`,\n`OP_CONNECT_TOKEN`, `OP_VAULT`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`,\n`AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `GCP_PROJECT` and\n`GOOGLE_APPLICATION_CREDENTIALS`.\n\nThe web app's **Import** dialog accepts `.env` or JSON with the same\ndry-run preview.",
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-prefix",
+          "type": "string",
+          "usage": "only import secrets with this name prefix"
+        },
+        {
+          "name": "aws-region",
+          "type": "string",
+          "usage": "AWS region"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-service",
+          "type": "string",
+          "default": "secretsmanager",
+          "usage": "AWS service (secretsmanager)"
+        },
+        {
+          "name": "aws-session-token",
+          "type": "string",
+          "usage": "AWS session token"
+        },
+        {
+          "name": "base-url",
+          "type": "string",
+          "usage": "provider base URL"
+        },
+        {
+          "name": "dry-run",
+          "usage": "preview new, changed, and unchanged keys without writing"
+        },
+        {
+          "name": "folder",
+          "type": "string",
+          "usage": "target folder for imported keys"
+        },
+        {
+          "name": "gcp-prefix",
+          "type": "string",
+          "usage": "only import secrets with this name prefix"
+        },
+        {
+          "name": "gcp-project",
+          "type": "string",
+          "usage": "GCP project ID"
+        },
+        {
+          "name": "gcp-service-account",
+          "type": "string",
+          "usage": "GCP service account JSON file"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "usage": "secret, variable, or file (default: preserve provider kind, else secret)"
+        },
+        {
+          "name": "map",
+          "type": "string",
+          "usage": "YAML/JSON key and folder mapping file"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "usage": "change message recorded in history"
+        },
+        {
+          "name": "op-vault",
+          "type": "string",
+          "usage": "1Password vault ID"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "default": "file",
+          "usage": "file, infisical, doppler, vault, onepassword, aws, or gcp"
+        },
+        {
+          "name": "remote-env",
+          "type": "string",
+          "usage": "remote environment/config name"
+        },
+        {
+          "name": "remote-path",
+          "type": "string",
+          "usage": "remote secret path"
+        },
+        {
+          "name": "remote-project",
+          "type": "string",
+          "usage": "remote project/workspace ID"
+        },
+        {
+          "name": "token",
+          "type": "string",
+          "usage": "provider token (or provider-specific environment variable)"
+        },
+        {
+          "name": "vault-mount",
+          "type": "string",
+          "default": "secret",
+          "usage": "Vault KV mount"
+        },
+        {
+          "name": "vault-version",
+          "type": "int",
+          "default": "2",
+          "usage": "Vault KV version: 1 or 2"
+        },
+        {
+          "name": "yes",
+          "usage": "skip production confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "export",
+        "schema infer"
+      ]
+    },
+    {
+      "path": "init",
+      "slug": "init",
+      "group": "get-started",
+      "usage": "clavis init [flags]",
+      "summary": "Link this directory to a project",
+      "description": "Link the current folder to an organization, project and default\nenvironment by writing [`.clavis.yaml`](./clavis-yaml). The file holds no\nsecrets, so commit it: everyone on the team then gets the same context.\n\n`init` asks for anything it can't work out, offers to import an existing\n`.env`, and detects how to start your app (`package.json` scripts,\n`bin/rails`, `manage.py`, `artisan`, `go.mod`, `Cargo.toml`, Maven,\nGradle, Docker Compose) so a plain `clavis run` works right away.",
+      "examples": [
+        {
+          "title": "Interactive",
+          "run": "clavis init"
+        },
+        {
+          "title": "Non-interactive",
+          "run": "clavis init --org acme --project web-app --env dev"
+        },
+        {
+          "title": "Create the project too",
+          "run": "clavis init --project-name \"Web app\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "project-name",
+          "type": "string",
+          "usage": "create a project with this name if none exist"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "link",
+        "unlink",
+        "run"
+      ]
+    },
+    {
+      "path": "lease",
+      "slug": "lease",
+      "group": "automation",
+      "usage": "clavis lease \u003ccommand\u003e",
+      "summary": "Create and manage dynamic secret leases",
+      "description": "Dynamic secrets: instead of one shared database password, issue a fresh\nPostgres role or AWS STS credentials per use, which expire on their own.",
+      "examples": [
+        {
+          "run": "clavis lease run 4a1c… -- psql"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "lease config-create",
+        "lease configs",
+        "lease create",
+        "lease ls",
+        "lease renew",
+        "lease revoke",
+        "lease run"
+      ],
+      "related": [
+        "rotation"
+      ]
+    },
+    {
+      "path": "lease config-create",
+      "slug": "lease-config-create",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease config-create [flags]",
+      "summary": "Create a PostgreSQL or AWS STS dynamic secret config",
+      "description": "Describe how to issue credentials: a Postgres server and the role to grant, or an AWS role to assume.",
+      "examples": [
+        {
+          "title": "Postgres",
+          "run": "clavis lease config-create --host db.internal --database app \\\n  --username clavis_admin --password \"$PGPASSWORD\" \\\n  --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400"
+        },
+        {
+          "title": "AWS STS",
+          "run": "clavis lease config-create --engine aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-role-arn arn:aws:iam::123456789012:role/deploy"
+        }
+      ],
+      "notes": "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease.",
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-external-id",
+          "type": "string",
+          "usage": "STS external ID"
+        },
+        {
+          "name": "aws-region",
+          "type": "string",
+          "default": "us-east-1",
+          "usage": "AWS region"
+        },
+        {
+          "name": "aws-role-arn",
+          "type": "string",
+          "usage": "role ARN to assume"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-session-name",
+          "type": "string",
+          "usage": "STS session name"
+        },
+        {
+          "name": "database",
+          "type": "string",
+          "usage": "PostgreSQL database"
+        },
+        {
+          "name": "default-ttl",
+          "type": "int",
+          "default": "3600",
+          "usage": "default lease TTL in seconds"
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "default": "postgres",
+          "usage": "dynamic engine (postgres)"
+        },
+        {
+          "name": "grant-role",
+          "type": "string",
+          "usage": "role granted to generated users"
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "default": "localhost",
+          "usage": "PostgreSQL host"
+        },
+        {
+          "name": "max-ttl",
+          "type": "int",
+          "default": "86400",
+          "usage": "maximum lease TTL in seconds"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "usage": "admin password"
+        },
+        {
+          "name": "port",
+          "type": "int",
+          "default": "5432",
+          "usage": "PostgreSQL port"
+        },
+        {
+          "name": "sslmode",
+          "type": "string",
+          "default": "disable",
+          "usage": "PostgreSQL sslmode"
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "usage": "admin username"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease configs",
+      "slug": "lease-configs",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease configs",
+      "summary": "List dynamic secret configs",
+      "description": "List dynamic secret configs.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease create",
+      "slug": "lease-create",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease create CONFIG_ID [flags]",
+      "summary": "Create dynamic credentials",
+      "description": "Issue credentials. The password is shown once.",
+      "examples": [
+        {
+          "run": "clavis lease create 4a1c… --ttl 1800"
+        }
+      ],
+      "flags": [
+        {
+          "name": "ttl",
+          "type": "int",
+          "usage": "lease TTL in seconds (default config TTL)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease ls",
+      "slug": "lease-ls",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease ls CONFIG_ID",
+      "summary": "List leases for a config",
+      "description": "List a config's leases and their status.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease renew",
+      "slug": "lease-renew",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease renew LEASE_ID [flags]",
+      "summary": "Renew a lease",
+      "description": "Extend a lease, up to the config's maximum TTL.",
+      "examples": [],
+      "flags": [
+        {
+          "name": "ttl",
+          "type": "int",
+          "usage": "new TTL in seconds"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease revoke",
+      "slug": "lease-revoke",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease revoke LEASE_ID",
+      "summary": "Revoke a lease and drop its credentials",
+      "description": "Revoke a lease now: the generated database role is dropped.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "lease run",
+      "slug": "lease-run",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease run CONFIG_ID -- COMMAND [ARGS...] [flags]",
+      "summary": "Run a command with dynamic credentials and auto-revoke",
+      "description": "Issue credentials, run a command with them (`PGHOST`, `PGPORT`,\n`PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres), then revoke them,\neven if the command fails.",
+      "examples": [
+        {
+          "run": "clavis lease run 4a1c… -- psql"
+        },
+        {
+          "run": "clavis lease run 4a1c… --ttl 900 -- ./migrate.sh"
+        }
+      ],
+      "flags": [
+        {
+          "name": "ttl",
+          "type": "int",
+          "usage": "lease TTL in seconds"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "link",
+      "slug": "link",
+      "group": "get-started",
+      "usage": "clavis link",
+      "summary": "Change the project linked to this directory",
+      "description": "Point this folder at another project or environment by updating `.clavis.yaml`.",
+      "examples": [
+        {
+          "run": "clavis link --project web-app --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "init",
+        "unlink"
+      ]
+    },
+    {
+      "path": "login",
+      "slug": "login",
+      "group": "get-started",
+      "usage": "clavis login [flags]",
+      "summary": "Sign in with a browser (device code)",
+      "description": "Sign in with your browser. Clavis shows a short code, opens the approval\npage, and saves the token in the OS keychain (or in the file named by\n`CLAVIS_CREDENTIAL_FILE`). The server is remembered, so later commands\ndon't need `--server`.\n\nOn a machine without a browser (SSH session, container), pass\n`--no-browser` and open the printed link on any other device.\n\nIf the server uses a self-signed certificate (`CLAVIS_TLS=self-signed`,\ncommon on a LAN), `login` shows the certificate's fingerprint and asks\nwhether to trust it. The answer is remembered for this server, so you\nare asked once per computer. See [`clavis trust`](./trust).",
+      "examples": [
+        {
+          "title": "Sign in to your server",
+          "run": "clavis login --server https://clavis.example.com"
+        },
+        {
+          "title": "Sign in from an SSH session",
+          "run": "clavis login --server https://clavis.example.com --no-browser"
+        }
+      ],
+      "notes": "In CI and other automation, don't log in: set `CLAVIS_TOKEN` to a machine\ntoken instead. See [environment variables](./environment-variables).",
+      "flags": [
+        {
+          "name": "no-browser",
+          "usage": "do not open the browser automatically"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "logout",
+        "whoami",
+        "init",
+        "trust"
+      ]
+    },
+    {
+      "path": "logout",
+      "slug": "logout",
+      "group": "get-started",
+      "usage": "clavis logout",
+      "summary": "Sign out and delete the saved token",
+      "description": "Revoke the saved session on the server and delete the local credential.",
+      "examples": [
+        {
+          "run": "clavis logout"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "login"
+      ]
+    },
+    {
+      "path": "mcp",
+      "slug": "mcp",
+      "group": "agents",
+      "usage": "clavis mcp [flags]",
+      "summary": "Run a Model Context Protocol server over stdio",
+      "description": "Run a Model Context Protocol server over stdio for Claude Code, Cursor,\nCodex, Windsurf or any MCP client. It offers four tools:\n`list_secrets` (names only), `check_env`, `run_with_secrets` (allowlisted\ncommands, masked output) and `request_secret` (asks a human).\n\nWith `--agent NAME`, it uses your own `clavis login` to start a one-hour\nagent session held in memory, so the MCP config contains no token.",
+      "examples": [
+        {
+          "title": "Claude Code",
+          "run": "claude mcp add clavis -- clavis mcp --agent coding-agent"
+        },
+        {
+          "title": "Any MCP client",
+          "run": "clavis mcp --agent coding-agent"
+        }
+      ],
+      "notes": "Masking reduces accidental leaks but is not a security boundary: an\nallowed command still receives the secrets, and if it runs code the\nagent wrote, the agent could read them. Prefer short-lived credentials\n([leases](./lease)) for agent workflows. A static agent token in\n`CLAVIS_TOKEN` still works for headless agents.",
+      "flags": [
+        {
+          "name": "agent",
+          "type": "string",
+          "usage": "agent identity name; starts an in-memory session with your login (env CLAVIS_AGENT)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "agents"
+      ]
+    },
+    {
+      "path": "members",
+      "slug": "members",
+      "group": "access",
+      "usage": "clavis members \u003ccommand\u003e",
+      "summary": "Inspect organization members",
+      "description": "List members, and review what a departing member could see.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "members ls",
+        "members mark-rotated",
+        "members mark-safe",
+        "members offboarding"
+      ],
+      "related": [
+        "access"
+      ]
+    },
+    {
+      "path": "members ls",
+      "slug": "members-ls",
+      "parent": "members",
+      "group": "access",
+      "usage": "clavis members ls",
+      "summary": "List organization members",
+      "description": "List organization members and their roles.",
+      "examples": [
+        {
+          "run": "clavis members ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "members mark-rotated",
+      "slug": "members-mark-rotated",
+      "parent": "members",
+      "group": "access",
+      "usage": "clavis members mark-rotated USER TASK_ID",
+      "summary": "Mark a secret the member saw as rotated",
+      "description": "Close an offboarding task after you rotated the secret. The Members page has the same review.",
+      "examples": [
+        {
+          "run": "clavis members mark-rotated ada@example.com 7f3c2a"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "members offboarding"
+      ]
+    },
+    {
+      "path": "members mark-safe",
+      "slug": "members-mark-safe",
+      "parent": "members",
+      "group": "access",
+      "usage": "clavis members mark-safe USER TASK_ID",
+      "summary": "Mark a secret the member saw as safe to keep",
+      "description": "Close an offboarding task without rotating, for a secret that doesn't need it.",
+      "examples": [
+        {
+          "run": "clavis members mark-safe ada@example.com 7f3c2a"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "members offboarding"
+      ]
+    },
+    {
+      "path": "members offboarding",
+      "slug": "members-offboarding",
+      "parent": "members",
+      "group": "access",
+      "usage": "clavis members offboarding USER [flags]",
+      "summary": "Show or start a departing member's secret review",
+      "description": "When someone leaves, list every secret they revealed so you can decide,\nkey by key, whether to rotate it. `--start` creates a task per secret.",
+      "examples": [
+        {
+          "run": "clavis members offboarding ada@example.com"
+        },
+        {
+          "run": "clavis members offboarding ada@example.com --start"
+        }
+      ],
+      "flags": [
+        {
+          "name": "start",
+          "usage": "create tasks from reveal history"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "members mark-rotated",
+        "members mark-safe"
+      ]
+    },
+    {
+      "path": "promote",
+      "slug": "promote",
+      "group": "environments",
+      "usage": "clavis promote [flags]",
+      "summary": "Promote selected keys between environments",
+      "description": "Copy values from one environment to another, safely: Clavis shows the\ndifferences, you pick keys, the schema is checked, the target is\nsnapshotted, then the values are copied. Statuses are `added`, `changed`,\n`missing` (only in the target) and `unchanged`.",
+      "examples": [
+        {
+          "run": "clavis promote --from dev --to staging"
+        },
+        {
+          "title": "Only some keys",
+          "run": "clavis promote --from dev --to staging --keys DATABASE_URL,STRIPE_KEY"
+        },
+        {
+          "title": "Pick keys interactively",
+          "run": "clavis promote --from staging --to production --interactive"
+        },
+        {
+          "title": "Ask an admin to approve",
+          "run": "clavis promote --from staging --to production --request"
+        }
+      ],
+      "notes": "- New and changed keys are selected by default.\n- Schema errors block the promotion.\n- Protected targets need an Admin or Owner; others pass `--request` and\n  an admin approves it on the **Promote** page.",
+      "flags": [
+        {
+          "name": "all",
+          "usage": "promote every added and changed key"
+        },
+        {
+          "name": "from",
+          "type": "string",
+          "usage": "source environment (default: linked env)"
+        },
+        {
+          "name": "interactive",
+          "shorthand": "i",
+          "usage": "choose keys interactively"
+        },
+        {
+          "name": "keys",
+          "type": "string",
+          "usage": "comma-separated keys to promote"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "usage": "change message recorded in history"
+        },
+        {
+          "name": "request",
+          "usage": "create an approval request instead of writing"
+        },
+        {
+          "name": "snapshot",
+          "default": "true",
+          "usage": "snapshot the target before writing"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "usage": "target environment"
+        },
+        {
+          "name": "yes",
+          "usage": "skip production confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "env diff",
+        "check"
+      ]
+    },
+    {
+      "path": "rotation",
+      "slug": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation \u003ccommand\u003e",
+      "summary": "Schedule and run secret rotation",
+      "description": "Rotate secrets automatically: a Postgres role password, an AWS IAM\naccess key, or anything behind your own webhook. The **Rotation** page\nin the web app shows the same schedules, runs and errors.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "rotation create",
+        "rotation disable",
+        "rotation enable",
+        "rotation ls",
+        "rotation rm",
+        "rotation run",
+        "rotation runs",
+        "rotation status"
+      ],
+      "related": [
+        "lease"
+      ]
+    },
+    {
+      "path": "rotation create",
+      "slug": "rotation-create",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation create KEY [flags]",
+      "summary": "Create a rotation policy",
+      "description": "Create a rotation policy for a key.",
+      "examples": [
+        {
+          "title": "Postgres role password, daily",
+          "run": "clavis rotation create DATABASE_PASSWORD --provider postgres \\\n  --pg-host db.internal --pg-database app --pg-username admin \\\n  --pg-password \"$PGPASSWORD\" --pg-role app_user --interval 24h"
+        },
+        {
+          "title": "Your own webhook, monthly",
+          "run": "clavis rotation create PARTNER_API_KEY --provider webhook \\\n  --webhook-url https://rotate.example.com/partner --webhook-secret \"$HMAC_SECRET\" \\\n  --interval 720h"
+        }
+      ],
+      "notes": "Providers: `postgres` (role password), `aws` (IAM access key; the secret\nstores JSON with `access_key_id` and `secret_access_key`), and `webhook`\n(`create`, `rollback` and `revoke` calls, HMAC-signed).",
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-region",
+          "type": "string",
+          "default": "us-east-1",
+          "usage": "AWS region"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-user",
+          "type": "string",
+          "usage": "IAM user whose access key rotates"
+        },
+        {
+          "name": "enabled",
+          "default": "true",
+          "usage": "enable the schedule"
+        },
+        {
+          "name": "interval",
+          "type": "duration",
+          "default": "24h",
+          "usage": "rotation interval"
+        },
+        {
+          "name": "pg-database",
+          "type": "string",
+          "usage": "PostgreSQL database"
+        },
+        {
+          "name": "pg-host",
+          "type": "string",
+          "default": "localhost",
+          "usage": "PostgreSQL host"
+        },
+        {
+          "name": "pg-password",
+          "type": "string",
+          "usage": "PostgreSQL admin password"
+        },
+        {
+          "name": "pg-port",
+          "type": "int",
+          "default": "5432",
+          "usage": "PostgreSQL port"
+        },
+        {
+          "name": "pg-role",
+          "type": "string",
+          "usage": "PostgreSQL role whose password rotates"
+        },
+        {
+          "name": "pg-sslmode",
+          "type": "string",
+          "default": "disable",
+          "usage": "PostgreSQL sslmode"
+        },
+        {
+          "name": "pg-username",
+          "type": "string",
+          "usage": "PostgreSQL admin user"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "default": "postgres",
+          "usage": "postgres, aws, or webhook"
+        },
+        {
+          "name": "webhook-secret",
+          "type": "string",
+          "usage": "webhook HMAC secret"
+        },
+        {
+          "name": "webhook-url",
+          "type": "string",
+          "usage": "rotation webhook URL"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation disable",
+      "slug": "rotation-disable",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation disable POLICY_ID",
+      "summary": "Pause a rotation schedule",
+      "description": "Pause a schedule without deleting it.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation enable",
+      "slug": "rotation-enable",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation enable POLICY_ID",
+      "summary": "Resume a paused rotation schedule",
+      "description": "Resume a paused schedule.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation ls",
+      "slug": "rotation-ls",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation ls",
+      "summary": "List rotation policies",
+      "description": "List policies with their interval, next run and last status.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation rm",
+      "slug": "rotation-rm",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation rm POLICY_ID",
+      "summary": "Delete a rotation policy",
+      "description": "Delete a policy. The secret itself stays.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation run",
+      "slug": "rotation-run",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation run POLICY_ID",
+      "summary": "Run a rotation now",
+      "description": "Rotate now instead of waiting for the schedule.",
+      "examples": [
+        {
+          "run": "clavis rotation run 9b1e7d"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation runs",
+      "slug": "rotation-runs",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation runs POLICY_ID",
+      "summary": "Show rotation run history",
+      "description": "Show a policy's run history with each phase and error.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "rotation status",
+      "slug": "rotation-status",
+      "parent": "rotation",
+      "group": "automation",
+      "usage": "clavis rotation status [flags]",
+      "summary": "Show managed and stale manual-rotation secrets",
+      "description": "Show which secrets are rotated automatically, which aren't, and which haven't changed for a long time.",
+      "examples": [
+        {
+          "run": "clavis rotation status"
+        },
+        {
+          "run": "clavis rotation status --stale-days 60"
+        }
+      ],
+      "flags": [
+        {
+          "name": "stale-days",
+          "type": "int",
+          "default": "90",
+          "usage": "warn after this many days without rotation"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "run",
+      "slug": "run",
+      "group": "run",
+      "usage": "clavis run [flags] [COMMAND [ARGS...]]",
+      "summary": "Run a command with secrets injected and output masked",
+      "description": "Start your app with the environment's secrets as environment variables.\nClavis starts the command itself, so you keep one terminal; anything the\ncommand prints is masked, so secret values don't end up in logs.\n\nClavis flags go **before** the command. Everything from the first word of\nthe command on belongs to your command, so `--` is optional:\n`clavis run rails s -p 3001` passes `-p 3001` to Rails.\n\nWithout a command, `clavis run` starts the `run:` command saved in\n[`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it\nrecognizes the project.",
+      "examples": [
+        {
+          "title": "Run the command saved in .clavis.yaml",
+          "run": "clavis run"
+        },
+        {
+          "title": "Node.js",
+          "run": "clavis run npm run dev"
+        },
+        {
+          "title": "Rails, with its own flags",
+          "run": "clavis run rails s -p 3001"
+        },
+        {
+          "title": "Django",
+          "run": "clavis run python manage.py runserver"
+        },
+        {
+          "title": "Use another environment",
+          "run": "clavis run --env staging npm start"
+        },
+        {
+          "title": "Restart when a secret changes",
+          "run": "clavis run --watch pnpm dev"
+        },
+        {
+          "title": "File secrets become private temporary files",
+          "run": "clavis run --mount ./start.sh"
+        },
+        {
+          "title": "Use -- when your command itself starts with a dash",
+          "run": "clavis run -- -my-tool --flag"
+        }
+      ],
+      "notes": "- **Masking** replaces injected values in the command's output. It\n  protects logs and screen shares; it is not a security boundary. Turn\n  it off with `--no-mask` when you debug output.\n- **`--watch`** listens for changes and restarts the command with fresh\n  values whenever this environment's secrets change.\n- **`--mount`** writes `file` secrets to a `0700` temporary directory as\n  `0600` files, puts each file's path in the variable, and removes the\n  directory when the command exits.\n- **Offline:** with `cache: true` in `.clavis.yaml`, the last values are\n  used for up to 24 hours when the server is unreachable. See\n  [offline cache](./offline-cache).\n- `clavis run` exits with your command's exit code.",
+      "flags": [
+        {
+          "name": "mount",
+          "usage": "write file secrets to a private temp directory and expose their paths as env vars"
+        },
+        {
+          "name": "no-mask",
+          "usage": "disable output masking (dangerous)"
+        },
+        {
+          "name": "watch",
+          "usage": "restart the command when the environment's secrets change"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "shell",
+        "export",
+        "init"
+      ]
+    },
+    {
+      "path": "scan",
+      "slug": "scan",
+      "group": "import",
+      "usage": "clavis scan [PATH] [flags]",
+      "summary": "Scan files for leaked Clavis tokens and secret values",
+      "description": "Look for leaked secrets in files: Clavis token formats, and (if you can\nread values) the actual values of this environment's secrets, matched in\nmemory. Findings name the file, line and key, never the value.",
+      "examples": [
+        {
+          "title": "Scan the current folder",
+          "run": "clavis scan"
+        },
+        {
+          "title": "Only staged changes",
+          "run": "clavis scan --staged"
+        },
+        {
+          "title": "Add a git pre-commit hook",
+          "run": "clavis scan --install-hook"
+        }
+      ],
+      "notes": "Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only.",
+      "flags": [
+        {
+          "name": "install-hook",
+          "usage": "install a pre-commit hook that runs the staged scan"
+        },
+        {
+          "name": "staged",
+          "usage": "scan git staged files"
+        },
+        {
+          "name": "values",
+          "default": "true",
+          "usage": "also match resolved secret values in memory (requires read-values)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "check"
+      ]
+    },
+    {
+      "path": "schema",
+      "slug": "schema",
+      "group": "schema",
+      "usage": "clavis schema \u003ccommand\u003e",
+      "summary": "Manage the project secret schema",
+      "description": "A schema lists the keys a project needs, with a type, kind, pattern and\nwhich environment types require them. Keep it in git as\n`clavis.schema.yaml` and review changes like code. [`clavis check`](./check)\nvalidates environments against it and [`clavis codegen`](./codegen) turns\nit into a typed loader.",
+      "examples": [
+        {
+          "run": "clavis schema infer -o clavis.schema.yaml"
+        },
+        {
+          "run": "clavis schema push"
+        },
+        {
+          "run": "clavis check --all"
+        }
+      ],
+      "notes": "```yaml\nDATABASE_URL:\n  type: url\n  kind: secret\n  required: { development: true, production: true }\n  description: Primary Postgres connection string\nLOG_LEVEL:\n  type: enum\n  kind: variable\n  values: [debug, info, warn, error]\n```\n\nTypes: `string`, `url`, `int`, `bool`, `json`, `enum`. Kinds: `secret`,\n`variable`, `file`. Optional `pattern` (regular expression), `example`\nand `description`.",
+      "flags": [],
+      "subcommands": [
+        "schema infer",
+        "schema ls",
+        "schema pull",
+        "schema push"
+      ],
+      "related": [
+        "check",
+        "codegen"
+      ]
+    },
+    {
+      "path": "schema infer",
+      "slug": "schema-infer",
+      "parent": "schema",
+      "group": "schema",
+      "usage": "clavis schema infer [flags]",
+      "summary": "Suggest a schema from the current environment",
+      "description": "Suggest a schema from the current environment. The output has types and kinds, never values. Review it before you push.",
+      "examples": [
+        {
+          "run": "clavis schema infer"
+        },
+        {
+          "run": "clavis schema infer -o clavis.schema.yaml"
+        },
+        {
+          "run": "clavis schema infer --push"
+        }
+      ],
+      "flags": [
+        {
+          "name": "out",
+          "shorthand": "o",
+          "type": "string",
+          "usage": "output file (default stdout)"
+        },
+        {
+          "name": "push",
+          "usage": "upload the inferred schema instead of printing it"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "schema push"
+      ]
+    },
+    {
+      "path": "schema ls",
+      "slug": "schema-ls",
+      "parent": "schema",
+      "group": "schema",
+      "usage": "clavis schema ls",
+      "summary": "List schema entries",
+      "description": "Show the project's schema as a table.",
+      "examples": [
+        {
+          "run": "clavis schema ls"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "schema pull"
+      ]
+    },
+    {
+      "path": "schema pull",
+      "slug": "schema-pull",
+      "parent": "schema",
+      "group": "schema",
+      "usage": "clavis schema pull [flags]",
+      "summary": "Download the schema as code",
+      "description": "Download the schema as YAML for code review. Writes `clavis.schema.yaml` by default; `-o -` prints it.",
+      "examples": [
+        {
+          "run": "clavis schema pull"
+        },
+        {
+          "run": "clavis schema pull -o config/clavis.schema.yaml"
+        }
+      ],
+      "flags": [
+        {
+          "name": "out",
+          "shorthand": "o",
+          "type": "string",
+          "default": "clavis.schema.yaml",
+          "usage": "output file (- for stdout)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "schema push"
+      ]
+    },
+    {
+      "path": "schema push",
+      "slug": "schema-push",
+      "parent": "schema",
+      "group": "schema",
+      "usage": "clavis schema push [FILE] [flags]",
+      "summary": "Upload the schema from a file",
+      "description": "Replace the project's schema from a YAML file. The server validates it before saving.",
+      "examples": [
+        {
+          "run": "clavis schema push"
+        },
+        {
+          "run": "clavis schema push config/clavis.schema.yaml --dry-run"
+        }
+      ],
+      "flags": [
+        {
+          "name": "dry-run",
+          "usage": "validate and print the file without uploading"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "schema pull",
+        "check"
+      ]
+    },
+    {
+      "path": "secrets",
+      "slug": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets \u003ccommand\u003e",
+      "summary": "Manage secrets in the linked project",
+      "description": "Work with the secrets of the linked project and environment. Use the\nglobal `--env`, `--project` and `--path` flags to target something else.\nEvery write creates a new version, so nothing is lost.",
+      "examples": [
+        {
+          "run": "clavis secrets ls"
+        },
+        {
+          "run": "clavis secrets set STRIPE_KEY"
+        },
+        {
+          "run": "clavis --env production secrets get DATABASE_URL"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "secrets generate",
+        "secrets get",
+        "secrets history",
+        "secrets ls",
+        "secrets override",
+        "secrets rm",
+        "secrets rollback",
+        "secrets set"
+      ],
+      "related": [
+        "run",
+        "import"
+      ]
+    },
+    {
+      "path": "secrets generate",
+      "slug": "secrets-generate",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets generate KEY [flags]",
+      "summary": "Generate a random value and store it",
+      "description": "Generate a random value and store it, without the value ever passing through your clipboard.",
+      "examples": [
+        {
+          "run": "clavis secrets generate SESSION_KEY --type password --length 48"
+        },
+        {
+          "run": "clavis secrets generate RELEASE_ID --type uuid"
+        }
+      ],
+      "notes": "Types: `password`, `apikey`, `hex`, `base64`, `uuid`.",
+      "flags": [
+        {
+          "name": "kind",
+          "type": "string",
+          "default": "secret",
+          "usage": "secret, variable, or file"
+        },
+        {
+          "name": "length",
+          "type": "int",
+          "default": "32",
+          "usage": "length for password/apikey/hex/base64 types"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "default": "Generated",
+          "usage": "why this changed"
+        },
+        {
+          "name": "type",
+          "type": "string",
+          "default": "password",
+          "usage": "password, apikey, hex, base64, uuid, jwt, ed25519, or rsa"
+        },
+        {
+          "name": "yes",
+          "usage": "skip production confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets set"
+      ]
+    },
+    {
+      "path": "secrets get",
+      "slug": "secrets-get",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets get KEY [flags]",
+      "summary": "Print one secret value",
+      "description": "Print one value, for use in scripts. The read is audited.",
+      "examples": [
+        {
+          "run": "clavis secrets get DATABASE_URL"
+        },
+        {
+          "title": "In a script",
+          "run": "psql \"$(clavis secrets get DATABASE_URL)\""
+        }
+      ],
+      "flags": [
+        {
+          "name": "reveal",
+          "default": "true",
+          "usage": "print the decrypted value"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets ls",
+        "run"
+      ]
+    },
+    {
+      "path": "secrets history",
+      "slug": "secrets-history",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets history KEY",
+      "summary": "Show version history",
+      "description": "Show every version of a key with who changed it, when, and the change message. Values are not shown.",
+      "examples": [
+        {
+          "run": "clavis secrets history DATABASE_URL"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "secrets rollback"
+      ]
+    },
+    {
+      "path": "secrets ls",
+      "slug": "secrets-ls",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets ls [flags]",
+      "summary": "List secret keys",
+      "description": "List keys with their kind and last change. Values stay hidden unless you pass `--reveal`, which is audited.",
+      "examples": [
+        {
+          "run": "clavis secrets ls"
+        },
+        {
+          "run": "clavis secrets ls --reveal"
+        },
+        {
+          "run": "clavis secrets ls --json"
+        }
+      ],
+      "flags": [
+        {
+          "name": "reveal",
+          "usage": "decrypt values (requires secrets:read-values, audited)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets get"
+      ]
+    },
+    {
+      "path": "secrets override",
+      "slug": "secrets-override",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets override KEY [VALUE] [flags]",
+      "summary": "Set or remove a personal override (non-production only)",
+      "description": "Set a personal value that only you get, for example your own local\ndatabase. Overrides work in non-production environments only and never\naffect teammates.",
+      "examples": [
+        {
+          "run": "clavis secrets override DATABASE_URL"
+        },
+        {
+          "run": "clavis secrets override DATABASE_URL --remove"
+        }
+      ],
+      "flags": [
+        {
+          "name": "comment",
+          "type": "string",
+          "usage": "optional note shown in history"
+        },
+        {
+          "name": "remove",
+          "usage": "remove the override and fall back to the shared value"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets set",
+        "run"
+      ]
+    },
+    {
+      "path": "secrets rm",
+      "slug": "secrets-rm",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets rm KEY [flags]",
+      "summary": "Delete a secret (soft delete, history kept)",
+      "description": "Delete a secret. It is a soft delete: history is kept and the key can be restored from the web app.",
+      "examples": [
+        {
+          "run": "clavis secrets rm OLD_KEY --yes"
+        }
+      ],
+      "flags": [
+        {
+          "name": "yes",
+          "usage": "skip confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets set"
+      ]
+    },
+    {
+      "path": "secrets rollback",
+      "slug": "secrets-rollback",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets rollback KEY [flags]",
+      "summary": "Create a new version from an old one",
+      "description": "Restore an older version by writing it as a new version. History is never rewritten.",
+      "examples": [
+        {
+          "run": "clavis secrets rollback DATABASE_URL --version 4"
+        }
+      ],
+      "flags": [
+        {
+          "name": "version",
+          "type": "int",
+          "usage": "version to restore"
+        },
+        {
+          "name": "yes",
+          "usage": "skip production confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets history"
+      ]
+    },
+    {
+      "path": "secrets set",
+      "slug": "secrets-set",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets set KEY [VALUE] [flags]",
+      "summary": "Create or update a secret (VALUE omitted prompts, - reads stdin)",
+      "description": "Create or update a secret. Leave out `VALUE` to type it at a hidden\nprompt (it stays out of your shell history), or pass `-` to read it from\nstandard input.",
+      "examples": [
+        {
+          "title": "Prompt for the value",
+          "run": "clavis secrets set DATABASE_URL"
+        },
+        {
+          "title": "From a file",
+          "run": "clavis secrets set TLS_KEY - \u003c key.pem"
+        },
+        {
+          "title": "A plain variable with a change note",
+          "run": "clavis secrets set FEATURE_FLAG true --kind variable --message \"enable beta\""
+        }
+      ],
+      "notes": "Kinds: `secret` (masked, audited reads), `variable` (non-sensitive\nconfig) and `file` (written to a temporary file by `clavis run --mount`).\nWriting to production asks you to confirm; pass `--yes` in scripts.",
+      "flags": [
+        {
+          "name": "comment",
+          "type": "string",
+          "usage": "comment shown in the UI"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "default": "secret",
+          "usage": "secret, variable, or file"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "usage": "why this changed (shown in history)"
+        },
+        {
+          "name": "yes",
+          "usage": "skip production confirmation"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets generate",
+        "secrets history"
+      ]
+    },
+    {
+      "path": "server",
+      "slug": "server",
+      "group": "server",
+      "usage": "clavis server [flags]",
+      "summary": "Run the Clavis server",
+      "description": "Run the Clavis server: API, background jobs and the web app, in one\nprocess. Settings come from environment variables or a `clavis.yaml`\nfile. Most people run the Docker image instead; see the install guide.",
+      "examples": [
+        {
+          "run": "clavis server"
+        },
+        {
+          "run": "clavis server --config /etc/clavis/clavis.yaml"
+        },
+        {
+          "title": "Separate API and job workers",
+          "run": "clavis server --role=api\nclavis server --role=worker"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "shorthand": "c",
+          "type": "string",
+          "usage": "path to clavis.yaml"
+        },
+        {
+          "name": "role",
+          "type": "string",
+          "default": "all",
+          "usage": "process role: all, api, or worker"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "setup-token",
+        "health"
+      ]
+    },
+    {
+      "path": "sets",
+      "slug": "sets",
+      "group": "sets",
+      "usage": "clavis sets \u003ccommand\u003e",
+      "summary": "Manage org-level shared secret sets",
+      "description": "A shared set holds values that many projects use. Import it into an\nenvironment and its keys appear there; a key set in the environment\nitself always wins. Each set has its own encryption key.",
+      "examples": [
+        {
+          "run": "clavis sets create shared-api"
+        },
+        {
+          "run": "clavis sets set shared-api STRIPE_KEY"
+        },
+        {
+          "run": "clavis sets import shared-api --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [
+        "sets create",
+        "sets detach",
+        "sets import",
+        "sets ls",
+        "sets rm",
+        "sets set",
+        "sets show"
+      ],
+      "related": []
+    },
+    {
+      "path": "sets create",
+      "slug": "sets-create",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets create NAME [flags]",
+      "summary": "Create a shared set",
+      "description": "Create a shared set.",
+      "examples": [
+        {
+          "run": "clavis sets create shared-api"
+        }
+      ],
+      "flags": [
+        {
+          "name": "slug",
+          "type": "string",
+          "usage": "set slug"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets detach",
+      "slug": "sets-detach",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets detach SET [flags]",
+      "summary": "Detach a shared set from an environment",
+      "description": "Stop using a set in an environment.",
+      "examples": [
+        {
+          "run": "clavis sets detach shared-api --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets import",
+      "slug": "sets-import",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets import SET [flags]",
+      "summary": "Import a shared set into an environment",
+      "description": "Use a set in an environment.",
+      "examples": [
+        {
+          "run": "clavis sets import shared-api --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets ls",
+      "slug": "sets-ls",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets ls",
+      "summary": "List shared sets",
+      "description": "List the organization's shared sets.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets rm",
+      "slug": "sets-rm",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets rm SET KEY",
+      "summary": "Remove a shared set value",
+      "description": "Remove a key from a set.",
+      "examples": [
+        {
+          "run": "clavis sets rm shared-api OLD_KEY"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets set",
+      "slug": "sets-set",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets set SET KEY [VALUE]",
+      "summary": "Set a shared set value",
+      "description": "Create or update a value in a set. Leave out `VALUE` to be prompted.",
+      "examples": [
+        {
+          "run": "clavis sets set shared-api STRIPE_KEY"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "sets show",
+      "slug": "sets-show",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets show SET [flags]",
+      "summary": "Show a shared set",
+      "description": "Show a set's keys. `--reveal` decrypts the values (audited).",
+      "examples": [
+        {
+          "run": "clavis sets show shared-api --reveal"
+        }
+      ],
+      "flags": [
+        {
+          "name": "reveal",
+          "usage": "decrypt values (requires secrets:read-values)"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "setup-token",
+      "slug": "setup-token",
+      "group": "server",
+      "usage": "clavis setup-token [flags]",
+      "summary": "Print the one-time first-run setup token",
+      "description": "Print the one-time token that claims a fresh server. Run it where the\nserver's data directory is, usually inside the container. The token\nstops working once the owner account exists.",
+      "examples": [
+        {
+          "title": "Docker",
+          "run": "docker exec clavis clavis setup-token"
+        },
+        {
+          "title": "Docker on another machine",
+          "run": "ssh root@192.168.1.20 docker exec clavis clavis setup-token"
+        },
+        {
+          "title": "Binary install",
+          "run": "clavis setup-token --config /etc/clavis/clavis.yaml"
+        }
+      ],
+      "notes": "To skip this step, set `CLAVIS_SETUP_TOKEN` (24+ characters) before the first start, and optionally `CLAVIS_SETUP_OWNER_EMAIL` to reserve the owner account.",
+      "flags": [
+        {
+          "name": "config",
+          "shorthand": "c",
+          "type": "string",
+          "usage": "path to clavis.yaml"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "server"
+      ]
+    },
+    {
+      "path": "share",
+      "slug": "share",
+      "group": "run",
+      "usage": "clavis share KEY [flags]",
+      "summary": "Create a client-encrypted one-time share link",
+      "description": "Create a one-time link for a single secret, for handing a value to a\nperson. The value is encrypted on your machine; only ciphertext is\nuploaded and the key stays in the link's `#fragment`, which never\nreaches the server.",
+      "examples": [
+        {
+          "run": "clavis share DATABASE_URL"
+        },
+        {
+          "title": "Valid for 2 hours and 3 views",
+          "run": "clavis share API_KEY --ttl 2h --views 3"
+        },
+        {
+          "title": "Also require a password",
+          "run": "clavis share API_KEY --prompt-password"
+        }
+      ],
+      "notes": "The server enforces expiry, view limits and the optional password. Share links are for people, not automation.",
+      "flags": [
+        {
+          "name": "password",
+          "type": "string",
+          "usage": "optional password required to claim"
+        },
+        {
+          "name": "prompt-password",
+          "usage": "prompt for a password"
+        },
+        {
+          "name": "ttl",
+          "type": "duration",
+          "default": "24h",
+          "usage": "link lifetime (1h–720h)"
+        },
+        {
+          "name": "views",
+          "type": "int",
+          "default": "1",
+          "usage": "maximum claims (1–100)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "secrets get"
+      ]
+    },
+    {
+      "path": "shell",
+      "slug": "shell",
+      "group": "run",
+      "usage": "clavis shell",
+      "summary": "Start a subshell with secrets in the environment",
+      "description": "Open an interactive subshell with the environment's secrets exported and\na colored prompt that shows the environment. Values are not masked, so\nuse it only in a terminal you trust. Type `exit` to leave.",
+      "examples": [
+        {
+          "run": "clavis shell"
+        },
+        {
+          "run": "clavis shell --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "run"
+      ]
+    },
+    {
+      "path": "syncs",
+      "slug": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs \u003ccommand\u003e",
+      "summary": "Push secrets to external systems",
+      "description": "Push an environment's values to the platforms that run your code:\nGitHub and Forgejo Actions, GitLab CI, Vercel, Netlify, Cloudflare,\nAWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows when\nsomeone changed the other side by hand.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [
+        "syncs behavior",
+        "syncs create",
+        "syncs drift",
+        "syncs logs",
+        "syncs ls",
+        "syncs run"
+      ],
+      "related": [
+        "export"
+      ]
+    },
+    {
+      "path": "syncs behavior",
+      "slug": "syncs-behavior",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs behavior ID [flags]",
+      "summary": "Update sync behavior toggles",
+      "description": "Change a sync's options, such as deleting remote keys that no longer exist in Clavis.",
+      "examples": [
+        {
+          "run": "clavis syncs behavior 123e4567 --delete-missing"
+        }
+      ],
+      "flags": [
+        {
+          "name": "delete-missing",
+          "usage": "delete remote keys not present in Clavis"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "syncs create",
+      "slug": "syncs-create",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs create ENVIRONMENT [flags]",
+      "summary": "Create a sync to GitHub, GitLab, Vercel, AWS, an HTTP endpoint, and more",
+      "description": "Create a sync for an environment. `--provider` picks the target; the matching flags configure it.",
+      "examples": [
+        {
+          "title": "GitHub Actions secrets (token)",
+          "run": "clavis syncs create prod --provider github --github-repo acme/web \\\n  --github-token \"$GITHUB_TOKEN\""
+        },
+        {
+          "title": "GitHub environment (GitHub App)",
+          "run": "clavis syncs create prod --provider github --github-scope environment \\\n  --github-repo acme/web --github-environment production \\\n  --github-app-id 42 --github-installation-id 123 \\\n  --github-private-key @app.private-key.pem"
+        },
+        {
+          "title": "GitLab CI/CD variables",
+          "run": "clavis syncs create dev --provider gitlab --gitlab-project group/project \\\n  --gitlab-token \"$GITLAB_TOKEN\" --masked"
+        },
+        {
+          "title": "Vercel",
+          "run": "clavis syncs create prod --provider vercel --vercel-project prj_123 \\\n  --vercel-token \"$VERCEL_TOKEN\""
+        },
+        {
+          "title": "Netlify",
+          "run": "clavis syncs create dev --provider netlify --netlify-account acme \\\n  --netlify-token \"$NETLIFY_TOKEN\""
+        },
+        {
+          "title": "Cloudflare Workers",
+          "run": "clavis syncs create dev --provider cloudflare --cloudflare-account \"$CF_ACCOUNT\" \\\n  --cloudflare-mode workers --cloudflare-script my-worker --cloudflare-token \"$CF_TOKEN\""
+        },
+        {
+          "title": "Forgejo, Gitea or Codeberg",
+          "run": "clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com \\\n  --forgejo-repo team/web --forgejo-token \"$FORGEJO_TOKEN\""
+        },
+        {
+          "title": "AWS SSM Parameter Store",
+          "run": "clavis syncs create prod --provider aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-service ssm"
+        },
+        {
+          "title": "Google Secret Manager",
+          "run": "clavis syncs create prod --provider gcp --gcp-project my-project \\\n  --gcp-service-account-json @service-account.json"
+        },
+        {
+          "title": "Any HTTP endpoint (signed JSON POST)",
+          "run": "clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --secret \"$SYNC_SECRET\""
+        }
+      ],
+      "notes": "Forgejo secrets are write-only, so drift checks compare variables and only confirm that secrets exist.",
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-prefix",
+          "type": "string",
+          "usage": "AWS parameter/secret name prefix"
+        },
+        {
+          "name": "aws-region",
+          "type": "string",
+          "usage": "AWS region"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-service",
+          "type": "string",
+          "default": "ssm",
+          "usage": "AWS service: ssm or secretsmanager"
+        },
+        {
+          "name": "aws-session-token",
+          "type": "string",
+          "usage": "AWS session token"
+        },
+        {
+          "name": "cloudflare-account",
+          "type": "string",
+          "usage": "Cloudflare account ID"
+        },
+        {
+          "name": "cloudflare-mode",
+          "type": "string",
+          "default": "workers",
+          "usage": "Cloudflare mode: workers or pages"
+        },
+        {
+          "name": "cloudflare-project",
+          "type": "string",
+          "usage": "Cloudflare Pages project"
+        },
+        {
+          "name": "cloudflare-script",
+          "type": "string",
+          "usage": "Cloudflare Workers script name"
+        },
+        {
+          "name": "cloudflare-token",
+          "type": "string",
+          "usage": "Cloudflare API token"
+        },
+        {
+          "name": "delete-missing",
+          "usage": "delete remote keys not present in Clavis"
+        },
+        {
+          "name": "endpoint",
+          "type": "string",
+          "usage": "receiver URL for generic HTTP"
+        },
+        {
+          "name": "forgejo-repo",
+          "type": "string",
+          "usage": "Forgejo repository (owner/name) or organization for org scope"
+        },
+        {
+          "name": "forgejo-scope",
+          "type": "string",
+          "default": "repo",
+          "usage": "Forgejo scope: repo or org"
+        },
+        {
+          "name": "forgejo-token",
+          "type": "string",
+          "usage": "Forgejo access token with write:repository (or write:organization)"
+        },
+        {
+          "name": "forgejo-url",
+          "type": "string",
+          "default": "https://codeberg.org",
+          "usage": "Forgejo or Gitea base URL"
+        },
+        {
+          "name": "gcp-prefix",
+          "type": "string",
+          "usage": "GCP secret name prefix"
+        },
+        {
+          "name": "gcp-project",
+          "type": "string",
+          "usage": "GCP project ID"
+        },
+        {
+          "name": "gcp-service-account-json",
+          "type": "string",
+          "usage": "GCP service account JSON or @file"
+        },
+        {
+          "name": "github-app-id",
+          "type": "string",
+          "usage": "GitHub App ID"
+        },
+        {
+          "name": "github-environment",
+          "type": "string",
+          "usage": "GitHub environment name"
+        },
+        {
+          "name": "github-installation-id",
+          "type": "string",
+          "usage": "GitHub App installation ID"
+        },
+        {
+          "name": "github-private-key",
+          "type": "string",
+          "usage": "GitHub App private key PEM or @file"
+        },
+        {
+          "name": "github-repo",
+          "type": "string",
+          "usage": "GitHub repository (owner/name) or org for org scope"
+        },
+        {
+          "name": "github-scope",
+          "type": "string",
+          "default": "repo",
+          "usage": "GitHub scope: repo, environment, or org"
+        },
+        {
+          "name": "github-token",
+          "type": "string",
+          "usage": "GitHub token with Actions secrets/variables write access"
+        },
+        {
+          "name": "gitlab-project",
+          "type": "string",
+          "usage": "GitLab project path or ID"
+        },
+        {
+          "name": "gitlab-token",
+          "type": "string",
+          "usage": "GitLab access token with api scope"
+        },
+        {
+          "name": "gitlab-url",
+          "type": "string",
+          "default": "https://gitlab.com",
+          "usage": "GitLab base URL"
+        },
+        {
+          "name": "masked",
+          "default": "true",
+          "usage": "mask GitLab variables when possible"
+        },
+        {
+          "name": "netlify-account",
+          "type": "string",
+          "usage": "Netlify account slug"
+        },
+        {
+          "name": "netlify-site",
+          "type": "string",
+          "usage": "Netlify site ID"
+        },
+        {
+          "name": "netlify-token",
+          "type": "string",
+          "usage": "Netlify personal access token"
+        },
+        {
+          "name": "protected",
+          "usage": "mark GitLab variables protected"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "default": "http",
+          "usage": "sync provider: http, gitlab, github, forgejo, vercel, aws, gcp, netlify, cloudflare, or vault"
+        },
+        {
+          "name": "secret",
+          "type": "string",
+          "usage": "HMAC signing secret for generic HTTP"
+        },
+        {
+          "name": "vault-mount",
+          "type": "string",
+          "default": "secret",
+          "usage": "Vault KV mount"
+        },
+        {
+          "name": "vault-path",
+          "type": "string",
+          "usage": "Vault path prefix (one secret per key)"
+        },
+        {
+          "name": "vault-token",
+          "type": "string",
+          "usage": "Vault/OpenBao token"
+        },
+        {
+          "name": "vault-url",
+          "type": "string",
+          "usage": "Vault/OpenBao address"
+        },
+        {
+          "name": "vault-version",
+          "type": "int",
+          "default": "2",
+          "usage": "Vault KV version: 1 or 2"
+        },
+        {
+          "name": "vercel-project",
+          "type": "string",
+          "usage": "Vercel project ID or name"
+        },
+        {
+          "name": "vercel-team",
+          "type": "string",
+          "usage": "Vercel team ID"
+        },
+        {
+          "name": "vercel-token",
+          "type": "string",
+          "usage": "Vercel access token"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "syncs run",
+        "syncs drift"
+      ]
+    },
+    {
+      "path": "syncs drift",
+      "slug": "syncs-drift",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs drift ID",
+      "summary": "Check provider drift for a sync",
+      "description": "Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables and Cloudflare Pages.",
+      "examples": [
+        {
+          "run": "clavis syncs drift 123e4567"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "syncs logs",
+      "slug": "syncs-logs",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs logs ID",
+      "summary": "Show recent sync runs",
+      "description": "Show recent runs with status, key count and errors.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "syncs ls",
+      "slug": "syncs-ls",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs ls",
+      "summary": "List syncs for the linked project",
+      "description": "List the linked project's syncs.",
+      "examples": [],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "syncs run",
+      "slug": "syncs-run",
+      "parent": "syncs",
+      "group": "automation",
+      "usage": "clavis syncs run ID [flags]",
+      "summary": "Preview or execute a sync",
+      "description": "Run a sync now. `--dry-run` previews the keys that would change; `--yes` skips the confirmation.",
+      "examples": [
+        {
+          "run": "clavis syncs run 123e4567 --dry-run"
+        },
+        {
+          "run": "clavis syncs run 123e4567 --yes"
+        }
+      ],
+      "flags": [
+        {
+          "name": "dry-run",
+          "usage": "preview without sending values"
+        },
+        {
+          "name": "yes",
+          "usage": "confirm and execute the sync"
+        }
+      ],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "trust",
+      "slug": "trust",
+      "group": "get-started",
+      "usage": "clavis trust \u003ccommand\u003e",
+      "summary": "Trust a server's self-signed certificate on this computer",
+      "description": "Decide which self-signed server certificates this computer accepts.\nCertificates from a public authority (Let's Encrypt, your company CA in\nthe system store) need nothing here.\n\nThe first time the CLI meets a self-signed server, it shows the\ncertificate's SHA-256 fingerprint and asks you to trust it, like SSH does\nwith a new host. The answer is pinned to the server's public key, so it\nsurvives the yearly certificate renewal and a change of the server's\naddress. If the key ever changes, the CLI stops with a warning and asks\nyou to type `trust` to accept the new one.\n\nCompare the fingerprint with the one the server prints\n(`docker exec clavis clavis admin tls-info`) or with the one an admin\nsent you.",
+      "examples": [
+        {
+          "title": "Trust a LAN server",
+          "run": "clavis trust add https://192.168.1.20"
+        },
+        {
+          "title": "Trust without a prompt (scripts, onboarding docs)",
+          "run": "clavis trust add https://192.168.1.20 --fingerprint 9E:1C:…:F9"
+        },
+        {
+          "run": "clavis trust ls"
+        }
+      ],
+      "notes": "Other ways to trust a server, for automation:\n\n- `CLAVIS_SERVER_FINGERPRINT`: the expected SHA-256 of the certificate or its public key. Nothing is saved.\n- `CLAVIS_CA_CERT`: a PEM file (or a list of them) with your own CA, added to the system roots.\n- `CLAVIS_TRUST_FILE`: where pins are stored, instead of `trusted-servers.json` in the config folder.\n\nTo avoid the question entirely, give the server a real certificate: with\na domain you control, set `CLAVIS_ACME_DNS` and the server gets one from\nLet's Encrypt even on a private network.",
+      "flags": [],
+      "subcommands": [
+        "trust add",
+        "trust ls",
+        "trust rm"
+      ],
+      "related": [
+        "login",
+        "admin tls-info"
+      ]
+    },
+    {
+      "path": "trust add",
+      "slug": "trust-add",
+      "parent": "trust",
+      "group": "get-started",
+      "usage": "clavis trust add [SERVER] [flags]",
+      "summary": "Check a server's certificate and trust it",
+      "description": "Connect to the server, show its certificate (subject, expiry, SHA-256\nfingerprint) and ask whether to trust it. Without an argument it uses\nthe server from `--server` or `.clavis.yaml`.\n\nWith `--fingerprint`, nothing is asked: the certificate is trusted if it\nmatches, and refused otherwise. Both the certificate fingerprint and the\npublic key fingerprint are accepted, with or without colons.\n\nIf the certificate is already trusted (by the system or by an earlier\npin), `trust add` says so and changes nothing.",
+      "examples": [
+        {
+          "run": "clavis trust add https://192.168.1.20"
+        },
+        {
+          "title": "Non-interactive",
+          "run": "clavis trust add clavis.lan --fingerprint 9e1c…f9"
+        }
+      ],
+      "notes": "In a script without a terminal, `trust add` without `--fingerprint` fails and prints the fingerprint to check, instead of trusting blindly.",
+      "flags": [
+        {
+          "name": "fingerprint",
+          "type": "string",
+          "usage": "expected SHA-256 of the certificate or its public key; trusts without asking"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "trust ls",
+        "trust rm",
+        "admin tls-info"
+      ]
+    },
+    {
+      "path": "trust ls",
+      "slug": "trust-ls",
+      "parent": "trust",
+      "group": "get-started",
+      "usage": "clavis trust ls",
+      "summary": "List servers trusted on this computer",
+      "description": "List the servers whose self-signed certificates this computer trusts, with the fingerprint, the certificate's expiry and when it was trusted.",
+      "examples": [
+        {
+          "run": "clavis trust ls"
+        },
+        {
+          "run": "clavis trust ls --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "trust add",
+        "trust rm"
+      ]
+    },
+    {
+      "path": "trust rm",
+      "slug": "trust-rm",
+      "parent": "trust",
+      "group": "get-started",
+      "usage": "clavis trust rm SERVER",
+      "summary": "Stop trusting a server's certificate",
+      "description": "Forget a trusted server. The next connection asks again.",
+      "examples": [
+        {
+          "run": "clavis trust rm https://192.168.1.20"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "trust add",
+        "trust ls"
+      ]
+    },
+    {
+      "path": "unlink",
+      "slug": "unlink",
+      "group": "get-started",
+      "usage": "clavis unlink",
+      "summary": "Remove the .clavis.yaml in this directory",
+      "description": "Delete `.clavis.yaml` from this folder. Nothing changes on the server.",
+      "examples": [
+        {
+          "run": "clavis unlink"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "init",
+        "link"
+      ]
+    },
+    {
+      "path": "upgrade",
+      "slug": "upgrade",
+      "group": "server",
+      "usage": "clavis upgrade ARTIFACT [flags]",
+      "summary": "Verify a signed release artifact and install it",
+      "description": "Verify a downloaded release archive with cosign before installing it.\nNeeds `cosign` on your `PATH` and the release's `.sigstore.json` bundle\nnext to the archive.",
+      "examples": [
+        {
+          "title": "Verify only",
+          "run": "clavis upgrade clavis_linux_amd64.tar.gz"
+        },
+        {
+          "title": "Verify and replace the current binary",
+          "run": "clavis upgrade clavis_linux_amd64.tar.gz --install"
+        }
+      ],
+      "flags": [
+        {
+          "name": "bundle",
+          "type": "string",
+          "usage": "Sigstore bundle (default ARTIFACT.sigstore.json)"
+        },
+        {
+          "name": "identity",
+          "type": "string",
+          "usage": "certificate identity regexp"
+        },
+        {
+          "name": "install",
+          "usage": "replace the running binary after verification"
+        },
+        {
+          "name": "issuer",
+          "type": "string",
+          "usage": "OIDC issuer"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "version"
+      ]
+    },
+    {
+      "path": "version",
+      "slug": "version",
+      "group": "server",
+      "usage": "clavis version",
+      "summary": "Print version information",
+      "description": "Print the version, commit and build date.",
+      "examples": [
+        {
+          "run": "clavis version"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": []
+    },
+    {
+      "path": "whoami",
+      "slug": "whoami",
+      "group": "get-started",
+      "usage": "clavis whoami",
+      "summary": "Show the signed-in user and organizations",
+      "description": "Show the signed-in user, the server, and the organizations you belong to.",
+      "examples": [
+        {
+          "run": "clavis whoami"
+        },
+        {
+          "title": "Machine-readable",
+          "run": "clavis whoami --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "login"
+      ]
+    }
+  ],
+  "globalFlags": [
+    {
+      "name": "debug",
+      "usage": "enable debug logging"
+    },
+    {
+      "name": "env",
+      "type": "string",
+      "usage": "environment slug"
+    },
+    {
+      "name": "json",
+      "usage": "output machine-readable JSON"
+    },
+    {
+      "name": "org",
+      "type": "string",
+      "usage": "organization slug"
+    },
+    {
+      "name": "overlay",
+      "type": "string",
+      "usage": "tenant/region overlay slug"
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "usage": "folder path (default /)"
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "usage": "project slug"
+    },
+    {
+      "name": "server",
+      "type": "string",
+      "usage": "Clavis server URL (default: from .clavis.yaml or saved login)"
+    },
+    {
+      "name": "help",
+      "shorthand": "h",
+      "usage": "help for any command"
+    }
+  ],
+  "topics": [
+    {
+      "id": "clavis-yaml",
+      "title": ".clavis.yaml",
+      "summary": "The per-folder file that links a repository to a project. Commit it; it holds no secrets.",
+      "body": "`clavis init` writes `.clavis.yaml` in your repository. Commands look for\nit in the current folder and its parents, so they work from any\nsubfolder without flags.\n\n```yaml\nserver: https://clavis.example.com\norg: acme\nproject: web-app\nenv: dev               # default environment\npath: /                # default folder\nrun: bin/rails server  # what a plain `clavis run` starts\nbranch_envs: true      # use the git branch's preview environment\ncache: true            # encrypted offline cache for `clavis run`\n```\n\n| Key | Meaning |\n| --- | --- |\n| `server` | Server URL. Saved by `clavis login`. |\n| `org`, `project` | Organization and project slugs. |\n| `env` | Default environment. `--env` overrides it per command. |\n| `path` | Default folder inside the environment. |\n| `run` | Command started by `clavis run` with no arguments. Quotes and backslashes work as in a shell; pipes and `\u0026\u0026` don't (put those in a script). |\n| `branch_envs` | When `true`, use the preview environment of the current git branch if one exists. See [`clavis env branch`](./env-branch). |\n| `cache` | When `true`, keep an encrypted copy of the last values for offline use. See [offline cache](./offline-cache). |\n\n## Which value wins\n\nFor server, organization, project and environment, the first one set\nwins:\n\n1. the flag (`--env staging`)\n2. the environment variable (`CLAVIS_ENV=staging`)\n3. `.clavis.yaml`\n4. the default (`dev` for the environment)",
+      "examples": [
+        {
+          "title": "Save a default command, then start it",
+          "run": "echo 'run: npm run dev' \u003e\u003e .clavis.yaml\nclavis run"
+        }
+      ]
+    },
+    {
+      "id": "environment-variables",
+      "title": "Environment variables",
+      "summary": "Variables the CLI reads, for CI, containers and scripts.",
+      "body": "| Variable | Meaning |\n| --- | --- |\n| `CLAVIS_TOKEN` | Machine or agent token. Used instead of `clavis login`, for CI. |\n| `CLAVIS_SERVER` | Server URL, like `--server`. |\n| `CLAVIS_ORG`, `CLAVIS_PROJECT`, `CLAVIS_ENV` | Like `--org`, `--project`, `--env`. Override `.clavis.yaml`. |\n| `CLAVIS_AGENT` | Agent identity for `clavis mcp`, like `--agent`. |\n| `CLAVIS_CREDENTIAL_FILE` | Keep the login token in this file (mode `0600`) instead of the OS keychain. Useful in containers. |\n| `CLAVIS_CACHE_DIR` | Where the offline cache lives. |\n| `CLAVIS_SERVER_FINGERPRINT` | Expected SHA-256 of a self-signed server's certificate or public key. Trusts it without a prompt. |\n| `CLAVIS_CA_CERT` | PEM file(s) with your own certificate authority, added to the system roots. Separate several with `:`. |\n| `CLAVIS_TRUST_FILE` | Where trusted self-signed servers are stored. Default: `trusted-servers.json` in the config folder. |\n| `NO_COLOR` | Turn off colors. They are also off when output isn't a terminal. |\n\nServer settings (`CLAVIS_TLS`, `CLAVIS_SERVER_BASE_URL`,\n`CLAVIS_SETUP_TOKEN`, ...) are described in the self-hosting guide.",
+      "examples": [
+        {
+          "title": "CI with a machine token",
+          "run": "export CLAVIS_TOKEN=clv_mt_…\nclavis run --project web-app --env production ./deploy.sh"
+        }
+      ]
+    },
+    {
+      "id": "exit-codes",
+      "title": "Exit codes",
+      "summary": "Stable exit codes, so scripts and CI can react to what went wrong.",
+      "body": "| Code | Meaning |\n| --- | --- |\n| `0` | Success |\n| `1` | General error |\n| `2` | Wrong usage: unknown flag, missing argument |\n| `3` | Not signed in, or the token expired. Run `clavis login`. |\n| `4` | Signed in, but not allowed to do this |\n| `5` | Not found: organization, project, environment or key |\n| `6` | Validation failed (`clavis check`) |\n| `7` | Leak found (`clavis scan`) |\n\n`clavis run` and `clavis lease run` exit with your command's own exit\ncode."
+    },
+    {
+      "id": "output",
+      "title": "Output and scripting",
+      "summary": "Readable tables in a terminal, JSON for scripts, and confirmations for production.",
+      "body": "- In a terminal, commands print colored tables and ask before risky\n  changes. When output is piped, colors turn off.\n- `--json` prints machine-readable output on every command that returns\n  data.\n- Writes to a **production** environment show a red banner and ask you to\n  type the project name. In scripts, pass `--yes`. An organization can\n  block CLI writes to production entirely.\n- Every error says how to fix it, for example `Not logged in. Run: clavis login`.",
+      "examples": [
+        {
+          "run": "clavis secrets ls --json | jq ."
+        }
+      ]
+    },
+    {
+      "id": "offline-cache",
+      "title": "Offline cache",
+      "summary": "Keep working when the server is unreachable.",
+      "body": "With `cache: true` in `.clavis.yaml` (`clavis init` sets it),\n`clavis run` saves an AES-256-GCM encrypted copy of the values after each\nsuccessful fetch. If the server can't be reached, it uses that copy for\nup to 24 hours and prints a warning.\n\nThe cache key is kept in the OS keychain (or the credential file), and\neach cache is tied to one server, organization, project and environment.\nSet `cache: false` to turn it off for a project. Delete the cache folder\n(or `CLAVIS_CACHE_DIR`) to clear it."
+    },
+    {
+      "id": "overlays",
+      "title": "Overlays",
+      "summary": "Per-tenant or per-region values on top of an environment.",
+      "body": "An overlay overrides selected keys without changing the environment\nitself, for example different endpoints per region. Pass `--overlay` to\n`run`, `export`, `secrets ls` or `secrets get`. Overlays are created in\nthe web app and appear as extra columns in the secrets grid.",
+      "examples": [
+        {
+          "run": "clavis --overlay eu run npm start"
+        },
+        {
+          "run": "clavis --overlay us-east export --format dotenv"
+        },
+        {
+          "run": "clavis --overlay eu secrets ls --reveal"
+        }
+      ]
+    },
+    {
+      "id": "completion",
+      "title": "Shell completion",
+      "summary": "Tab completion for bash, zsh, fish and PowerShell.",
+      "body": "`clavis completion \u003cshell\u003e` prints a completion script for your shell.",
+      "examples": [
+        {
+          "title": "zsh",
+          "run": "clavis completion zsh \u003e \"${fpath[1]}/_clavis\""
+        },
+        {
+          "title": "bash",
+          "run": "clavis completion bash | sudo tee /etc/bash_completion.d/clavis \u003e /dev/null"
+        },
+        {
+          "title": "fish",
+          "run": "clavis completion fish \u003e ~/.config/fish/completions/clavis.fish"
+        },
+        {
+          "title": "PowerShell",
+          "run": "clavis completion powershell | Out-String | Invoke-Expression"
+        }
+      ]
+    }
+  ]
+}
