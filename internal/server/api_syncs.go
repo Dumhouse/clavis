@@ -17,6 +17,7 @@ type syncBody struct {
 	ID             string     `json:"id"`
 	Environment    string     `json:"environment"`
 	Provider       string     `json:"provider"`
+	ConnectionID   string     `json:"connection_id,omitempty" doc:"Connection whose credential this sync uses; empty for an inline credential"`
 	Status         string     `json:"status"`
 	Confirmed      bool       `json:"confirmed"`
 	DriftKeys      []string   `json:"drift_keys"`
@@ -78,6 +79,7 @@ type createSyncInput struct {
 		VaultVersion       int    `json:"vault_version,omitempty" enum:"1,2"`
 		ForgejoRepo        string `json:"forgejo_repo,omitempty" maxLength:"500" doc:"owner/name for repo scope, or the organization for org scope"`
 		ForgejoScope       string `json:"forgejo_scope,omitempty" enum:"repo,org"`
+		ConnectionID       string `json:"connection_id,omitempty" maxLength:"100" doc:"Use an org connection's credential and base URL instead of an inline token"`
 	}
 }
 
@@ -189,6 +191,7 @@ func (s *Server) registerSyncRoutes() error {
 			CloudflareScript: in.Body.CloudflareScript, CloudflareMode: in.Body.CloudflareMode,
 			VaultMount: in.Body.VaultMount, VaultPath: in.Body.VaultPath, VaultVersion: in.Body.VaultVersion,
 			ForgejoRepo: in.Body.ForgejoRepo, ForgejoScope: in.Body.ForgejoScope,
+			ConnectionID: in.Body.ConnectionID,
 		}, metaFrom(ctx))
 		if err != nil {
 			return nil, s.apiError(ctx, err)
@@ -308,7 +311,7 @@ func syncFromView(view service.SyncView) syncBody {
 	_ = json.Unmarshal([]byte(view.Sync.Config), &cfg)
 	return syncBody{
 		ID: view.Sync.ID, Environment: view.Environment, Provider: view.Sync.Provider,
-		Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
+		ConnectionID: view.Sync.ConnectionID, Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
 		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt, DeleteMissing: cfg.DeleteMissing,
 		LastSyncedAt: view.Sync.LastSyncedAt, CreatedAt: view.Sync.CreatedAt,
 	}
