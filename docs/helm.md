@@ -1,10 +1,9 @@
 # Install with Helm
 
 Clavis publishes its Helm chart to the GitHub Container Registry as an OCI
-artifact. The chart package version is independent of the Clavis server image
-version. The examples below use chart version `0.3.0`, from
-`deploy/helm/clavis/Chart.yaml`; use the version published for the release you
-want to install.
+artifact. Each Clavis release publishes a chart with the same version, so chart
+`0.3.0` installs Clavis 0.3.0. The examples below use `0.3.0`; use the release
+you want to install.
 
 ## Install
 
@@ -24,9 +23,6 @@ ingress controller:
 ```yaml
 server:
   baseURL: https://clavis.example.com
-
-image:
-  tag: "0.2.5"
 
 ingress:
   enabled: true
@@ -53,11 +49,10 @@ class or an existing claim.
 
 ## Image and database settings
 
-The example pins server image `0.2.5`. The chart version passed to Helm selects
-the chart package; `image.tag` selects the server image. If `image.tag` is
-omitted, the chart uses its `appVersion`. Update the image tag when choosing a
-different server release. The default image repository is
-`ghcr.io/dumhouse/clavis`.
+The chart runs the server image of its own release by default: chart `0.3.0`
+uses `ghcr.io/dumhouse/clavis:0.3.0`. Set `image.tag` only to run a different
+server image than the chart was released with, and `image.repository` to pull
+from a mirror.
 
 SQLite is the default database and stores `/data/clavis.db` on the persistent
 volume. The default file key is `/data/root.key` on that volume as well. SQLite
@@ -104,6 +99,7 @@ helm upgrade clavis oci://ghcr.io/dumhouse/charts/clavis \
   --values clavis-values.yaml
 ```
 
-Change `--version` to the chart version you intend to install. After the
-upgrade, check the rollout with `kubectl -n clavis rollout status
-deployment/clavis` (adjust the deployment name if you set a Helm name override).
+Change `--version` to the release you are upgrading to; the server image
+follows it. After the upgrade, check the rollout with `kubectl -n clavis
+rollout status deployment/clavis` (adjust the deployment name if you set a Helm
+name override).
