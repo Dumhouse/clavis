@@ -57,6 +57,26 @@ jobs:
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
           WINGET_ENABLED: ${{ vars.WINGET_ENABLED }}
+      - name: Open the winget pull request
+        # Best effort: a token that cannot open a pull request on
+        # microsoft/winget-pkgs must not fail a release that is already published.
+        if: ${{ vars.WINGET_ENABLED == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "WINGET_TOKEN is not set; skipping the winget pull request."
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          if ! gh pr create --repo microsoft/winget-pkgs --base master \
+            --head "${owner}:clavis-${version}" \
+            --title "New version: Dumhouse.Clavis version ${version}" \
+            --body "Automated update for Dumhouse.Clavis ${version}: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"; then
+            echo "::warning::Could not open the winget pull request. The manifest branch clavis-${version} is on ${owner}/winget-pkgs; open the pull request by hand or use a classic token with public_repo as WINGET_TOKEN."
+          fi
       - name: Update the Docker Hub description
         uses: peter-evans/dockerhub-description@v5
         with:

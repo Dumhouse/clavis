@@ -137,21 +137,18 @@ winget:
       - security
       - devops
       - cli
-    # Off until WINGET_ENABLED is "true" and WINGET_TOKEN exists. A failure here
-    # (for example a token that cannot open a pull request on microsoft/winget-pkgs)
-    # would otherwise fail the whole release before the later steps run.
+    # Off until WINGET_ENABLED is "true" and WINGET_TOKEN exists.
     skip_upload: '{{ if and (index .Env "WINGET_TOKEN") (eq (index .Env "WINGET_ENABLED") "true") }}false{{ else }}true{{ end }}'
     repository:
       owner: dumhouse
       name: winget-pkgs
       branch: 'clavis-{{ .Version }}'
       token: '{{ .Env.WINGET_TOKEN }}'
+      # GoReleaser only pushes the branch. Opening the pull request on
+      # microsoft/winget-pkgs happens in the release workflow, where a token
+      # that cannot do it is a warning instead of a failed release.
       pull_request:
-        enabled: true
-        base:
-          owner: microsoft
-          name: winget-pkgs
-          branch: master
+        enabled: false
 
 nfpms:
   - id: packages
