@@ -85,7 +85,7 @@ func newTrustListCommand(opts *Options) *cobra.Command {
 		Use:   "ls",
 		Short: "List servers trusted on this computer",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			out := opts.output()
 			pins, err := loadTrust()
 			if err != nil {
@@ -114,7 +114,7 @@ func newTrustRemoveCommand(opts *Options) *cobra.Command {
 		Use:   "rm SERVER",
 		Short: "Stop trusting a server's certificate",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			out := opts.output()
 			key := trustKey(normalizeServerURL(args[0]))
 			pins, err := loadTrust()

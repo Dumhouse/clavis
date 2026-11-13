@@ -20,7 +20,7 @@ people compare when the CLI or a browser asks whether to trust it.
 
 Run it where the server's data and config are, for example inside the container.`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			out := opts.output()
 			cfg, err := config.Load(configPath)
 			if err != nil {

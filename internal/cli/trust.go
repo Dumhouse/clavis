@@ -243,7 +243,7 @@ func verifyServerCert(server string, state tls.ConnectionState, roots *x509.Cert
 	}
 	pins, err := loadTrust()
 	if err != nil {
-		return fmt.Errorf("%w (and the trusted servers file could not be read: %v)", verifyErr, err)
+		return fmt.Errorf("%w (and the trusted servers file could not be read: %w)", verifyErr, err)
 	}
 	if pinned, ok := pins[key]; ok {
 		if pinned.PublicKey == publicKeyHash(leaf) || pinned.Certificate == certHash(leaf) {

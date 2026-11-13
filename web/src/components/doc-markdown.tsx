@@ -88,7 +88,9 @@ export type LinkRenderer = (href: string, children: ReactNode, key: string) => R
 
 export function Inline({ text, renderLink }: { text: string; renderLink: LinkRenderer }) {
   const out: ReactNode[] = []
-  const pattern = /`([^`]+)`|\*\*((?:`[^`]*`|[^*])+)\*\*|\[((?:`[^`]*`|[^\]])+)\]\(([^)\s]+)\)/g
+  // The inner alternatives are disjoint (a code span, or a char that is not a
+  // backtick), so a long run of backticks cannot cause catastrophic backtracking.
+  const pattern = /`([^`]+)`|\*\*((?:`[^`]*`|[^*`])+)\*\*|\[((?:`[^`]*`|[^\]`])+)\]\(([^)\s]+)\)/g
   let last = 0
   let match: RegExpExecArray | null
   while ((match = pattern.exec(text)) !== null) {

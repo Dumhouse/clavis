@@ -165,7 +165,8 @@ func (s *Server) httpsRedirect() http.Handler {
 			s.router.ServeHTTP(w, r)
 			return
 		}
-		http.Redirect(w, r, base+r.URL.RequestURI(), http.StatusPermanentRedirect)
+		// The host is the configured base URL; only the path and query come from the request.
+		http.Redirect(w, r, base+r.URL.RequestURI(), http.StatusPermanentRedirect) //nolint:gosec // G710: fixed configured host
 	})
 }
 
