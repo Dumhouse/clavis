@@ -8,7 +8,8 @@ contains:
 - static binaries for Linux, macOS, and Windows on amd64/arm64
 - `checksums.txt`
 - SPDX SBOMs
-- cosign keyless signatures (`*.sigstore.json`)
+- cosign keyless signatures for every archive and for `checksums.txt`
+  (`*.sigstore.json`)
 
 The release workflow uses `id-token: write` for Sigstore keyless signing and
 attaches the signature bundles to the GitHub release.
@@ -22,6 +23,18 @@ cosign verify-blob \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   clavis_1.0.0_linux_amd64.tar.gz
 sha256sum -c checksums.txt
+```
+
+Packages (`.deb`, `.rpm`, `.apk`) and SBOMs are not signed individually. Verify
+`checksums.txt` instead, which lists their SHA-256 hashes:
+
+```sh
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp 'https://github.com/dumhouse/clavis/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
+sha256sum -c checksums.txt --ignore-missing
 ```
 
 `clavis upgrade --file ... --bundle ...` performs the same verification through
