@@ -45,8 +45,20 @@ sboms:
   - artifacts: archive
 
 signs:
-  - cmd: cosign
-    artifacts: all
+  # Sign each archive and the checksum file. Packages and SBOMs are covered by
+  # the signed checksums.txt, which keeps the release page short.
+  - id: archives
+    cmd: cosign
+    artifacts: archive
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - --yes
+      - --bundle=${signature}
+      - ${artifact}
+  - id: checksum
+    cmd: cosign
+    artifacts: checksum
     signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
