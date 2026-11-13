@@ -3,22 +3,119 @@ name: Helm chart
 # Publishes the chart as an OCI artifact to ghcr.io, which Artifact Hub can
 # index. Pages already serves the docs site, so a classic index.yaml repo would
 # need a second site; OCI avoids that.
+#
+# The release workflow calls this after the release is verified. A release
+# created with GITHUB_TOKEN never fires a `release: published` trigger, which
+# is why this used to be a workflow that never ran. To publish the chart of an
+# existing release by hand, run this (or Release backfill) with its tag.
+#
+# Rules that keep published charts trustworthy:
+# - The chart is always packaged from a release tag (vX.Y.Z), never a branch,
+#   with the tag's version as both the chart version and appVersion, so
+#   `--version 0.3.0` always means Clavis 0.3.0.
+# - A version that is already in the registry is never overwritten.
+# - Every chart is signed keylessly with cosign, like the images and binaries.
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to publish the chart from, for example v0.3.0"
+        type: string
+        required: true
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      tag:
+        description: "Release tag to publish the chart from, for example v0.3.0"
+        type: string
+        required: true
 
 permissions:
   contents: read
   packages: write
+  id-token: write
+
+env:
+  CHART_REPO: ghcr.io/dumhouse/charts
+  CHART: ghcr.io/dumhouse/charts/clavis
 
 jobs:
   publish:
     runs-on: ubuntu-26.04
     steps:
+      - name: Check the tag
+        id: tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'${TAG}' is not a release tag like v0.3.0"
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
       - uses: azure/setup-helm@v4
+      - uses: sigstore/cosign-installer@v3
       - run: helm lint deploy/helm/clavis
-      - run: helm package deploy/helm/clavis --destination dist
-      - run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - run: helm push dist/clavis-*.tgz oci://ghcr.io/dumhouse/charts
+      - name: Package
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: helm package deploy/helm/clavis --destination dist --version "${VERSION}" --app-version "${VERSION}"
+      - name: Push unless already published
+        id: push
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          echo "${GH_TOKEN}" | helm registry login ghcr.io -u "${GH_ACTOR}" --password-stdin
+          if out="$(helm pull "oci://${CHART}" --version "${VERSION}" --destination "$(mktemp -d)" 2>&1)"; then
+            echo "::notice::Chart ${VERSION} is already published; it is not overwritten."
+          elif echo "${out}" | grep -qiE "not found|name unknown|denied"; then
+            # No such version yet (a brand-new package answers "denied").
+            if ! out="$(helm push "dist/clavis-${VERSION}.tgz" "oci://${CHART_REPO}" 2>&1)"; then
+              echo "${out}"; exit 1
+            fi
+          else
+            echo "${out}"
+            echo "::error::Could not tell whether chart ${VERSION} is already published."
+            exit 1
+          fi
+          echo "${out}"
+          digest="$(echo "${out}" | sed -n 's/^Digest: *//p')"
+          [ -n "${digest}" ] || { echo "::error::no digest in helm output"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: Sign
+        # Keyless: the signature is tied to this workflow's GitHub identity and
+        # recorded in the public Rekor log. Signing an already signed digest
+        # again only adds a signature, so re-runs are safe.
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          echo "${GH_TOKEN}" | cosign login ghcr.io -u "${GH_ACTOR}" --password-stdin
+          cosign sign --yes "${CHART}@${DIGEST}"
+          docker logout ghcr.io
+          helm registry logout ghcr.io
+      - name: Anonymous install and verify work
+        # A new ghcr.io package is private. The chart is only useful when
+        # anyone can pull it, so fail loudly until its visibility is Public.
+        # Retries cover the short delay before a fresh push is pullable.
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if helm pull "oci://${CHART}" --version "${VERSION}" --destination "$(mktemp -d)"; then
+              cosign verify "${CHART}@${DIGEST}" \
+                --certificate-identity-regexp '^https://github\.com/Dumhouse/clavis/\.github/workflows/helm\.yml@' \
+                --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+              echo "Chart ${VERSION} (${DIGEST}) is public and its signature verifies."
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error::Chart ${VERSION} was pushed but cannot be pulled anonymously. Make the package public: https://github.com/orgs/Dumhouse/packages/container/charts%2Fclavis/settings (Danger zone, Change visibility)."
+          exit 1

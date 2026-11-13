@@ -123,3 +123,14 @@ jobs:
             curl -fsSL https://raw.githubusercontent.com/Dumhouse/scoop-bucket/main/clavis.json | grep -q "\"version\": \"${version}\"" \
               || { echo "scoop manifest does not list ${version}"; exit 1; }
           fi
+
+  helm:
+    name: Publish Helm chart
+    needs: [verify]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/helm.yml
+    with:
+      tag: ${{ github.ref_name }}

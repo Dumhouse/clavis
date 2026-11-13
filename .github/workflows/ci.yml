@@ -88,6 +88,49 @@ jobs:
       - run: go build ./...
         working-directory: csi
 
+  helm:
+    name: Helm chart
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - name: Lint and render
+        run: |
+          chart=deploy/helm/clavis
+          helm lint "$chart"
+          helm template clavis "$chart" > /dev/null
+          helm template clavis "$chart" \
+            --set database.driver=postgres,database.existingSecret=clavis-postgres,replicaCount=2 > /dev/null
+          if helm template clavis "$chart" --set replicaCount=2 > /dev/null 2>&1; then
+            echo "::error::SQLite with replicaCount=2 must be rejected"
+            exit 1
+          fi
+      - uses: helm/kind-action@v1
+      - name: Install into kind
+        # Installs this chart with the latest released server image, so a
+        # chart change that breaks a real deployment fails here, not at release.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)"
+          helm install clavis deploy/helm/clavis \
+            --namespace clavis --create-namespace \
+            --set image.tag="${tag#v}" \
+            --set persistence.size=1Gi \
+            --wait --timeout 5m
+          kubectl -n clavis port-forward svc/clavis 8080:8080 &
+          for _ in 1 2 3 4 5; do
+            curl -fsS http://127.0.0.1:8080/readyz && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Show cluster state on failure
+        if: failure()
+        run: |
+          kubectl -n clavis get all,pvc
+          kubectl -n clavis describe pods
+          kubectl -n clavis logs -l app.kubernetes.io/name=clavis --tail=200 --all-containers
+
   docs:
     name: Docs site
     runs-on: ubuntu-26.04
