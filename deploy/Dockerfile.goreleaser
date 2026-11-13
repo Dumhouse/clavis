@@ -1,6 +1,8 @@
-# GoReleaser copies the built binary next to this file in its build context.
+# GoReleaser builds the binary per platform and places it under $TARGETPLATFORM
+# in this build context (dockers_v2).
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY clavis /usr/local/bin/clavis
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/clavis /usr/local/bin/clavis
 USER nonroot:nonroot
 EXPOSE 8080
 ENV CLAVIS_SERVER_ADDR=:8080 \
