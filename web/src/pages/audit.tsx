@@ -12,6 +12,7 @@ import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
 import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
 
 type AuditEvent = components['schemas']['AuditEventBody']
 
@@ -337,7 +338,7 @@ function Target({ event }: { event: AuditEvent }) {
 function EventDetail({ event, onClose }: { event: AuditEvent; onClose: () => void }) {
   const rows: Array<[string, string | undefined]> = [
     ['Sequence', `#${String(event.seq)}`],
-    ['Time', new Date(event.created_at).toLocaleString()],
+    ['Time', formatDateTime(event.created_at)],
     ['Actor', `${event.actor.name || event.actor.id} (${event.actor.kind})`],
     ['Action', event.action],
     ['Resource', event.resource.type],
@@ -399,13 +400,5 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 function formatTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+  return formatDateTime(value, value, true)
 }

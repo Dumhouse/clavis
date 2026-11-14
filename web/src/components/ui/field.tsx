@@ -15,7 +15,13 @@ const control =
 export const controlClass = control
 
 export function Input({ className, mono, ...props }: ComponentProps<'input'> & { mono?: boolean }) {
-  return <input className={cn(control, 'h-9 px-2.5', mono && 'font-mono', className)} {...props} />
+  return (
+    <input
+      className={cn(control, 'h-9 px-2.5', mono && 'font-mono', className)}
+      data-autofocus={props.autoFocus ? '' : undefined}
+      {...props}
+    />
+  )
 }
 
 export function Textarea({
@@ -24,7 +30,11 @@ export function Textarea({
   ...props
 }: ComponentProps<'textarea'> & { mono?: boolean }) {
   return (
-    <textarea className={cn(control, 'px-2.5 py-2', mono && 'font-mono', className)} {...props} />
+    <textarea
+      className={cn(control, 'px-2.5 py-2', mono && 'font-mono', className)}
+      data-autofocus={props.autoFocus ? '' : undefined}
+      {...props}
+    />
   )
 }
 

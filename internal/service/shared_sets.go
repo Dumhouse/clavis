@@ -34,9 +34,11 @@ type SharedSetItemView struct {
 }
 
 type sharedValue struct {
-	Value   string
-	Kind    string
-	SetSlug string
+	Value     string
+	Kind      string
+	SetSlug   string
+	Version   int
+	UpdatedAt time.Time
 }
 
 // CreateSharedSet creates an org-level set with its own key.
@@ -137,6 +139,38 @@ func (s *Service) GetSharedSet(ctx context.Context, actor authz.Actor, orgSlug, 
 		return nil, err
 	}
 	return &SharedSetView{Set: set, Items: items, Imports: imports}, nil
+}
+
+// RenameSharedSet changes a set's name. The slug, which the CLI and
+// environments refer to, does not change.
+func (s *Service) RenameSharedSet(ctx context.Context, actor authz.Actor, orgSlug, slug, name string, meta AuditMeta) (*store.SharedSet, error) {
+	org, err := s.membershipOrg(ctx, actor, orgSlug)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Authorize(actor, authz.RolesManage, authz.Scope{OrgID: org.ID}); err != nil {
+		return nil, err
+	}
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 100 {
+		return nil, fmt.Errorf("%w: shared set name is required (up to 100 characters)", ErrValidation)
+	}
+	set, err := s.Store.GetSharedSet(ctx, org.ID, slug)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if err := s.Store.RenameSharedSet(ctx, org.ID, set.ID, name); err != nil {
+		return nil, err
+	}
+	if err := s.record(ctx, toAuditActor(actor), org.ID, "set.rename",
+		audit.Resource{Type: "shared_set", ID: set.ID, Name: set.Slug}, audit.Details{Reason: set.Name + " → " + name}, meta); err != nil {
+		s.Logger.Error("audit set.rename failed", "set_id", set.ID, "error", err)
+	}
+	set.Name = name
+	return set, nil
 }
 
 // DeleteSharedSet removes a set and its imports.
@@ -440,7 +474,8 @@ func (s *Service) sharedSetValues(ctx context.Context, org *store.Org, env *stor
 				valueKey.Zero()
 				return nil, err
 			}
-			out[string(key)] = sharedValue{Value: string(value), Kind: item.Kind, SetSlug: set.Slug}
+			out[string(key)] = sharedValue{Value: string(value), Kind: item.Kind, SetSlug: set.Slug,
+				Version: item.Version, UpdatedAt: item.UpdatedAt}
 		}
 		valueKey.Zero()
 	}

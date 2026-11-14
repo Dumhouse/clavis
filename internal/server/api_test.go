@@ -2061,6 +2061,14 @@ func TestSharedSets(t *testing.T) {
 		t.Fatalf("create set = %d body=%s", created.Code, created.Body)
 	}
 	setBase := "/api/v1/orgs/acme/sets/shared"
+	// Renaming keeps the slug, so everything that refers to the set still works.
+	if rec := owner.request(http.MethodPatch, setBase, map[string]any{"name": "Shared API keys"}); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"name":"Shared API keys"`) || !strings.Contains(rec.Body.String(), `"slug":"shared"`) {
+		t.Fatalf("rename = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPatch, setBase, map[string]any{"name": " "}); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("blank rename = %d body=%s", rec.Code, rec.Body)
+	}
 	if rec := owner.request(http.MethodPut, setBase+"/items/SHARED_KEY", map[string]any{"value": "from-set"}); rec.Code != http.StatusNoContent {
 		t.Fatalf("set item = %d body=%s", rec.Code, rec.Body)
 	}
@@ -2074,6 +2082,12 @@ func TestSharedSets(t *testing.T) {
 	imports := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/environments/dev/sets", nil)
 	if imports.Code != http.StatusOK || !strings.Contains(imports.Body.String(), "shared") {
 		t.Fatalf("imports = %d body=%s", imports.Code, imports.Body)
+	}
+	// Set keys have real timestamps and are not reported per environment
+	// (they used to show as "106751 days old").
+	if health := owner.request(http.MethodGet, "/api/v1/orgs/acme/health", nil); health.Code != http.StatusOK ||
+		strings.Contains(health.Body.String(), "SHARED_KEY") {
+		t.Fatalf("health = %d body=%s", health.Code, health.Body)
 	}
 
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -4835,5 +4849,140 @@ func TestOffboardingChecklistSurvivesRemoval(t *testing.T) {
 	// A person who never revealed anything leaves no checklist to show.
 	if gone := owner.request(http.MethodGet, "/api/v1/orgs/acme/members/00000000-0000-0000-0000-000000000000/offboarding", nil); gone.Code != http.StatusNotFound {
 		t.Fatalf("unknown member = %d", gone.Code)
+	}
+}
+
+// The import preview compares pasted values on the server: the secret list
+// carries no secret values, so the browser used to show every secret as
+// changed.
+func TestCompareSecretValues(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "API_TOKEN", "value": "same-value"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "DB_PASS", "value": "old"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodPost, dev+":compare", map[string]any{"entries": []map[string]string{
+		{"key": "API_TOKEN", "value": "same-value"},
+		{"key": "DB_PASS", "value": "new"},
+		{"key": "FRESH", "value": "x"},
+	}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("compare = %d body=%s", rec.Code, rec.Body)
+	}
+	var out struct {
+		Statuses map[string]string `json:"statuses"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"API_TOKEN": "same", "DB_PASS": "changed", "FRESH": "new"}
+	for key, status := range want {
+		if out.Statuses[key] != status {
+			t.Errorf("%s = %q, want %q (all: %v)", key, out.Statuses[key], status, out.Statuses)
+		}
+	}
+	if strings.Contains(rec.Body.String(), "same-value") || strings.Contains(rec.Body.String(), "old") {
+		t.Fatalf("compare must not return values: %s", rec.Body)
+	}
+	audit := owner.request(http.MethodGet, "/api/v1/orgs/acme/audit-events", nil)
+	if !strings.Contains(audit.Body.String(), "secret.compare") {
+		t.Fatalf("compare should be audited: %s", audit.Body)
+	}
+}
+
+// Old versions can be previewed before restoring; production needs a reason.
+func TestRevealSecretVersion(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "TOKEN", "value": "first"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPut, dev+"/TOKEN", map[string]any{"value": "second"}); rec.Code != http.StatusOK {
+		t.Fatalf("update = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodGet, dev+"/TOKEN/versions/1", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"value":"first"`) {
+		t.Fatalf("version 1 = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodGet, dev+"/TOKEN/versions/9", nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing version = %d body=%s", rec.Code, rec.Body)
+	}
+}
+
+// The web UI's update notice reads this endpoint; it needs a session and
+// reports the release found by the daily check and how to update this server.
+func TestUpdateStatus(t *testing.T) {
+	releases := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"v99.0.0"}`))
+	}))
+	defer releases.Close()
+	f := newFixtureOptions(t, server.WithReleasesURL(releases.URL))
+	owner, _ := f.setup(t)
+
+	anon := &apiClient{t: t, h: f.srv.Handler()}
+	if rec := anon.request(http.MethodGet, "/api/v1/system/update", nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous = %d", rec.Code)
+	}
+	type body struct {
+		Enabled         bool   `json:"enabled"`
+		Latest          string `json:"latest"`
+		UpdateAvailable bool   `json:"update_available"`
+		ReleaseURL      string `json:"release_url"`
+		Install         struct {
+			Method string `json:"method"`
+		} `json:"install"`
+	}
+	before := decode[body](t, owner.request(http.MethodGet, "/api/v1/system/update", nil))
+	if !before.Enabled || before.Latest != "" || before.UpdateAvailable || before.Install.Method == "" {
+		t.Fatalf("before check = %+v", before)
+	}
+	if err := f.srv.CheckForUpdates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	after := decode[body](t, owner.request(http.MethodGet, "/api/v1/system/update", nil))
+	// Test builds are "dev", which is never reported as outdated.
+	if after.Latest != "99.0.0" || after.ReleaseURL != "https://github.com/Dumhouse/clavis/releases/tag/v99.0.0" {
+		t.Fatalf("after check = %+v", after)
+	}
+}
+
+// Date, time and font choices are saved on the account; a PATCH with one
+// field keeps the others.
+func TestPreferencesMerge(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"theme": "light", "appearance": "warm"}); rec.Code != http.StatusOK {
+		t.Fatalf("theme = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"date_format": "dmy-dot"}); rec.Code != http.StatusOK {
+		t.Fatalf("date = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"font": "inter", "time_format": "24h"})
+	got := decode[struct {
+		Theme      string `json:"theme"`
+		Appearance string `json:"appearance"`
+		DateFormat string `json:"date_format"`
+		TimeFormat string `json:"time_format"`
+		Font       string `json:"font"`
+	}](t, rec)
+	if got.Theme != "light" || got.Appearance != "warm" || got.DateFormat != "dmy-dot" || got.TimeFormat != "24h" || got.Font != "inter" {
+		t.Fatalf("merged = %+v", got)
+	}
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"date_format": "yyyy"}); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("bad date format = %d", rec.Code)
+	}
+	me := decode[struct {
+		Preferences struct {
+			DateFormat string `json:"date_format"`
+			Font       string `json:"font"`
+		} `json:"preferences"`
+	}](t, owner.request(http.MethodGet, "/api/v1/auth/me", nil))
+	if me.Preferences.DateFormat != "dmy-dot" || me.Preferences.Font != "inter" {
+		t.Fatalf("me = %+v", me.Preferences)
 	}
 }

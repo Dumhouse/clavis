@@ -166,6 +166,7 @@ jobs:
       - run: pnpm --dir web lint
       - run: pnpm --dir web check:contrast
       - run: pnpm --dir web check:hints
+      - run: pnpm --dir web test
       - run: pnpm --dir web build
       - run: pnpm --dir web check:bundle
       # The binary job embeds this build instead of repeating the install and build.

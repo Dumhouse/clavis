@@ -11,6 +11,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
 import { Input, Select } from '@/components/ui/field'
+import { formatDateTime } from '@/lib/format'
 
 type Env = components['schemas']['EnvBody']
 type Plan = components['schemas']['PromotionPlanOutputBody']
@@ -413,7 +414,7 @@ export function PromotePage() {
                 </p>
                 <p className="text-xs text-dim">
                   {(request.keys ?? []).length} keys · requested by {request.requested_by} ·{' '}
-                  {new Date(request.requested_at).toLocaleString()}
+                  {formatDateTime(request.requested_at)}
                 </p>
               </div>
               {canAdmin && (

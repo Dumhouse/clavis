@@ -53,7 +53,7 @@ groups:
   - id: server
     title: "Server and administration"
     description: "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades."
-    commands: [server, setup-token, admin, health, upgrade, version]
+    commands: [server, setup-token, admin, health, update, upgrade, version]
 
 commands:
   # Get started
@@ -266,7 +266,16 @@ commands:
         run: "eval \"$(clavis export --format shell)\""
       - title: "Only non-secret variables (needs no read-values permission)"
         run: "clavis export --variables-only"
-    notes: "Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`. Prefer `clavis run` where you can: it writes nothing to disk."
+      - title: "Into a CI job (GitHub, Forgejo, Gitea Actions)"
+        run: "clavis export --env prod --format github-env"
+    notes: |-
+      Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`, `github-env`.
+      Prefer `clavis run` where you can: it writes nothing to disk.
+
+      `github-env` appends every key to the job's `$GITHUB_ENV` file, so later
+      steps see them as environment variables, and masks secret values in the
+      job log. Multi-line values are kept. The Clavis action runs this for you;
+      see [Forgejo and Gitea Actions](https://dumhouse.github.io/clavis/guides/forgejo-actions-secrets).
     related: [run, import]
 
   codegen:
@@ -1211,6 +1220,24 @@ commands:
       - title: "Verify and replace the current binary"
         run: "clavis upgrade clavis_linux_amd64.tar.gz --install"
     related: [version]
+
+  update:
+    description: |-
+      Check GitHub for a newer release and print the command that updates this
+      copy of Clavis. It works out how Clavis was installed (Homebrew, Scoop,
+      WinGet, Docker, Helm, a .deb, .rpm or .apk package, `go install`, the
+      install script, or a build from source) and shows the matching command.
+      It also shows the version of your server.
+
+      Interactive commands print a short note once every few days when an
+      update is waiting, or when the CLI and the server differ in minor
+      version. The check runs at most once a day, sends nothing about you, and
+      is skipped in CI. Set `CLAVIS_NO_UPDATE_CHECK=1` to turn it off.
+    examples:
+      - run: "clavis update"
+      - title: "For scripts"
+        run: "clavis update --json"
+    related: [version, upgrade]
 
   version:
     description: "Print the version, commit and build date."

@@ -123,6 +123,9 @@ func runLogin(cmd *cobra.Command, opts *Options, open bool) error {
 		if err := credentialStore().Set(resolved.Server, poll.Token); err != nil {
 			return err
 		}
+		if err := rememberServer(resolved.Server); err != nil {
+			out.Warn("Could not remember %s as the default server: %v", resolved.Server, err)
+		}
 		name := ""
 		if poll.User != nil {
 			name = poll.User.Name
@@ -168,6 +171,7 @@ func newLogoutCommand(opts *Options) *cobra.Command {
 			if err := credentialStore().Delete(resolved.Server); err != nil {
 				return err
 			}
+			forgetServer(resolved.Server)
 			out.Success("Signed out of %s", resolved.Server)
 			return nil
 		},

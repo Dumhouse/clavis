@@ -162,6 +162,8 @@ type AuditMeta struct {
 	IP        string
 	UserAgent string
 	RequestID string
+	// Reason is an optional reason the caller gave (bulk reveals).
+	Reason string
 }
 
 // NormalizeSlug validates and lowercases a slug.

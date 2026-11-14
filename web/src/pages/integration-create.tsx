@@ -1,6 +1,15 @@
-import { ExternalLink, KeyRound, Loader2, Lock } from 'lucide-react'
+import {
+  CircleAlert,
+  CloudDownload,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Lock,
+  RefreshCw,
+  Send,
+} from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
@@ -8,9 +17,19 @@ import { Button } from '@/components/ui/button'
 import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
 import { Modal, ModalFooter, ModalHeader } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
+import { platforms } from '@/lib/integration-guide'
 import { cn } from '@/lib/utils'
 
 type Env = components['schemas']['EnvBody']
+type Sync = components['schemas']['SyncBody']
+type RepositoryList = components['schemas']['RepositoryList']
+
+/** The field that names the repository, for providers whose repos can be listed. */
+const repoField: Record<string, { key: BodyKey; scopeKey?: BodyKey; orgScope?: string }> = {
+  forgejo: { key: 'forgejo_repo', scopeKey: 'forgejo_scope', orgScope: 'org' },
+  github: { key: 'github_repo', scopeKey: 'github_scope', orgScope: 'org' },
+  gitlab: { key: 'gitlab_project' },
+}
 type Body = components['schemas']['CreateSyncInputBody']
 type BodyKey = Exclude<keyof Body, 'environment' | 'provider'>
 
@@ -62,6 +81,16 @@ export function connectionFields(provider: Provider) {
     : []
 }
 
+/** The server address of a credential: shown first, since the token page depends on it. */
+export function urlFields(fields: FieldSpec[]) {
+  return fields.filter((field) => field.key === 'base_url')
+}
+
+/** The credential itself (token, keys), shown after the token help. */
+export function secretFields(fields: FieldSpec[]) {
+  return fields.filter((field) => field.key !== 'base_url')
+}
+
 /** A readable default name, e.g. "Forgejo Actions · git.example.com". */
 export function defaultConnectionName(provider: Provider, values: Record<string, string>) {
   const raw = values.base_url?.trim()
@@ -79,7 +108,21 @@ export function defaultConnectionName(provider: Provider, values: Record<string,
 export const providers: Provider[] = [
   {
     id: 'github',
-    tokenUrl: () => 'https://github.com/settings/personal-access-tokens/new',
+    tokenUrl: (values) => {
+      // GitHub Enterprise: https://ghe.example.com/api/v3 → https://ghe.example.com
+      const raw = values.base_url
+        ?.trim()
+        .replace(/\/api\/v3\/?$/, '')
+        .replace(/\/+$/, '')
+      let host = ''
+      try {
+        host = raw ? new URL(raw).hostname : ''
+      } catch {
+        // Not a URL yet; use it as typed.
+      }
+      const web = !raw || host === 'api.github.com' ? 'https://github.com' : raw
+      return `${web}/settings/personal-access-tokens/new`
+    },
     name: 'GitHub Actions',
     blurb: 'Repository, environment, or organization secrets.',
     mark: 'GH',
@@ -358,7 +401,8 @@ export function SpecField({
   placeholder?: string | undefined
   labelSuffix?: string
 }) {
-  const label = field.label + (labelSuffix ?? (required ? '' : ' (optional)'))
+  // A choice always has a value, so it is never "optional".
+  const label = field.label + (labelSuffix ?? (required || field.options ? '' : ' (optional)'))
   if (field.options && field.options.length <= 3) {
     return (
       <fieldset>
@@ -475,15 +519,21 @@ export function CreateSyncDialog({
   projectSlug,
   envs,
   provider,
+  existing = [],
   onClose,
   onCreated,
+  onUseFetch,
 }: {
   orgSlug: string
   projectSlug: string
   envs: Env[]
   provider: Provider
+  /** The project's syncs, to warn about two syncs into the same repository. */
+  existing?: Sync[]
   onClose: () => void
   onCreated: () => void
+  /** Switch to "fetch when the job runs" instead. */
+  onUseFetch?: () => void
 }) {
   const queryClient = useQueryClient()
   const [env, setEnv] = useState(envs[0]?.slug ?? '')
@@ -539,6 +589,56 @@ export function CreateSyncDialog({
     setValues((state) => ({ ...state, [key]: value }))
   }
 
+  // Repository picker: list what the credential can reach.
+  const repo = repoField[provider.id]
+  const [repos, setRepos] = useState<RepositoryList | null>(null)
+  const [reposBusy, setReposBusy] = useState(false)
+  const [reposError, setReposError] = useState<string | null>(null)
+  const typedToken = values.token?.trim() ?? ''
+  const canList = Boolean(repo) && (Boolean(chosen) || typedToken !== '')
+  async function loadRepositories() {
+    if (!repo) return
+    setReposBusy(true)
+    setReposError(null)
+    const result = await api.POST('/api/v1/orgs/{org}/projects/{project}/syncs/repositories', {
+      params: { path: { org: orgSlug, project: projectSlug } },
+      body: chosen
+        ? { provider: provider.id as 'forgejo', connection_id: chosen.id }
+        : {
+            provider: provider.id as 'forgejo',
+            token: typedToken,
+            ...(values.base_url?.trim() ? { base_url: values.base_url.trim() } : {}),
+          },
+    })
+    setReposBusy(false)
+    if (result.error) {
+      setRepos(null)
+      setReposError(apiErrorMessage(result.error, 'Could not list repositories.'))
+      return
+    }
+    setRepos(result.data)
+  }
+  // A platform token needs no typing: list its repositories right away.
+  const chosenId = chosen?.id
+  useEffect(() => {
+    if (chosenId && repo) void loadRepositories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenId])
+  const orgScope = repo?.scopeKey && values[repo.scopeKey] === repo.orgScope
+  const repoValue = repo ? (values[repo.key]?.trim() ?? '') : ''
+  const pickedRepo = (repos?.repositories ?? []).find((item) => item.full_name === repoValue)
+  const platform = platforms.find((candidate) => candidate.sync === provider.id)
+  const clash =
+    provider.id === 'forgejo' || provider.id === 'gitlab'
+      ? existing.find(
+          (sync) =>
+            sync.provider === provider.id &&
+            sync.target === (orgScope ? `organization ${repoValue}` : repoValue) &&
+            repoValue !== '' &&
+            sync.environment !== env,
+        )
+      : undefined
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     setBusy(true)
@@ -569,7 +669,7 @@ export function CreateSyncDialog({
       })
       if (created.error) {
         setBusy(false)
-        setError(apiErrorMessage(created.error, 'Could not save the connection.'))
+        setError(apiErrorMessage(created.error, 'Could not save the platform token.'))
         return
       }
       connectionID = created.data.id
@@ -593,7 +693,7 @@ export function CreateSyncDialog({
   }
 
   return (
-    <Modal onClose={onClose} className="max-w-lg">
+    <Modal onClose={onClose} className="max-w-5xl">
       <form
         onSubmit={(event) => {
           void submit(event)
@@ -608,152 +708,213 @@ export function CreateSyncDialog({
           description={provider.blurb}
           onClose={onClose}
         />
-        <div className="mt-5 space-y-5">
-          <FormSection step={1} title="What to push">
-            <Field
-              label="Clavis environment"
-              hint="One sync pushes one environment to one destination. Add another sync for staging or production."
-            >
-              <Select
-                value={env}
-                onChange={(event) => {
-                  setEnv(event.target.value)
-                }}
+        <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="space-y-5">
+            <FormSection step={1} title="What to push">
+              <Field
+                label="Clavis environment"
+                hint="One sync pushes one environment to one destination. Add another sync for staging or production."
               >
-                {envs.map((candidate) => (
-                  <option key={candidate.id} value={candidate.slug}>
-                    {candidate.name} ({candidate.slug})
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {target?.type === 'production' && (
-              <Notice tone="warning">
-                This pushes production values. The first run asks you to confirm a preview.
-              </Notice>
-            )}
-          </FormSection>
-
-          <FormSection step={2} title={`Where in ${provider.name}`}>
-            {destination.map((field) => (
-              <SpecField
-                key={field.key}
-                field={field}
-                value={values[field.key] ?? ''}
-                onChange={set(field.key)}
-              />
-            ))}
-          </FormSection>
-
-          {credentials.length > 0 && (
-            <FormSection step={3} title={shared ? 'Connection' : 'Credentials'}>
-              {shared && (
-                <fieldset className="space-y-1.5">
-                  <legend className="sr-only">Connection</legend>
-                  {saved.map((connection) => (
-                    <ConnectionChoice
-                      key={connection.id}
-                      checked={choice === connection.id}
-                      onSelect={() => {
-                        setPicked(connection.id)
-                      }}
-                      title={connection.name}
-                      detail={[
-                        connection.base_url,
-                        connection.sync_count === 1
-                          ? 'used by 1 sync'
-                          : `used by ${String(connection.sync_count)} syncs`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    />
+                <Select
+                  value={env}
+                  onChange={(event) => {
+                    setEnv(event.target.value)
+                  }}
+                >
+                  {envs.map((candidate) => (
+                    <option key={candidate.id} value={candidate.slug}>
+                      {candidate.name} ({candidate.slug})
+                    </option>
                   ))}
-                  <ConnectionChoice
-                    checked={choice === NEW_CONNECTION}
-                    onSelect={() => {
-                      setPicked(NEW_CONNECTION)
-                    }}
-                    title={saved.length > 0 ? 'Add another connection' : 'Add a connection'}
-                    detail={`Enter a ${provider.name} credential once; later syncs just pick it.`}
-                  />
-                  {connections.isLoading && (
-                    <p className="flex items-center gap-1.5 text-2xs text-dim">
-                      <Loader2 className="size-3 animate-spin" /> Loading saved connections…
-                    </p>
-                  )}
-                </fieldset>
-              )}
-              {!chosen && (
-                <>
-                  <TokenHelp provider={provider} link={tokenLink} />
-                  {credentials.map((field) => (
-                    <SpecField
-                      key={field.key}
-                      field={field}
-                      value={values[field.key] ?? ''}
-                      onChange={set(field.key)}
-                    />
-                  ))}
-                  {shared && (
-                    <div className="space-y-2 rounded-app-sm border border-border-soft px-3 py-2.5">
-                      <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5"
-                          checked={saveConnection}
-                          onChange={(event) => {
-                            setSaveConnection(event.target.checked)
-                          }}
-                        />
-                        <span>
-                          Save as a connection for other syncs
-                          <span className="block text-2xs text-dim">
-                            Needs org-wide sync permission. Off stores the credential on this sync
-                            only.
-                          </span>
-                        </span>
-                      </label>
-                      {saveConnection && (
-                        <Field label="Connection name">
-                          <Input
-                            value={connectionName}
-                            placeholder={defaultConnectionName(provider, values)}
-                            maxLength={100}
-                            onChange={(event) => {
-                              setConnectionName(event.target.value)
-                            }}
-                          />
-                        </Field>
-                      )}
-                    </div>
-                  )}
-                  <p className="flex items-center gap-1.5 text-2xs text-dim">
-                    <Lock className="size-3" /> Encrypted with the organization key and never shown
-                    again.
-                  </p>
-                </>
+                </Select>
+              </Field>
+              {target?.type === 'production' && (
+                <Notice tone="warning">
+                  This pushes production values. The first run asks you to confirm a preview.
+                </Notice>
               )}
             </FormSection>
-          )}
 
-          <FormSection step={credentials.length > 0 ? 4 : 3} title="Options">
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-app-sm border border-border-soft px-3 py-2.5 text-sm hover:bg-hover">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={deleteMissing}
-                onChange={(event) => {
-                  setDeleteMissing(event.target.checked)
-                }}
-              />
-              <span>
-                Delete keys in {provider.name} that are not in Clavis
-                <span className="block text-2xs text-dim">Off is safer for a first sync.</span>
-              </span>
-            </label>
-          </FormSection>
+            {credentials.length > 0 && (
+              <FormSection
+                step={2}
+                title={shared ? `${provider.name} access token` : 'Credentials'}
+              >
+                {shared && (
+                  <fieldset className="space-y-1.5">
+                    <legend className="sr-only">Platform token</legend>
+                    {saved.map((connection) => (
+                      <ConnectionChoice
+                        key={connection.id}
+                        checked={choice === connection.id}
+                        onSelect={() => {
+                          setPicked(connection.id)
+                        }}
+                        title={connection.name}
+                        detail={[
+                          connection.base_url,
+                          connection.sync_count === 1
+                            ? 'used by 1 sync'
+                            : `used by ${String(connection.sync_count)} syncs`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      />
+                    ))}
+                    <ConnectionChoice
+                      checked={choice === NEW_CONNECTION}
+                      onSelect={() => {
+                        setPicked(NEW_CONNECTION)
+                      }}
+                      title={saved.length > 0 ? 'Use a new access token' : 'Enter an access token'}
+                      detail={`Clavis uses it to write ${provider.name} secrets. Saved once, later syncs just pick it.`}
+                    />
+                    {connections.isLoading && (
+                      <p className="flex items-center gap-1.5 text-2xs text-dim">
+                        <Loader2 className="size-3 animate-spin" /> Loading platform tokens…
+                      </p>
+                    )}
+                  </fieldset>
+                )}
+                {!chosen && (
+                  <>
+                    {urlFields(credentials).map((field) => (
+                      <SpecField
+                        key={field.key}
+                        field={field}
+                        value={values[field.key] ?? ''}
+                        onChange={set(field.key)}
+                      />
+                    ))}
+                    <TokenHelp provider={provider} link={tokenLink} />
+                    {secretFields(credentials).map((field) => (
+                      <SpecField
+                        key={field.key}
+                        field={field}
+                        value={values[field.key] ?? ''}
+                        onChange={set(field.key)}
+                      />
+                    ))}
+                    {shared && (
+                      <div className="space-y-2 rounded-app-sm border border-border-soft px-3 py-2.5">
+                        <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={saveConnection}
+                            onChange={(event) => {
+                              setSaveConnection(event.target.checked)
+                            }}
+                          />
+                          <span>
+                            Save it for other syncs
+                            <span className="block text-2xs text-dim">
+                              Needs org-wide sync permission. Off stores the credential on this sync
+                              only.
+                            </span>
+                          </span>
+                        </label>
+                        {saveConnection && (
+                          <Field label="Name">
+                            <Input
+                              value={connectionName}
+                              placeholder={defaultConnectionName(provider, values)}
+                              maxLength={100}
+                              onChange={(event) => {
+                                setConnectionName(event.target.value)
+                              }}
+                            />
+                          </Field>
+                        )}
+                      </div>
+                    )}
+                    <p className="flex items-center gap-1.5 text-2xs text-dim">
+                      <Lock className="size-3" /> Encrypted with the organization key and never
+                      shown again.
+                    </p>
+                  </>
+                )}
+              </FormSection>
+            )}
 
-          {error && <Notice>{error}</Notice>}
+            <FormSection step={credentials.length > 0 ? 3 : 2} title={`Where in ${provider.name}`}>
+              {destination.map((field) =>
+                repo && field.key === repo.key ? (
+                  <RepositoryField
+                    key={field.key}
+                    field={field}
+                    value={values[field.key] ?? ''}
+                    onChange={set(field.key)}
+                    options={
+                      orgScope
+                        ? (repos?.organizations ?? [])
+                        : (repos?.repositories ?? []).map((item) => item.full_name)
+                    }
+                    loaded={repos !== null}
+                    busy={reposBusy}
+                    canList={canList}
+                    error={reposError}
+                    onLoad={() => {
+                      void loadRepositories()
+                    }}
+                    identity={repos?.identity}
+                    warning={
+                      pickedRepo && !pickedRepo.can_write
+                        ? 'This token can see the repository but may not manage its secrets (needs admin rights).'
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <SpecField
+                    key={field.key}
+                    field={field}
+                    value={values[field.key] ?? ''}
+                    onChange={set(field.key)}
+                  />
+                ),
+              )}
+              {clash && (
+                <Notice tone="warning">
+                  The {clash.environment} environment already syncs to this repository.{' '}
+                  {provider.name} keeps one value per name, so the two syncs would overwrite each
+                  other.
+                  {onUseFetch && (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="font-semibold underline"
+                        onClick={onUseFetch}
+                      >
+                        Let jobs fetch each environment instead
+                      </button>
+                      .
+                    </>
+                  )}
+                </Notice>
+              )}
+            </FormSection>
+
+            <FormSection step={credentials.length > 0 ? 4 : 3} title="Options">
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-app-sm border border-border-soft px-3 py-2.5 text-sm hover:bg-hover">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={deleteMissing}
+                  onChange={(event) => {
+                    setDeleteMissing(event.target.checked)
+                  }}
+                />
+                <span>
+                  Delete keys in {provider.name} that are not in Clavis
+                  <span className="block text-2xs text-dim">Off is safer for a first sync.</span>
+                </span>
+              </label>
+            </FormSection>
+
+            {error && <Notice>{error}</Notice>}
+          </div>
+          <SyncAside provider={provider} platform={platform} onUseFetch={onUseFetch} />
         </div>
         <ModalFooter className="mt-6 items-center border-t border-border-soft pt-4">
           <p className="mr-auto min-w-0 truncate font-mono text-2xs text-dim" title={summary}>
@@ -823,5 +984,134 @@ function FormSection({
       </h3>
       {children}
     </section>
+  )
+}
+
+function SyncAside({
+  provider,
+  platform,
+  onUseFetch,
+}: {
+  provider: Provider
+  platform: (typeof platforms)[number] | undefined
+  onUseFetch?: (() => void) | undefined
+}) {
+  return (
+    <aside className="space-y-3 text-xs text-muted lg:border-l lg:border-border-soft lg:pl-6">
+      <div>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-text">
+          <Send className="size-3.5" /> How a sync works
+        </h3>
+        <ol className="mt-1.5 list-decimal space-y-1 pl-4 marker:text-dim">
+          <li>Clavis uses your {provider.name} access token to write secrets there.</li>
+          <li>One sync copies one Clavis environment to one place.</li>
+          <li>Preview, then run it; run it again after you change values.</li>
+        </ol>
+      </div>
+      {platform && platform.limits.length > 0 && (
+        <div>
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-text">
+            <CircleAlert className="size-3.5" /> Good to know
+          </h3>
+          <ul className="mt-1.5 list-disc space-y-1 pl-4 marker:text-dim">
+            {platform.limits.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {platform?.recommend === 'fetch' && onUseFetch && (
+        <div className="rounded-app-sm border border-accent-line bg-accent-soft/40 p-3">
+          <p className="flex items-center gap-1.5 font-semibold text-text">
+            <CloudDownload className="size-3.5 text-accent-text" /> Recommended instead
+          </p>
+          <p className="mt-1">{platform.why}</p>
+          <Button variant="secondary" size="sm" className="mt-2" onClick={onUseFetch}>
+            Set up fetching
+          </Button>
+        </div>
+      )}
+    </aside>
+  )
+}
+
+/** The repository (or organization) field, with a list loaded from the provider. */
+function RepositoryField({
+  field,
+  value,
+  onChange,
+  options,
+  loaded,
+  busy,
+  canList,
+  error,
+  onLoad,
+  identity,
+  warning,
+}: {
+  field: FieldSpec
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  loaded: boolean
+  busy: boolean
+  canList: boolean
+  error: string | null
+  onLoad: () => void
+  identity?: string | undefined
+  warning?: string | undefined
+}) {
+  const listId = `repos-${field.key}`
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-end gap-2">
+        <Field label={field.label} hint={field.hint} className="flex-1">
+          <Input
+            value={value}
+            list={loaded ? listId : undefined}
+            placeholder={loaded && options.length > 0 ? 'Start typing to pick…' : field.placeholder}
+            required={field.required}
+            autoComplete="off"
+            onChange={(event) => {
+              onChange(event.target.value)
+            }}
+          />
+        </Field>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mb-[3px]"
+          disabled={!canList || busy}
+          title={canList ? 'List what this token can reach' : 'Enter the access token first'}
+          onClick={onLoad}
+        >
+          {busy ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3.5" />
+          )}{' '}
+          {loaded ? 'Reload' : 'Load list'}
+        </Button>
+      </div>
+      {loaded && (
+        <datalist id={listId}>
+          {options.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      )}
+      {loaded && (
+        <p className="text-2xs text-dim">
+          {options.length === 0
+            ? 'The token reaches nothing here; type the name.'
+            : `${String(options.length)} found${identity ? ` for ${identity}` : ''}. Click the field to pick one.`}
+        </p>
+      )}
+      {!loaded && !canList && (
+        <p className="text-2xs text-dim">Enter the access token above to pick from a list.</p>
+      )}
+      {error && <Notice>{error}</Notice>}
+      {warning && <Notice tone="warning">{warning}</Notice>}
+    </div>
   )
 }

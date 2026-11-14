@@ -9,11 +9,14 @@ import {
   History,
   Loader2,
   Lock,
+  Pencil,
   Plus,
+  Upload,
   ShieldAlert,
   Trash2,
   Undo2,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -21,12 +24,15 @@ import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { askRevealReason, confirmAction, confirmDialog } from '@/components/ui/dialogs'
+import { DateInput } from '@/components/ui/date-input'
 import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { toast } from '@/components/ui/toast'
 import { apiErrorMessage } from '@/lib/api-error'
 import { validateSchemaValue, type SchemaEntry } from '@/lib/schema'
 import { cn } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
+import { GenerateValueDialog } from '@/pages/generate-dialog'
 
 type Env = components['schemas']['EnvBody']
 type Secret = components['schemas']['SecretBody']
@@ -96,14 +102,25 @@ export function SecretSheet({
 
       <div role="tablist" aria-label="Environment" className="flex gap-1 overflow-x-auto px-5 pt-3">
         {envs.map((candidate) => {
-          const present = Boolean(secretIn(candidate.slug))
+          const here = secretIn(candidate.slug)
           const selected = candidate.slug === env?.slug
+          const summary = here
+            ? [
+                here.inherited
+                  ? `Inherited from ${here.source_environment ?? 'another environment'}`
+                  : `Version ${String(here.version)}`,
+                here.updated_at ? `updated ${formatDateTime(here.updated_at)}` : '',
+              ]
+                .filter(Boolean)
+                .join(', ')
+            : `Not set in ${candidate.slug}`
           return (
             <button
               key={candidate.id}
               type="button"
               role="tab"
               aria-selected={selected}
+              title={summary}
               onClick={() => {
                 setEnvSlug(candidate.slug)
               }}
@@ -118,7 +135,13 @@ export function SecretSheet({
                 {candidate.slug}
               </span>
               {candidate.protected && <Lock className="size-3 text-dim" aria-label="protected" />}
-              {!present && <span className="text-3xs text-dim">unset</span>}
+              {here ? (
+                <span className="font-mono text-3xs text-dim">
+                  {here.inherited ? 'inherited' : `v${String(here.version)}`}
+                </span>
+              ) : (
+                <span className="text-3xs text-dim">unset</span>
+              )}
             </button>
           )
         })}
@@ -189,6 +212,9 @@ function EnvPanel({
   const [copied, setCopied] = useState(false)
   const [replacing, setReplacing] = useState(!listed)
   const [value, setValue] = useState('')
+  // The value loaded by "Edit value"; saving the same text keeps the value.
+  const [original, setOriginal] = useState<string | null>(null)
+  const [loadingEdit, setLoadingEdit] = useState(false)
   const [kind, setKind] = useState(listed?.kind ?? 'secret')
   const [comment, setComment] = useState('')
   const [folder, setFolder] = useState('')
@@ -201,6 +227,9 @@ function EnvPanel({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [generatingValue, setGeneratingValue] = useState(false)
+  const [preview, setPreview] = useState<{ version: number; value: string } | null>(null)
+  const [previewing, setPreviewing] = useState<number | null>(null)
 
   useEffect(() => {
     if (!source || dirty) return
@@ -247,29 +276,63 @@ function EnvPanel({
     }
   }
 
+  /** Loads the current value (audited; production asks for a reason). */
+  async function fetchValue(defaultReason: string): Promise<string | null> {
+    let reason = defaultReason
+    if (isProd) {
+      const entered = await askRevealReason(`${secretKey} in ${env.slug}`, true)
+      if (!entered) return null
+      reason = entered
+    }
+    const result = await api.GET(
+      '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}',
+      { params: { path, query: { reveal: true, reason } } },
+    )
+    if (result.error || !result.data) {
+      toast(apiErrorMessage(result.error, 'Could not load the value.'), { tone: 'error' })
+      return null
+    }
+    return result.data.value ?? ''
+  }
+
   async function reveal() {
     if (revealed !== null) {
       setRevealed(null)
       return
     }
-    let reason = 'Viewed in the web UI'
-    if (isProd) {
-      const entered = await askRevealReason(`${secretKey} in ${env.slug}`, true)
-      if (!entered) return
-      reason = entered
-    }
     setRevealing(true)
-    const result = await api.GET(
-      '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}',
-      { params: { path, query: { reveal: true, reason } } },
-    )
+    const current = await fetchValue('Viewed in the web UI')
     setRevealing(false)
-    if (result.error || !result.data) {
-      toast(apiErrorMessage(result.error, 'Could not reveal the value.'), { tone: 'error' })
-      return
-    }
-    setRevealed(result.data.value ?? '')
+    if (current !== null) setRevealed(current)
   }
+
+  /** Opens the current value for editing, so a typo can be fixed in place. */
+  async function startEdit() {
+    let current = revealed
+    if (current === null) {
+      setLoadingEdit(true)
+      current = await fetchValue('Opened for editing in the web UI')
+      setLoadingEdit(false)
+      if (current === null) return
+    }
+    setOriginal(current)
+    setValue(current)
+    setReplacing(true)
+  }
+
+  function startReplace() {
+    setOriginal(null)
+    setValue('')
+    setReplacing(true)
+  }
+
+  function cancelEdit() {
+    setReplacing(false)
+    setOriginal(null)
+    setValue('')
+  }
+
+  const valueChanged = replacing && value !== '' && value !== original
 
   async function copy() {
     if (revealed === null) return
@@ -313,7 +376,7 @@ function EnvPanel({
     const result = exists
       ? await api.PUT('/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}', {
           params: { path },
-          body: replacing ? { ...body, value } : { ...body, value: '', keep_value: true },
+          body: valueChanged ? { ...body, value } : { ...body, value: '', keep_value: true },
         })
       : await api.POST('/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets', {
           params: { path: { org: orgSlug, project: projectSlug, env: env.slug } },
@@ -354,6 +417,30 @@ function EnvPanel({
     onClose()
   }
 
+  async function previewVersion(version: number) {
+    if (preview?.version === version) {
+      setPreview(null)
+      return
+    }
+    let reason = 'Previewed a past version in the web UI'
+    if (isProd) {
+      const entered = await askRevealReason(`${secretKey} v${String(version)} in ${env.slug}`, true)
+      if (!entered) return
+      reason = entered
+    }
+    setPreviewing(version)
+    const result = await api.GET(
+      '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}/versions/{version}',
+      { params: { path: { ...path, version }, query: { reason } } },
+    )
+    setPreviewing(null)
+    if (result.error) {
+      toast(apiErrorMessage(result.error, 'Could not load that version.'), { tone: 'error' })
+      return
+    }
+    setPreview({ version, value: result.data.value })
+  }
+
   async function restore(version: number) {
     if (
       !(await confirmDialog({
@@ -377,7 +464,7 @@ function EnvPanel({
     onChanged()
   }
 
-  const canSave = writable && !busy && (replacing ? value !== '' : dirty)
+  const canSave = writable && !busy && (exists ? valueChanged || dirty : value !== '')
 
   return (
     <>
@@ -472,13 +559,13 @@ function EnvPanel({
             </div>
           )}
           {replacing ? (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Textarea
                 mono
                 autoFocus={Boolean(listed)}
-                rows={kind === 'file' ? 6 : 3}
+                rows={kind === 'file' ? 6 : Math.min(8, Math.max(3, Math.ceil(value.length / 60)))}
                 placeholder={listed ? 'New value' : `Value for ${env.slug}`}
-                aria-label="New value"
+                aria-label={original !== null ? 'Value' : 'New value'}
                 aria-invalid={validation ? true : undefined}
                 value={value}
                 spellCheck={false}
@@ -488,45 +575,70 @@ function EnvPanel({
                 }}
               />
               {validation && <p className="text-2xs text-danger">{validation}</p>}
-              {kind === 'file' && (
-                <input
-                  type="file"
-                  className="block w-full text-xs text-muted"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (!file) return
-                    if (file.size > 1024 * 1024) {
-                      setError('File secrets must be 1 MiB or smaller.')
-                      return
-                    }
-                    void file.text().then(setValue)
-                  }}
-                />
-              )}
-              {listed && (
-                <button
-                  type="button"
-                  className="text-2xs text-muted hover:text-text"
-                  onClick={() => {
-                    setReplacing(false)
-                    setValue('')
-                  }}
-                >
-                  Keep the current value
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {kind !== 'variable' && (
+                  <Button
+                    size="xs"
+                    onClick={() => {
+                      setGeneratingValue(true)
+                    }}
+                  >
+                    <Sparkles className="size-3.5" /> Generate
+                  </Button>
+                )}
+                {kind === 'file' && (
+                  <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-app-sm border border-border bg-surface px-2 text-xs text-text hover:bg-hover">
+                    <Upload className="size-3.5" /> Load file
+                    <input
+                      type="file"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (!file) return
+                        if (file.size > 1024 * 1024) {
+                          setError('File secrets must be 1 MiB or smaller.')
+                          return
+                        }
+                        void file.text().then(setValue)
+                      }}
+                    />
+                  </label>
+                )}
+                <span className="text-2xs text-dim">
+                  {original !== null
+                    ? value === original
+                      ? 'Unchanged'
+                      : 'Edited — saving creates a new version'
+                    : null}
+                </span>
+                {listed && (
+                  <Button variant="ghost" size="xs" className="ml-auto" onClick={cancelEdit}>
+                    <X className="size-3.5" /> Cancel, keep current value
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             writable && (
-              <button
-                type="button"
-                className="text-2xs font-medium text-accent-text hover:underline"
-                onClick={() => {
-                  setReplacing(true)
-                }}
-              >
-                Replace value…
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="xs"
+                  disabled={loadingEdit}
+                  onClick={() => {
+                    void startEdit()
+                  }}
+                >
+                  {loadingEdit ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Pencil className="size-3.5" />
+                  )}
+                  Edit value
+                </Button>
+                <Button size="xs" variant="ghost" onClick={startReplace}>
+                  Replace with a new value…
+                </Button>
+              </div>
             )
           )}
         </section>
@@ -583,14 +695,7 @@ function EnvPanel({
             />
           </Field>
           <Field label="Expires on" hint="You get a reminder before it lapses.">
-            <Input
-              type="date"
-              value={expiresAt}
-              readOnly={!writable}
-              onChange={(event) => {
-                touch(setExpiresAt)(event.target.value)
-              }}
-            />
+            <DateInput value={expiresAt} readOnly={!writable} onChange={touch(setExpiresAt)} />
           </Field>
           <Field label="Tags" className="sm:col-span-2">
             <Input
@@ -645,30 +750,54 @@ function EnvPanel({
             </h3>
             <ol className="divide-y divide-border-soft rounded-app-sm border border-border">
               {(history.data ?? []).map((version: SecretVersion) => (
-                <li key={version.version} className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
-                  <span className="font-mono text-dim">v{version.version}</span>
-                  <span className="min-w-0 flex-1 truncate text-muted">
-                    {version.change_message || 'No message'}
-                  </span>
-                  <time className="text-2xs text-dim" dateTime={version.created_at}>
-                    {new Date(version.created_at).toLocaleString()}
-                  </time>
-                  {version.version !== listed?.version && writable && (
+                <li key={version.version} className="px-2.5 py-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-dim">v{version.version}</span>
+                    <span className="min-w-0 flex-1 truncate text-muted">
+                      {version.change_message || 'No message'}
+                    </span>
+                    <time className="text-2xs text-dim" dateTime={version.created_at}>
+                      {formatDateTime(version.created_at)}
+                    </time>
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-2xs text-dim hover:bg-hover hover:text-text"
+                      aria-expanded={preview?.version === version.version}
                       onClick={() => {
-                        void restore(version.version)
+                        void previewVersion(version.version)
                       }}
-                      disabled={busy}
                     >
-                      <Undo2 className="size-3" /> Restore
+                      {previewing === version.version ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : preview?.version === version.version ? (
+                        <EyeOff className="size-3" />
+                      ) : (
+                        <Eye className="size-3" />
+                      )}
+                      {preview?.version === version.version ? 'Hide' : 'Preview'}
                     </button>
-                  )}
-                  {version.version === listed?.version && (
-                    <span className="rounded bg-accent-soft px-1.5 text-3xs font-semibold text-accent-text">
-                      current
-                    </span>
+                    {version.version !== listed?.version && writable && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-2xs text-dim hover:bg-hover hover:text-text"
+                        onClick={() => {
+                          void restore(version.version)
+                        }}
+                        disabled={busy}
+                      >
+                        <Undo2 className="size-3" /> Restore
+                      </button>
+                    )}
+                    {version.version === listed?.version && (
+                      <span className="rounded bg-accent-soft px-1.5 text-3xs font-semibold text-accent-text">
+                        current
+                      </span>
+                    )}
+                  </div>
+                  {preview?.version === version.version && (
+                    <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-app-sm border border-border-soft bg-bg px-2.5 py-2 font-mono text-xs text-text select-all">
+                      {preview.value || '(empty)'}
+                    </pre>
                   )}
                 </li>
               ))}
@@ -680,7 +809,7 @@ function EnvPanel({
 
       {writable && (
         <div className="space-y-2 border-t border-border px-5 py-3">
-          {(dirty || replacing) && (
+          {(dirty || valueChanged || (!exists && replacing)) && (
             <Input
               placeholder="Change message (optional) — why did this change?"
               value={message}
@@ -729,6 +858,18 @@ function EnvPanel({
             </div>
           </div>
         </div>
+      )}
+      {generatingValue && (
+        <GenerateValueDialog
+          onClose={() => {
+            setGeneratingValue(false)
+          }}
+          onUse={(generated, generatedKind) => {
+            setValue(generated)
+            if (generatedKind === 'file' && kind !== 'file') touch(setKind)('file')
+            setGeneratingValue(false)
+          }}
+        />
       )}
     </>
   )

@@ -30,6 +30,18 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { useAuth } from '@/lib/auth'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
+import {
+  dateFormats,
+  formatDate,
+  formatDateTime,
+  formatTime as formatClock,
+  setFormatPrefs,
+  timeFormats,
+  useFormatPrefs,
+  type DateFormat,
+  type TimeFormat,
+} from '@/lib/format'
+import { fontPrefs, monoFonts, setFontPrefs, uiFonts } from '@/lib/fonts'
 
 type SessionInfo = components['schemas']['SessionInfo']
 type EnvTemplate = components['schemas']['EnvironmentTemplate']
@@ -42,6 +54,9 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
 
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null)
   const [hintsOn, setHintsOn] = useState(() => localStorage.getItem('clavis.hints') !== 'false')
+  const formatPrefs = useFormatPrefs()
+  const [fonts, setFonts] = useState(fontPrefs)
+  const [sampleDate] = useState(() => new Date())
   const [orgAppearance, setOrgAppearance] = useState(org?.default_appearance ?? 'classic')
   const [orgMessage, setOrgMessage] = useState<string | null>(null)
   const [requireMFA, setRequireMFA] = useState(false)
@@ -362,7 +377,7 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                   <div>
                     <p className="text-sm font-medium">Theme</p>
                     <p className="text-xs text-muted">
-                      System, dark, or light. Saved in this browser.
+                      System, dark, or light. Saved to your account.
                     </p>
                     <div className="mt-2 flex gap-2">
                       <Button
@@ -419,6 +434,97 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                         Warm
                       </Button>
                     </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="text-sm font-medium">Date format</span>
+                      <Select
+                        className="mt-1.5"
+                        value={formatPrefs.date}
+                        onChange={(event) => {
+                          setFormatPrefs({ date: event.target.value as DateFormat })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { date_format: event.target.value as DateFormat },
+                          })
+                        }}
+                      >
+                        {dateFormats.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-medium">Time format</span>
+                      <Select
+                        className="mt-1.5"
+                        value={formatPrefs.time}
+                        onChange={(event) => {
+                          setFormatPrefs({ time: event.target.value as TimeFormat })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { time_format: event.target.value as TimeFormat },
+                          })
+                        }}
+                      >
+                        {timeFormats.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <p className="text-xs text-muted sm:col-span-2">
+                      Now: <span className="font-mono text-text">{formatDate(sampleDate)}</span>{' '}
+                      <span className="font-mono text-text">{formatClock(sampleDate)}</span>. Saved
+                      to your account.
+                    </p>
+                    <label className="block">
+                      <span className="text-sm font-medium">Font</span>
+                      <Select
+                        className="mt-1.5"
+                        value={fonts.ui}
+                        onChange={(event) => {
+                          setFontPrefs({ ui: event.target.value })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { font: event.target.value },
+                          })
+                          setFonts(fontPrefs())
+                        }}
+                      >
+                        {uiFonts.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                            {option.note ? ` — ${option.note}` : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label className="block">
+                      <span className="text-sm font-medium">Code and values font</span>
+                      <Select
+                        className="mt-1.5"
+                        value={fonts.mono}
+                        onChange={(event) => {
+                          setFontPrefs({ mono: event.target.value })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { font_mono: event.target.value },
+                          })
+                          setFonts(fontPrefs())
+                        }}
+                      >
+                        {monoFonts.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                            {option.note ? ` — ${option.note}` : ''}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    <p className="rounded-app-sm border border-border-soft bg-panel px-3 py-2 text-sm sm:col-span-2">
+                      The quick brown fox jumps over the lazy dog.{' '}
+                      <span className="font-mono text-xs">DATABASE_URL=postgres://0O1lI</span>
+                    </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-muted">
                     <input
@@ -1187,9 +1293,7 @@ function sessionLabel(userAgent: string): string {
 }
 
 function formatTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
+  return formatDateTime(value, value)
 }
 
 export function OrgSettingsPage() {

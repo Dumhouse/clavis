@@ -39,6 +39,7 @@ import (
 	"github.com/dumhouse/clavis/internal/ratelimit"
 	"github.com/dumhouse/clavis/internal/service"
 	"github.com/dumhouse/clavis/internal/store"
+	"github.com/dumhouse/clavis/internal/updatecheck"
 	"github.com/dumhouse/clavis/internal/version"
 	"github.com/dumhouse/clavis/pkg/problem"
 	"github.com/dumhouse/clavis/web"
@@ -64,6 +65,7 @@ type Server struct {
 	webFS      fs.FS
 	awsSTSURL  string
 	instanceID string
+	updates    *updateStatus
 
 	setupNotice []any // first-run setup log fields, logged once the listener is bound
 }
@@ -100,6 +102,7 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 	}
 	s := &Server{
 		cfg:      cfg,
+		updates:  &updateStatus{url: updatecheck.ReleasesURL},
 		store:    st,
 		logger:   logger,
 		rootKey:  rootKey,
@@ -109,6 +112,9 @@ func New(cfg *config.Config, st *store.Store, logger *slog.Logger, rootKey crypt
 		limiter:  ratelimit.New(cfg.Server.RateLimitPerMinute, time.Minute),
 		router:   chi.NewRouter(),
 		webFS:    web.Dist(),
+	}
+	if cfg.Server.UpdateCheckURL != "" {
+		s.updates.url = cfg.Server.UpdateCheckURL
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -405,13 +411,22 @@ func (s *Server) registerRoutes() error {
 		Summary:     "Server and API version",
 		Tags:        []string{"system"},
 	}, func(_ context.Context, _ *struct{}) (*VersionOutput, error) {
+		built := version.Date
+		if built == "unknown" {
+			built = ""
+		}
 		return &VersionOutput{Body: VersionBody{
 			Name:       "clavis",
 			Version:    version.Version,
 			Commit:     version.Commit,
+			Built:      built,
 			APIVersion: "v1",
 		}}, nil
 	})
+
+	if err := s.registerUpdateRoutes(); err != nil {
+		return err
+	}
 
 	// Everything else is the SPA. Unknown API paths get a JSON 404 instead of
 	// index.html.
@@ -548,9 +563,11 @@ func (s *Server) registerRoutes() error {
 
 // VersionBody is returned by GET /api/v1/version.
 type VersionBody struct {
-	Name       string `json:"name" example:"clavis"`
-	Version    string `json:"version" example:"0.1.0"`
-	Commit     string `json:"commit,omitempty"`
+	Name    string `json:"name" example:"clavis"`
+	Version string `json:"version" example:"0.1.0"`
+	Commit  string `json:"commit,omitempty"`
+	// Built is when the binary was built (RFC 3339), when known.
+	Built      string `json:"built,omitempty" example:"2026-11-14T15:02:00Z"`
 	APIVersion string `json:"api_version" example:"v1"`
 }
 
@@ -753,6 +770,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go s.rotationLoop(ctx)
 	go s.rotationReminderLoop(ctx)
 	go s.backupLoop(ctx)
+	go s.updateLoop(ctx)
 
 	servers := []*http.Server{s.http}
 	errCh := make(chan error, 2)

@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { applyAccountFontPrefs } from '@/lib/fonts'
+import { applyAccountFormatPrefs } from '@/lib/format'
 
 export type Theme = 'dark' | 'light'
 export type ThemeMode = 'system' | Theme
@@ -30,7 +32,17 @@ function storedMode(): ThemeMode {
 }
 
 /** Applies preferences loaded from the server and notifies ThemeProvider. */
-export function applyServerPreferences(preferences: { theme?: string; appearance?: string }) {
+export function applyServerPreferences(preferences: {
+  theme?: string
+  appearance?: string
+  date_format?: string
+  time_format?: string
+  font?: string
+  font_mono?: string
+}) {
+  // Date, time and font choices follow the account across browsers.
+  applyAccountFormatPrefs(preferences.date_format, preferences.time_format)
+  applyAccountFontPrefs(preferences.font, preferences.font_mono)
   const theme = preferences.theme
   const appearance = preferences.appearance
   if (theme === 'system' || theme === 'dark' || theme === 'light') {

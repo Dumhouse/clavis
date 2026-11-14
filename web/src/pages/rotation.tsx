@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { Input, Select } from '@/components/ui/field'
+import { formatDate as formatDay, formatDateTime } from '@/lib/format'
 
 type Env = components['schemas']['EnvBody']
 type Policy = components['schemas']['RotationPolicyBody']
@@ -259,9 +260,7 @@ export function RotationPage() {
                     <td className="px-3 py-2 font-mono">{secret.key}</td>
                     <td className="px-3 py-2 text-amber-fg">{secret.age_days} days</td>
                     <td className="px-3 py-2 text-muted">{secret.owner_group_name || '—'}</td>
-                    <td className="px-3 py-2 text-muted">
-                      {new Date(secret.updated_at).toLocaleDateString()}
-                    </td>
+                    <td className="px-3 py-2 text-muted">{formatDay(secret.updated_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -291,7 +290,7 @@ export function RotationPage() {
                   {Math.round(policy.interval_seconds / 60)}m
                 </td>
                 <td className="px-4 py-2 text-xs text-muted">
-                  {new Date(policy.next_run_at).toLocaleString()}
+                  {formatDateTime(policy.next_run_at)}
                 </td>
                 <td className="px-4 py-2 text-xs">
                   <span className="rounded bg-elev px-1.5 py-0.5 text-2xs text-muted">
@@ -374,7 +373,7 @@ export function RotationPage() {
           <div className="mt-2 divide-y divide-border-soft">
             {(runs.data ?? []).map((item: Run) => (
               <div key={item.id} className="flex flex-wrap items-center gap-3 py-2 text-xs">
-                <span className="text-dim">{new Date(item.started_at).toLocaleString()}</span>
+                <span className="text-dim">{formatDateTime(item.started_at)}</span>
                 <span className="font-medium">{item.status}</span>
                 <span className="text-muted">{item.phase}</span>
                 <span className="text-danger">{item.message}</span>

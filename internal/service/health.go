@@ -64,6 +64,11 @@ func (s *Service) Health(ctx context.Context, actor authz.Actor, orgSlug, projec
 			}
 			report.Checked += len(secrets)
 			for _, secret := range secrets {
+				if secret.Inherited && secret.SourceEnvironment != "" && secret.ItemID == "" {
+					// From a shared set: it belongs to the set, not to this
+					// environment, so it is not reported once per environment.
+					continue
+				}
 				age := now.Sub(secret.UpdatedAt)
 				if age > 90*24*time.Hour {
 					report.Findings = append(report.Findings, HealthFinding{
