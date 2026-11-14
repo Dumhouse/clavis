@@ -1,0 +1,53 @@
+name: Publish action mirror
+
+# The action's source lives in integrations/github-action. GitHub Marketplace
+# needs an action at the root of its own repository, so each release copies
+# it to dumhouse/clavis-action and tags it with the same version.
+#
+# Inert until you set it up (docs/releasing.md, "Action mirror"):
+#   1. create the empty repository dumhouse/clavis-action;
+#   2. add the secret ACTION_MIRROR_TOKEN (a token that can push to it);
+#   3. set the repository variable PUBLISH_ACTION_MIRROR to "true".
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (for example v0.3.3)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    if: ${{ vars.PUBLISH_ACTION_MIRROR == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      - name: Push to dumhouse/clavis-action
+        env:
+          TOKEN: ${{ secrets.ACTION_MIRROR_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          test -n "$TOKEN" || { echo "ACTION_MIRROR_TOKEN is not set"; exit 1; }
+          work="$(mktemp -d)"
+          git clone "https://x-access-token:${TOKEN}@github.com/dumhouse/clavis-action.git" "$work/repo"
+          find "$work/repo" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R integrations/github-action/. "$work/repo/"
+          cp LICENSE "$work/repo/LICENSE"
+          cd "$work/repo"
+          git config user.name "clavis-release"
+          git config user.email "release@users.noreply.github.com"
+          git add -A
+          git commit -m "Clavis action ${TAG}" || echo "no changes"
+          git tag -f "$TAG"
+          # A moving major tag (v0) lets workflows follow compatible releases.
+          git tag -f "${TAG%%.*}"
+          git push origin HEAD:main
+          git push -f origin "$TAG" "${TAG%%.*}"

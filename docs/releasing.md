@@ -138,6 +138,22 @@ page.
 
 Until the repository is set up, install the packages from the release page.
 
+## Action mirror
+
+GitHub Marketplace lists actions that sit at the root of their own repository,
+so each release copies `integrations/github-action` to `dumhouse/clavis-action`
+and tags it with the release version (plus a moving major tag such as `v0`).
+The workflow `publish-action.yml` does this and stays inert until you set it
+up:
+
+1. Create the empty repository `dumhouse/clavis-action`.
+2. Add the secret `ACTION_MIRROR_TOKEN`, a token that can push to it.
+3. Set the repository variable `PUBLISH_ACTION_MIRROR` to `true`.
+
+The source stays in this repository, so changes to the action are reviewed
+with the server they depend on. Run the workflow by hand with a tag to
+publish an earlier release.
+
 ## winget
 
 winget manifests are submitted as a pull request to

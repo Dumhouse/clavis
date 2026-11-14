@@ -10,6 +10,8 @@
   destructive commands), starred commands (`f`) and the ones you open most
   first, mouse and resize support, and a header that shows where commands
   will run and the next step (sign in, link the folder).
+- `clavis help --tour` is a guided first run (sign in, link, store, run,
+  doctor) that asks before each step and checks it worked.
 - Help menu in the web app (documentation, shortcuts, Discussions, issues)
   with "Copy diagnostics" for bug reports.
 - Leave an organization, or delete it (owners), from Org settings → Leave or
@@ -17,6 +19,9 @@
   leave.
 - The setup checklist adds "Invite a teammate" and "Connect CI" for owners
   and admins, ticked from real data.
+- A release workflow that mirrors the GitHub action to `dumhouse/clavis-action`
+  for the Marketplace (off until the repository and token exist; see the
+  releasing guide).
 - GitLab CI include file (`integrations/gitlab/clavis.gitlab-ci.yml`) and a
   pre-commit hook (`clavis-scan`), with guides.
 - `clavis doctor` checks the CLI install, `.clavis.yaml`, the server address

@@ -35,6 +35,7 @@ winget is set up in the release pipeline and goes live once Microsoft accepts th
   will use, and the next step when you aren't signed in or linked yet. Mouse
   clicks and the wheel work. Outside a terminal it prints every command by
   group.
+- `clavis help --tour` walks you through the first run: sign in, link the folder, store a value, run with it, and `clavis doctor`. It asks before each step and checks that it worked.
 - `clavis help COMMAND` and `clavis COMMAND --help` show one command, from the
   same text as the [CLI reference](./reference/).
 - `clavis help -s WORD` lists every command that mentions a word.

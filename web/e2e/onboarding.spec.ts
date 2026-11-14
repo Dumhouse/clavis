@@ -326,3 +326,34 @@ test('keyboard shortcuts from the hint bar work on every page that advertises th
   await page.keyboard.press('?')
   await expect(page.getByRole('heading', { name: 'Shortcuts & commands' })).toBeVisible()
 })
+
+test('help menu, setup checklist and leave-or-delete are in place', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await signIn(page)
+
+  // The checklist counts the CLI login the first test did, and offers the
+  // steps only an owner can take.
+  await expect(page.getByRole('heading', { name: 'Finish setting up Clavis' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Invite a teammate' })).toBeVisible()
+
+  // Help menu: links and diagnostics for a bug report.
+  await page.getByRole('button', { name: 'Help' }).click()
+  await expect(page.getByRole('menuitem', { name: /Documentation/ })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: /Report a problem/ })).toBeVisible()
+  await page.getByRole('menuitem', { name: /Copy diagnostics/ }).click()
+  await expect(page.getByText('Diagnostics copied')).toBeVisible()
+  const copied = await page.evaluate<string>('navigator.clipboard.readText()')
+  expect(copied).toContain('Clavis ')
+  expect(copied).toContain('Browser: ')
+  expect(copied).not.toContain('clv_')
+
+  // Org settings: leave and delete, with delete guarded by typing the name.
+  await page.getByRole('link', { name: 'Org settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Leave or delete' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leave organization' })).toBeVisible()
+  await page.getByRole('button', { name: 'Delete organization' }).click()
+  await page.getByLabel(/Type e2e-org to confirm/).fill('wrong-name')
+  await page.getByRole('button', { name: 'Delete organization' }).last().click()
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible()
+})

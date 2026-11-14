@@ -206,3 +206,36 @@ func TestHelpScreenMouse(t *testing.T) {
 		t.Fatal("tab click ignored")
 	}
 }
+
+func TestTourRunsOnlyWhenAsked(t *testing.T) {
+	var ran []string
+	steps := []tourStep{
+		{Title: "one", Command: "clavis one"},
+		{Title: "two", Command: "clavis two", Check: func() (bool, string) { return false, "do two by hand" }},
+		{Title: "three", Command: "clavis three"},
+	}
+	var out bytes.Buffer
+	// Run one; run two (check fails) then skip; skip three.
+	in := strings.NewReader("\n\ns\ns\n")
+	err := runTour(in, NewTestOutput(&out, &out, false, false), steps, func(line string) error {
+		ran = append(ran, line)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(ran, ",") != "clavis one,clavis two" {
+		t.Fatalf("ran %v", ran)
+	}
+	for _, want := range []string{"1/3", "✓ done", "✗ not yet: do two by hand", "1 of 3 steps done"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q:\n%s", want, out.String())
+		}
+	}
+
+	ran, out = nil, bytes.Buffer{}
+	_ = runTour(strings.NewReader("q\n"), NewTestOutput(&out, &out, false, false), steps, func(l string) error { ran = append(ran, l); return nil })
+	if len(ran) != 0 || !strings.Contains(out.String(), "Stopped after 0 of 3") {
+		t.Fatalf("quit ran %v:\n%s", ran, out.String())
+	}
+}

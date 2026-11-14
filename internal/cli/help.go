@@ -41,14 +41,21 @@ var startHere = [][2]string{
 
 func newHelpCommand(opts *Options) *cobra.Command {
 	var search string
+	var tour bool
 	cmd := &cobra.Command{
 		Use:   "help [COMMAND]",
 		Short: "Find a command and see how to use it",
 		Long: "Without arguments in a terminal, opens a full-screen browser: type to search, " +
 			"←/→ for groups, Enter to open a command, then copy or run its examples. " +
 			"`clavis help COMMAND` shows one command; " +
-			"`--search WORD` lists every command that mentions WORD.",
+			"`--search WORD` lists every command that mentions WORD; `--tour` walks you through the first run.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if tour {
+				if !interactiveTerminal() {
+					return fmt.Errorf("the tour is interactive; run it in a terminal")
+				}
+				return runTour(cmd.InOrStdin(), opts.output(), tourSteps(opts), shellRun)
+			}
 			root := cmd.Root()
 			ref, err := BuildReference(root)
 			if err != nil {
@@ -73,6 +80,7 @@ func newHelpCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&tour, "tour", false, "walk through sign-in, link, store, run and doctor, checking each step")
 	cmd.Flags().StringVarP(&search, "search", "s", "", "list commands that mention this word")
 	return cmd
 }
