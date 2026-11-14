@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/dumhouse/clavis/internal/audit"
 	"github.com/dumhouse/clavis/internal/authz"
 	"github.com/dumhouse/clavis/internal/crypto"
@@ -108,7 +106,7 @@ func (s *Service) RevealSecretVersion(ctx context.Context, actor authz.Actor, or
 	value := string(plaintext)
 	plaintext.Zero()
 	if item.Kind != "variable" {
-		if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, item.ID, "ui", version); err != nil {
+		if err := s.recordReveal(ctx, actor, item.ID, "ui", version); err != nil {
 			s.Logger.Error("record reveal event failed", "item_id", item.ID, "error", err)
 		}
 	}

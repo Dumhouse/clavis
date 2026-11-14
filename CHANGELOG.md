@@ -197,6 +197,12 @@
   build uses the release it comes after) instead of a fixed tag.
 - `/shared-sets` redirects to Shared sets instead of a "coming soon" page, and
   in-app doc snippets show this server's address.
+- The setup checklist only needs the first three steps. "Invite a teammate"
+  and "Connect CI" are marked optional, never block it, and the whole card
+  can be dismissed for good.
+- Fixed: an agent or machine reading secrets logged `record reveal event
+  failed` (a database foreign-key error) on every read. Reveal history is for
+  people, so machines are skipped; their reads stay in the audit log.
 - The setup checklist ticks "Connect the CLI" once you sign in with
   `clavis login`, and hides when every step is done. The sessions list names
   CLI sessions "Clavis CLI".

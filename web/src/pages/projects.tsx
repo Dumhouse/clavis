@@ -343,7 +343,13 @@ function useCliConnected(): boolean {
   return remembered || seen
 }
 
-type SetupStep = { label: string; done: boolean; to?: '/members' | '/integrations' }
+type SetupStep = {
+  label: string
+  done: boolean
+  /** Suggestions: shown, but never needed to finish the checklist. */
+  optional?: boolean
+  to?: '/members' | '/integrations'
+}
 
 function GettingStarted({
   projectCount,
@@ -388,18 +394,30 @@ function GettingStarted({
       {
         label: 'Invite a teammate',
         done: (members.data.members?.length ?? 0) > 1 || (members.data.invites?.length ?? 0) > 0,
+        optional: true,
         to: '/members',
       },
       {
         label: 'Connect CI',
         done: (identities.data.identities?.length ?? 0) > 0,
+        optional: true,
         to: '/integrations',
       },
     )
   }
-  const completed = steps.filter((step) => step.done).length
+  // Only the first three steps count. The others are suggestions: a solo
+  // user never needs a teammate, and a hand-deployed app never needs CI.
+  const required = steps.filter((step) => !step.optional)
+  const completed = required.filter((step) => step.done).length
   const [collapsed, toggle] = useCollapsed('getting-started')
-  if (completed === steps.length) return null
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem('clavis.setup.dismissed') === 'true'
+    } catch {
+      return false
+    }
+  })
+  if (completed === required.length || dismissed) return null
 
   return (
     <section className="rounded-app border border-border bg-surface p-4 shadow-app">
@@ -411,13 +429,13 @@ function GettingStarted({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold">Finish setting up Clavis</h2>
             <span className="text-xs text-dim">
-              {completed} of {steps.length} done
+              {completed} of {required.length} done
             </span>
           </div>
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-elev">
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-200"
-              style={{ width: `${String((completed / steps.length) * 100)}%` }}
+              style={{ width: `${String((completed / required.length) * 100)}%` }}
             />
           </div>
           <div className={cn('mt-3 flex flex-wrap gap-x-5 gap-y-2', collapsed && 'hidden')}>
@@ -441,6 +459,7 @@ function GettingStarted({
                     {step.label}
                   </span>
                 )}
+                {step.optional && !step.done && <span className="text-2xs text-dim">optional</span>}
               </span>
             ))}
           </div>
@@ -457,6 +476,22 @@ function GettingStarted({
           </Button>
         )}
         <CollapseButton collapsed={collapsed} onToggle={toggle} label="setup checklist" />
+        <button
+          type="button"
+          aria-label="Dismiss setup checklist"
+          title="Dismiss for good"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded text-dim hover:bg-hover hover:text-text"
+          onClick={() => {
+            setDismissed(true)
+            try {
+              window.localStorage.setItem('clavis.setup.dismissed', 'true')
+            } catch {
+              // Hidden for this visit only.
+            }
+          }}
+        >
+          <X className="size-4" />
+        </button>
       </div>
     </section>
   )

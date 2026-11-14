@@ -327,14 +327,15 @@ test('keyboard shortcuts from the hint bar work on every page that advertises th
   await expect(page.getByRole('heading', { name: 'Shortcuts & commands' })).toBeVisible()
 })
 
-test('help menu, setup checklist and leave-or-delete are in place', async ({ page, context }) => {
+test('help menu, finished checklist and leave-or-delete are in place', async ({
+  page,
+  context,
+}) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await signIn(page)
 
-  // The checklist counts the CLI login the first test did, and offers the
-  // steps only an owner can take.
-  await expect(page.getByRole('heading', { name: 'Finish setting up Clavis' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Invite a teammate' })).toBeVisible()
+  // The checklist is gone: project created and CLI connected are all it needs.
+  await expect(page.getByRole('heading', { name: 'Finish setting up Clavis' })).toHaveCount(0)
 
   // Help menu: links and diagnostics for a bug report.
   await page.getByRole('button', { name: 'Help' }).click()

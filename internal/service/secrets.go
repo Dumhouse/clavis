@@ -395,7 +395,7 @@ func (s *Service) listSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 			if entry.item.Kind == "variable" {
 				continue
 			}
-			if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, entry.item.ID, channel, entry.item.Version); err != nil {
+			if err := s.recordReveal(ctx, actor, entry.item.ID, channel, entry.item.Version); err != nil {
 				s.Logger.Error("record reveal event failed", "item_id", entry.item.ID, "error", err)
 			}
 		}
@@ -537,7 +537,7 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 		}
 		view.Value = expandSetValue(string(value), sharedSets)
 		view.Revealed = true
-		if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, item.ID, channel, item.Version); err != nil {
+		if err := s.recordReveal(ctx, actor, item.ID, channel, item.Version); err != nil {
 			s.Logger.Error("record reveal event failed", "item_id", item.ID, "error", err)
 		}
 		if err := s.record(ctx, toAuditActor(actor), org.ID, "secret.reveal",
@@ -1036,4 +1036,15 @@ func (s *Service) overrideForKey(ctx context.Context, env *store.Environment, us
 		return nil, false, err
 	}
 	return item, true, nil
+}
+
+// recordReveal remembers which secret versions a person has seen, for the
+// offboarding review. Machines and agents are not people (the table points at
+// users), and every read they make is in the audit log already, so theirs
+// are skipped.
+func (s *Service) recordReveal(ctx context.Context, actor authz.Actor, itemID, channel string, version int) error {
+	if actor.Kind != authz.SubjectUser {
+		return nil
+	}
+	return s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, itemID, channel, version)
 }
