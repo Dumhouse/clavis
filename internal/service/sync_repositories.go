@@ -212,7 +212,7 @@ func (s *Service) listGitHubRepositories(ctx context.Context, base, token string
 			} `json:"permissions"`
 		}
 		if err := json.Unmarshal(body, &repos); err != nil {
-			return nil, fmt.Errorf("%w: unexpected answer from GitHub: %v", ErrValidation, err)
+			return nil, fmt.Errorf("%w: unexpected answer from GitHub: %w", ErrValidation, err)
 		}
 		for _, repo := range repos {
 			if !repo.Archived {
@@ -290,7 +290,7 @@ func (s *Service) listGitLabRepositories(ctx context.Context, base, token string
 			WebURL     string `json:"web_url"`
 		}
 		if err := json.Unmarshal(body, &projects); err != nil {
-			return nil, fmt.Errorf("%w: unexpected answer from GitLab: %v", ErrValidation, err)
+			return nil, fmt.Errorf("%w: unexpected answer from GitLab: %w", ErrValidation, err)
 		}
 		for _, p := range projects {
 			out.Repositories = append(out.Repositories, Repository{FullName: p.Path, Private: p.Visibility != "public", URL: p.WebURL, CanWrite: true})
