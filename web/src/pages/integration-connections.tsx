@@ -28,8 +28,11 @@ import {
   SpecField,
   supportsConnections,
   TokenHelp,
+  secretFields,
+  urlFields,
   type Provider,
 } from '@/pages/integration-create'
+import { formatDateTime, formatTime as formatClock } from '@/lib/format'
 
 type Connection = components['schemas']['ConnectionBody']
 type TestResult = components['schemas']['TestConnectionOutputBody'] & {
@@ -65,7 +68,7 @@ export function useConnections(orgSlug: string | undefined) {
         params: { path: { org: orgSlug } },
       })
       if (result.error)
-        throw new Error(apiErrorMessage(result.error, 'Could not load connections.'))
+        throw new Error(apiErrorMessage(result.error, 'Could not load platform tokens.'))
       return result.data?.connections ?? []
     },
   })
@@ -117,13 +120,13 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
         // 409 connection_in_use lists the syncs as problem errors.
         const problem = result.error as { errors?: Array<{ detail?: string }> | null }
         const syncs = (problem.errors ?? []).map((entry) => entry.detail ?? '').filter(Boolean)
-        const base = apiErrorMessage(result.error, 'Could not delete the connection.')
+        const base = apiErrorMessage(result.error, 'Could not delete the platform token.')
         throw new Error(syncs.length > 0 ? `${base} ${syncs.join(', ')}` : base)
       }
     },
     onSuccess: invalidate,
     onError: (cause: unknown) => {
-      toast(cause instanceof Error ? cause.message : 'Could not delete the connection.', {
+      toast(cause instanceof Error ? cause.message : 'Could not delete the platform token.', {
         tone: 'error',
       })
     },
@@ -137,11 +140,11 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <h2 id="connections-heading" className="text-base font-semibold">
-          Connections
+          Platform tokens
         </h2>
         <span className="rounded-full bg-elev px-1.5 text-2xs text-muted">{list.length}</span>
         <span className="hidden text-2xs text-dim sm:inline">
-          Credentials saved once for the organization and shared by syncs.
+          Saved once for the organization; every sync to that platform can pick them.
         </span>
         <Button
           variant="secondary"
@@ -151,7 +154,7 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
             setEditing('new')
           }}
         >
-          <Plus className="size-3.5" /> Add connection
+          <Plus className="size-3.5" /> Add platform token
         </Button>
       </div>
       <div className="divide-y divide-border-soft">
@@ -172,9 +175,7 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
                 </p>
                 <p className="truncate text-2xs text-dim" title={usageText(connection)}>
                   {usageText(connection)} · last used{' '}
-                  {connection.last_used_at
-                    ? new Date(connection.last_used_at).toLocaleString()
-                    : 'never'}
+                  {connection.last_used_at ? formatDateTime(connection.last_used_at) : 'never'}
                 </p>
               </div>
               <span className="flex items-center gap-1">
@@ -206,7 +207,9 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
                   variant="ghost"
                   size="icon"
                   aria-label={`Delete connection ${connection.name}`}
-                  title={inUse ? 'Delete or move the syncs that use it first' : 'Delete connection'}
+                  title={
+                    inUse ? 'Delete or move the syncs that use it first' : 'Delete platform token'
+                  }
                   disabled={inUse || remove.isPending}
                   onClick={() => {
                     remove.mutate(connection)
@@ -241,13 +244,13 @@ export function ConnectionsSection({ orgSlug }: { orgSlug: string }) {
         })}
         {connections.isLoading && (
           <p className="flex items-center gap-2 px-4 py-5 text-sm text-muted">
-            <Loader2 className="size-4 animate-spin" /> Loading connections…
+            <Loader2 className="size-4 animate-spin" /> Loading platform tokens…
           </p>
         )}
         {connections.error && <Notice className="m-4">{connections.error.message}</Notice>}
         {!connections.isLoading && !connections.error && list.length === 0 && (
           <p className="px-4 py-6 text-sm text-muted">
-            No connections yet. Save a Forgejo, GitHub, or cloud credential once, then each new sync
+            No platform tokens yet. Save a Forgejo, GitHub or cloud token once, then each new sync
             only needs the repository and environment.
           </p>
         )}
@@ -325,7 +328,7 @@ export function ConnectionDialog({
         })
     setBusy(false)
     if (result.error) {
-      setError(apiErrorMessage(result.error, 'Could not save the connection.'))
+      setError(apiErrorMessage(result.error, 'Could not save the platform token.'))
       return
     }
     onSaved(result.data, rotated)
@@ -342,12 +345,12 @@ export function ConnectionDialog({
           title={
             <span className="flex items-center gap-2.5">
               <ProviderMark provider={provider} size="sm" />
-              {existing ? `Rotate “${existing.name}”` : 'Add a connection'}
+              {existing ? `Rotate “${existing.name}”` : 'Add a platform token'}
             </span>
           }
           description={
             existing
-              ? 'Leave the credential blank to keep it. A new credential reaches every sync that uses this connection on its next run.'
+              ? 'Leave the credential blank to keep it. A new credential reaches every sync that uses it on its next run.'
               : 'Saved once for the organization. Syncs pick it instead of asking for a token.'
           }
           onClose={onClose}
@@ -380,20 +383,25 @@ export function ConnectionDialog({
               }}
             />
           </Field>
-          {!existing && <TokenHelp provider={provider} link={provider.tokenUrl?.(values)} />}
-          {fields.map((field) => (
-            <SpecField
-              key={field.key}
-              field={field}
-              value={values[field.key] ?? ''}
-              required={existing ? false : field.required}
-              placeholder={existing && field.secret ? 'Unchanged' : field.placeholder}
-              {...(existing && field.secret ? { labelSuffix: '' } : {})}
-              onChange={(value) => {
-                setValues((state) => ({ ...state, [field.key]: value }))
-              }}
-            />
-          ))}
+          {[...urlFields(fields), null, ...secretFields(fields)].map((field) =>
+            field === null ? (
+              !existing && (
+                <TokenHelp key="help" provider={provider} link={provider.tokenUrl?.(values)} />
+              )
+            ) : (
+              <SpecField
+                key={field.key}
+                field={field}
+                value={values[field.key] ?? ''}
+                required={existing ? false : field.required}
+                placeholder={existing && field.secret ? 'Unchanged' : field.placeholder}
+                {...(existing && field.secret ? { labelSuffix: '' } : {})}
+                onChange={(value) => {
+                  setValues((state) => ({ ...state, [field.key]: value }))
+                }}
+              />
+            ),
+          )}
           <p className="flex items-center gap-1.5 text-2xs text-dim">
             <Lock className="size-3" /> Encrypted with the organization key and never shown again.
           </p>
@@ -405,7 +413,7 @@ export function ConnectionDialog({
           </Button>
           <Button type="submit" variant="primary" size="sm" disabled={busy}>
             {busy && <Loader2 className="size-3.5 animate-spin" />}{' '}
-            {existing ? 'Save' : 'Save connection'}
+            {existing ? 'Save' : 'Save token'}
           </Button>
         </ModalFooter>
       </form>
@@ -444,7 +452,7 @@ function TestPanel({
         <p className={`text-xs font-semibold ${result.ok ? 'text-success' : 'text-danger'}`}>
           {result.ok ? 'Everything checked works' : 'Something needs fixing'}
         </p>
-        <span className="text-2xs text-dim">{result.at.toLocaleTimeString()}</span>
+        <span className="text-2xs text-dim">{formatClock(result.at, '—', true)}</span>
         <button
           type="button"
           aria-label="Dismiss test result"

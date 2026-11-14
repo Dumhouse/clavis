@@ -7,7 +7,15 @@ import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
+import {
+  passkeyCertificateWarning,
+  passkeyErrorMessage,
+  passkeyOptions,
+  passkeyUnavailableReason,
+} from '@/lib/passkeys'
+import { useSelfSignedFingerprint } from '@/lib/server-certificate'
 import { confirmAction } from '@/components/ui/dialogs'
+import { formatDate as formatDay } from '@/lib/format'
 
 type Passkey = components['schemas']['PasskeyBody']
 
@@ -15,6 +23,9 @@ export function Passkeys() {
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const selfSigned = Boolean(useSelfSignedFingerprint())
+  const unavailable = passkeyUnavailableReason(selfSigned)
+  const warning = passkeyCertificateWarning(selfSigned)
 
   const passkeys = useQuery({
     queryKey: ['passkeys'],
@@ -51,12 +62,14 @@ export function Passkeys() {
         throw new Error(apiErrorMessage(begin.error, 'Could not start passkey enrollment.'))
       }
       const credential = await startRegistration({
-        optionsJSON: begin.data.options as Parameters<typeof startRegistration>[0]['optionsJSON'],
+        optionsJSON: passkeyOptions<Parameters<typeof startRegistration>[0]['optionsJSON']>(
+          begin.data.options,
+        ),
       })
       const finish = await api.POST('/api/v1/auth/passkeys/register/finish', {
         body: {
           challenge_id: begin.data.challenge_id,
-          name: `Passkey ${new Date().toLocaleDateString()}`,
+          name: `Passkey ${formatDay(new Date())}`,
           credential,
         },
       })
@@ -65,11 +78,7 @@ export function Passkeys() {
       }
       await queryClient.invalidateQueries({ queryKey: ['passkeys'] })
     } catch (cause) {
-      if (cause instanceof Error && cause.name === 'NotAllowedError') {
-        setError('Passkey enrollment was cancelled.')
-      } else {
-        setError(cause instanceof Error ? cause.message : 'Could not enroll a passkey.')
-      }
+      setError(passkeyErrorMessage(cause, 'Could not enroll a passkey.', selfSigned))
     } finally {
       setBusy(false)
     }
@@ -84,7 +93,8 @@ export function Passkeys() {
           variant="secondary"
           size="sm"
           className="ml-auto"
-          disabled={busy}
+          disabled={busy || unavailable !== null}
+          title={unavailable ?? undefined}
           onClick={() => {
             void add()
           }}
@@ -96,6 +106,11 @@ export function Passkeys() {
       <p className="border-b border-border-soft px-4 py-2 text-xs text-dim">
         Passkeys sign you in without a password and satisfy two-factor requirements.
       </p>
+      {(unavailable ?? warning) && (
+        <p className="border-b border-border-soft bg-amber-bg px-4 py-2 text-xs text-amber-fg">
+          {unavailable ?? warning}
+        </p>
+      )}
       {error && <p className="px-4 py-3 text-xs text-danger">{error}</p>}
       <div className="divide-y divide-border-soft">
         {(passkeys.data ?? []).map((passkey) => (
@@ -103,10 +118,8 @@ export function Passkeys() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{passkey.name}</p>
               <p className="text-xs text-dim">
-                Added {new Date(passkey.created_at).toLocaleDateString()} · last used{' '}
-                {passkey.last_used_at
-                  ? new Date(passkey.last_used_at).toLocaleDateString()
-                  : 'never'}
+                Added {formatDay(passkey.created_at)} · last used{' '}
+                {passkey.last_used_at ? formatDay(passkey.last_used_at) : 'never'}
               </p>
             </div>
             <Button

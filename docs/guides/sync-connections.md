@@ -2,9 +2,25 @@
 description: "Save a Forgejo, GitHub, GitLab, or cloud credential once per organization and reuse it across Clavis syncs; rotate it in one place."
 ---
 
-# Sync connections
+# Platform tokens for syncs
 
-A **connection** is a provider credential saved once for the organization: a
+::: tip Push or fetch?
+Clavis gets secrets to other systems in two ways:
+
+- **Sync (push):** Clavis writes values into GitHub, Forgejo, Vercel, AWS and
+  others, using *that platform's* access token. This page is about those
+  tokens, shown as **Platform tokens** in the app (`clavis connections` in
+  the CLI).
+- **CI access (fetch):** a pipeline asks Clavis for one environment when it
+  runs, with a *Clavis* machine token. No platform token is involved. See
+  [Forgejo and Gitea Actions](./forgejo-actions-secrets) and
+  [GitHub Actions](./github-actions-secrets).
+
+In the app, **Integrations → Set up an integration** asks which platform you
+use and suggests one of the two, with the reasons.
+:::
+
+A **platform token** (a *connection* in the API and CLI) is a provider credential saved once for the organization: a
 Forgejo, GitHub, or GitLab token, a GitHub App, Vercel, Netlify, Cloudflare or
 Vault tokens, AWS access keys, or a GCP service account, plus the instance URL.
 Syncs pick a connection instead of carrying their own token, so the second sync
@@ -18,14 +34,20 @@ to the same Forgejo server only asks for the repository and environment.
 
 ## In the web UI
 
-**Integrations → Connections → Add connection.** Use **Test** to make one cheap
+**Integrations → Platform tokens → Add connection.** Use **Test** to make one cheap
 authenticated call (for Forgejo, `GET /api/v1/user`; for AWS, STS
 `GetCallerIdentity`) and see a clear error if the token is rejected or the
 server is unreachable.
 
-When you add a sync, step 3 lists the saved connections for that provider. Pick
-one, or choose **Add a connection**: the credential you enter is saved as a
-connection unless you untick **Save as a connection for other syncs**.
+When you add a sync, step 2 lists the platform tokens for that provider. Pick
+one, or choose **Enter an access token**: it is saved for other syncs unless you
+untick **Save it for other syncs**.
+
+For Forgejo, Gitea, GitHub and GitLab, step 3 then lists the repositories (and
+organizations) the token can reach, so you pick instead of typing `owner/name`.
+Repositories where the token lacks admin rights are flagged, since writing
+Actions secrets needs them. The list is fetched by the Clavis server, so a
+Forgejo on your LAN needs `CLAVIS_OUTBOUND_ALLOWLIST`.
 
 ## From the CLI
 

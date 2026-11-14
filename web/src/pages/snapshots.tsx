@@ -11,6 +11,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Input, Select } from '@/components/ui/field'
+import { formatDateTime } from '@/lib/format'
 
 type Env = components['schemas']['EnvBody']
 type Snapshot = components['schemas']['SnapshotBody']
@@ -90,7 +91,7 @@ export function SnapshotsPage() {
       if (!org) throw new Error('No organization.')
       if (
         !(await confirmAction(
-          `Restore ${selected} to ${new Date(snapshot.created_at).toLocaleString()}? Current values are kept as versions.`,
+          `Restore ${selected} to ${formatDateTime(snapshot.created_at)}? Current values are kept as versions.`,
         ))
       )
         return
@@ -211,9 +212,7 @@ export function SnapshotsPage() {
           {(snapshots.data ?? []).map((snapshot) => (
             <div key={snapshot.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
-                  {new Date(snapshot.created_at).toLocaleString()}
-                </p>
+                <p className="text-sm font-medium">{formatDateTime(snapshot.created_at)}</p>
                 <p className="text-xs text-dim">{snapshot.reason || 'No reason recorded'}</p>
               </div>
               <Button

@@ -40,7 +40,12 @@ export function Modal({
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     if (!dialog.open) dialog.showModal()
+    // React's autoFocus fires while the dialog is still closed (hidden), and
+    // showModal() then focuses the first button. Fields with autoFocus carry
+    // data-autofocus (Input, Textarea); focus that one instead.
+    dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
     if (!label) {
       const heading = dialog.querySelector('h1, h2, h3')
       if (heading) {
@@ -48,7 +53,6 @@ export function Modal({
         dialog.setAttribute('aria-labelledby', heading.id)
       }
     }
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
     return () => {
       if (dialog.open) dialog.close()
       previous?.focus()

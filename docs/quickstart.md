@@ -228,6 +228,7 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_EMAIL_FROM` | — | From address (display name allowed) |
 | `CLAVIS_BREACH_CHECK` | `false` | Check new passwords against the HIBP range API (k-anonymity) |
 | `CLAVIS_BREACH_CHECK_URL` | HIBP range API | Override the breach-check endpoint |
+| `CLAVIS_OUTBOUND_ALLOWLIST` | | Comma-separated IPs or CIDRs that integrations may reach although they are private, for example a Forgejo on your LAN: `192.168.100.0/24` |
 | `CLAVIS_RATE_LIMIT_PER_MINUTE` | `600` | Per-identity API rate limit; `0` disables |
 | `CLAVIS_BACKUP_ENABLED` | `false` | Write encrypted database backups from the server |
 | `CLAVIS_BACKUP_DIR` | `<data>/backups` | Backup output directory |

@@ -25,6 +25,7 @@ import { toast } from '@/components/ui/toast'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
+import { formatDate as formatDay } from '@/lib/format'
 
 type Grant = components['schemas']['GrantBody']
 type Member = components['schemas']['MemberBody']
@@ -686,7 +687,5 @@ function Segmented<T extends string>({
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatDay(value, value)
 }

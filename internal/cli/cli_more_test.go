@@ -458,3 +458,50 @@ func TestBuildOIDCTrustPresets(t *testing.T) {
 		t.Fatal("unknown provider accepted")
 	}
 }
+
+func TestExportCIEnv(t *testing.T) {
+	envFile := filepath.Join(t.TempDir(), "github_env")
+	if err := os.WriteFile(envFile, []byte("EARLIER=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GITHUB_ENV", envFile)
+	var stdout, stderr bytes.Buffer
+	out := NewTestOutput(&stdout, &stderr, false, false)
+	values := map[string]string{
+		"DATABASE_URL": "postgres://u:p@db/x",
+		"PRIVATE_KEY":  "-----BEGIN KEY-----\nabc=\n-----END KEY-----",
+		"RAILS_ENV":    "production",
+		"GITHUB_TOKEN": "nope",
+	}
+	kinds := map[string]string{"RAILS_ENV": "variable"}
+	if err := exportCIEnv(out, "", values, kinds); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(envFile)
+	got := string(data)
+	if !strings.HasPrefix(got, "EARLIER=1\n") {
+		t.Fatal("must append, not overwrite")
+	}
+	for _, want := range []string{"DATABASE_URL<<CLAVIS_", "\npostgres://u:p@db/x\n", "\n-----BEGIN KEY-----\nabc=\n-----END KEY-----\n", "RAILS_ENV<<CLAVIS_"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("env file missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "GITHUB_TOKEN") {
+		t.Error("reserved names must be skipped")
+	}
+	log := stdout.String()
+	for _, want := range []string{"::add-mask::postgres://u:p@db/x", "::add-mask::abc=", "::add-mask::-----BEGIN KEY-----"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("missing mask %q", want)
+		}
+	}
+	if strings.Contains(log, "::add-mask::production") {
+		t.Error("variables are not masked")
+	}
+
+	t.Setenv("GITHUB_ENV", "")
+	if err := exportCIEnv(out, "", values, kinds); err == nil {
+		t.Fatal("want an error outside a CI job")
+	}
+}

@@ -5,7 +5,9 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { CopyCommand } from '@/components/copy-command'
+import { passkeyErrorMessage, passkeyOptions, passkeyUnavailableReason } from '@/lib/passkeys'
 import { apiErrorMessage } from '@/lib/api-error'
+import { useSelfSignedFingerprint } from '@/lib/server-certificate'
 import { useAuth, type SetupForm } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/field'
@@ -88,6 +90,7 @@ export function LoginPage() {
   const [useRecovery, setUseRecovery] = useState(false)
   const [passkeyBusy, setPasskeyBusy] = useState(false)
   const [ssoOrg, setSsoOrg] = useState('')
+  const selfSigned = Boolean(useSelfSignedFingerprint())
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -115,7 +118,9 @@ export function LoginPage() {
         throw new Error(apiErrorMessage(begin.error, 'Passkey sign-in is unavailable.'))
       }
       const credential = await startAuthentication({
-        optionsJSON: begin.data.options as Parameters<typeof startAuthentication>[0]['optionsJSON'],
+        optionsJSON: passkeyOptions<Parameters<typeof startAuthentication>[0]['optionsJSON']>(
+          begin.data.options,
+        ),
       })
       const finish = await api.POST('/api/v1/auth/passkeys/login/finish', {
         body: { challenge_id: begin.data.challenge_id, credential },
@@ -125,11 +130,7 @@ export function LoginPage() {
       }
       window.location.assign('/')
     } catch (cause) {
-      if (cause instanceof Error && cause.name === 'NotAllowedError') {
-        setError('Passkey sign-in was cancelled.')
-      } else {
-        setError(cause instanceof Error ? cause.message : 'Passkey sign-in failed.')
-      }
+      setError(passkeyErrorMessage(cause, 'Passkey sign-in failed.', selfSigned))
     } finally {
       setPasskeyBusy(false)
     }
@@ -210,7 +211,8 @@ export function LoginPage() {
     )
   }
 
-  const passkeysSupported = typeof window !== 'undefined' && 'PublicKeyCredential' in window
+  // Hide the button where browsers refuse passkeys (an IP address, plain HTTP).
+  const passkeysSupported = passkeyUnavailableReason(selfSigned) === null
 
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to Clavis.">

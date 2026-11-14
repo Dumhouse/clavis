@@ -55,17 +55,29 @@ eval "$(clavis export --format shell)"
 clavis export --variables-only
 ```
 
+<p class="cli-example-title">Into a CI job (GitHub, Forgejo, Gitea Actions)</p>
+
+```sh
+clavis export --env prod --format github-env
+```
+
 ## Flags
 
 <dl class="cli-flags">
-<div class="cli-flag" id="flag-format"><dt><code>--format string</code></dt><dd>dotenv, json, yaml, shell, docker, or k8s <span class="cli-default">Default: <code>dotenv</code></span></dd></div>
+<div class="cli-flag" id="flag-format"><dt><code>--format string</code></dt><dd>dotenv, json, yaml, shell, docker, k8s, or github-env (CI job environment on GitHub, Forgejo and Gitea) <span class="cli-default">Default: <code>dotenv</code></span></dd></div>
 <div class="cli-flag" id="flag-out"><dt><code>-o, --out string</code></dt><dd>output file (default stdout, - for stdout)</dd></div>
 <div class="cli-flag" id="flag-variables-only"><dt><code>--variables-only</code></dt><dd>export only variables (no read-values permission needed)</dd></div>
 </dl>
 
 ## Details
 
-Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`. Prefer `clavis run` where you can: it writes nothing to disk.
+Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`, `github-env`.
+Prefer `clavis run` where you can: it writes nothing to disk.
+
+`github-env` appends every key to the job's `$GITHUB_ENV` file, so later
+steps see them as environment variables, and masks secret values in the
+job log. Multi-line values are kept. The Clavis action runs this for you;
+see [Forgejo and Gitea Actions](https://dumhouse.github.io/clavis/guides/forgejo-actions-secrets).
 
 <details class="cli-globals"><summary>Global flags</summary>
 

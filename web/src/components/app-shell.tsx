@@ -14,6 +14,8 @@ import {
   Layers,
   Moon,
   Palette,
+  Pencil,
+  Plus,
   RefreshCw,
   ScrollText,
   ShieldCheck,
@@ -34,6 +36,7 @@ import { useEffect, useState } from 'react'
 
 import { CommandPalette } from '@/components/command-palette'
 import { HintBar, ShortcutsSheet } from '@/components/hints'
+import { OrgDialog } from '@/components/org-dialog'
 import { Button } from '@/components/ui/button'
 import { Menu } from '@/components/ui/menu'
 import { Modal } from '@/components/ui/modal'
@@ -460,8 +463,22 @@ function SidebarContent({
   const { user, logout } = useAuth()
   const { org, orgs, selectOrg } = useCurrentOrg()
   const navigate = useNavigate()
+  const [orgDialog, setOrgDialog] = useState<'new' | 'rename' | null>(null)
   return (
     <>
+      {orgDialog && (
+        <OrgDialog
+          existing={orgDialog === 'rename' ? (org ?? null) : null}
+          onClose={() => {
+            setOrgDialog(null)
+          }}
+          onSaved={(saved) => {
+            setOrgDialog(null)
+            selectOrg(saved.slug)
+            void navigate({ to: '/' })
+          }}
+        />
+      )}
       <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
         <div className="logo-mark flex size-7 items-center justify-center rounded-[9px] shadow-sm">
           <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
@@ -514,6 +531,28 @@ function SidebarContent({
                 <span className="text-2xs text-dim">{candidate.role}</span>
               </button>
             ))}
+            <div className="border-t border-border-soft">
+              {org?.role === 'Owner' && (
+                <button
+                  className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+                  onClick={() => {
+                    setOrgOpen(false)
+                    setOrgDialog('rename')
+                  }}
+                >
+                  <Pencil className="size-3.5" /> Rename {org.name}
+                </button>
+              )}
+              <button
+                className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+                onClick={() => {
+                  setOrgOpen(false)
+                  setOrgDialog('new')
+                }}
+              >
+                <Plus className="size-3.5" /> New organization
+              </button>
+            </div>
           </div>
         )}
       </div>

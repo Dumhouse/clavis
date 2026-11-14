@@ -132,13 +132,34 @@ export const pageHints: Record<string, PageHints> = {
       'Temporary grants expire automatically.',
     ],
   },
-  '/shared-sets': {
+  '/access': {
+    title: 'Who has access',
+    keys: [{ keys: '⌘K', label: 'Jump to a project' }],
+    cmds: [
+      { cmd: 'clavis access explain', description: 'Explain effective access' },
+      { cmd: 'clavis access review', description: 'Review who has access' },
+    ],
+    tips: [
+      'Shows who can read which environment, across every project.',
+      'Open a project and choose Access to change its grants.',
+    ],
+  },
+  '/projects/$project/access': {
+    title: 'Project access',
+    keys: [{ keys: '⌘K', label: 'Jump to a project' }],
+    cmds: [{ cmd: 'clavis access explain', description: 'Explain effective access' }],
+    tips: ['Grants are per environment; production can require approval.'],
+  },
+  '/sets': {
     title: 'Shared sets',
     keys: [],
-    cmds: [{ cmd: 'clavis secrets ls', description: 'List keys in the linked project' }],
+    cmds: [
+      { cmd: 'clavis sets ls', description: 'List shared sets' },
+      { cmd: 'clavis sets import <set>', description: 'Use a set in the current environment' },
+    ],
     tips: [
-      'Shared sets show their blast radius before saving.',
-      'Import order determines precedence.',
+      'Using a set is a live link: environments read its current values, nothing is copied.',
+      'A key the environment defines itself wins over the set.',
     ],
   },
 }
@@ -153,13 +174,16 @@ const fallbackHints: PageHints = {
 export function hintsFor(pathname: string): PageHints {
   const exact = pageHints[pathname]
   if (exact) return exact
+  if (pathname.endsWith('/access')) {
+    return pageHints['/projects/$project/access'] ?? fallbackHints
+  }
   if (pathname.includes('/environments')) {
     return pageHints['/projects/$project/environments'] ?? fallbackHints
   }
   if (pathname.startsWith('/projects/')) {
     return pageHints['/projects/$project'] ?? fallbackHints
   }
-  return pageHints['/'] ?? fallbackHints
+  return pathname === '/' ? (pageHints['/'] ?? fallbackHints) : fallbackHints
 }
 
 export const defaultTipRotationMs = 12_000

@@ -2,11 +2,15 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import {
   ArrowLeft,
+  ChevronRight,
+  Braces,
   Check,
   Copy,
   Eye,
   EyeOff,
+  FileText,
   Folder,
+  Layers,
   GitCompare,
   MoveHorizontal,
   KeyRound,
@@ -21,12 +25,13 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { askRevealReason } from '@/components/ui/dialogs'
+import { askRevealReason, confirmDialog } from '@/components/ui/dialogs'
+import { DateInput } from '@/components/ui/date-input'
 import { Field, Input, Notice, Select, Textarea } from '@/components/ui/field'
 import { InfoHint } from '@/components/ui/info-hint'
 import { Menu } from '@/components/ui/menu'
@@ -37,12 +42,14 @@ import { rememberProject } from '@/lib/last-project'
 import { takeOpenKey } from '@/lib/open-key'
 import { useCurrentOrg } from '@/lib/org'
 import { useOrgEvents } from '@/lib/events'
-import { GenerateSecretDialog } from '@/pages/generate-dialog'
+import { GenerateSecretDialog, GenerateValueDialog } from '@/pages/generate-dialog'
 import { ImportSecretsDialog } from '@/pages/import-dialog'
+import { CompareEnvironments } from '@/pages/secrets-compare'
 import { envClassNames, envShort, SecretSheet } from '@/pages/secret-sheet'
 import { isRequired, validateSchemaValue, type SchemaEntry } from '@/lib/schema'
 import { useShortcuts } from '@/lib/use-shortcuts'
 import { cn } from '@/lib/utils'
+import { formatDate as formatDay } from '@/lib/format'
 
 type Env = components['schemas']['EnvBody']
 type Secret = components['schemas']['SecretBody']
@@ -93,8 +100,6 @@ export function SecretsPage() {
   const [folderFilter, setFolderFilter] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
   const [overlaySlug, setOverlaySlug] = useState('')
-  const [compareASlug, setCompareASlug] = useState('')
-  const [compareBSlug, setCompareBSlug] = useState('')
   const [adding, setAdding] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -113,7 +118,18 @@ export function SecretsPage() {
       return false
     }
   })
-  const cellMax = wide ? 'max-w-[40rem]' : 'max-w-48'
+  const cellMax = wide ? 'max-w-[40rem]' : 'max-w-full'
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all')
+  const [revealingAll, setRevealingAll] = useState(false)
+  const [generateFor, setGenerateFor] = useState<string | null>(null)
+  // Group by kind: secrets, variables and files in their own sections.
+  const [grouped, setGrouped] = useState(() => {
+    try {
+      return window.localStorage.getItem('clavis.secrets.grouped') !== 'false'
+    } catch {
+      return true
+    }
+  })
   // Page shortcuts advertised in the hint bar: N add, P import, / filter.
   const filterRef = useRef<HTMLInputElement>(null)
   useShortcuts({
@@ -318,23 +334,66 @@ export function SecretsPage() {
   }, [secretsByEnv])
 
   const folders = useMemo(() => {
-    const counts = new Map<string, number>()
+    // Distinct keys per folder (a key in three environments counts once).
+    const keysByFolder = new Map<string, Set<string>>()
     for (const list of secretsByEnv.values()) {
       for (const secret of list) {
-        if (secret.folder) counts.set(secret.folder, (counts.get(secret.folder) ?? 0) + 1)
+        if (!secret.folder) continue
+        const set = keysByFolder.get(secret.folder) ?? new Set<string>()
+        set.add(secret.key)
+        keysByFolder.set(secret.folder, set)
       }
     }
-    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    return [...keysByFolder.entries()]
+      .map(([path, set]) => [path, set.size] as [string, number])
+      .sort((a, b) => a[0].localeCompare(b[0]))
   }, [secretsByEnv])
+
+  const kindByKey = useMemo(() => {
+    const map = new Map<string, SecretKind>()
+    for (const list of secretsByEnv.values()) {
+      for (const secret of list) {
+        if (!map.has(secret.key)) map.set(secret.key, asSecretKind(secret.kind))
+      }
+    }
+    return map
+  }, [secretsByEnv])
+  const kindCounts = useMemo(() => {
+    const counts: Record<SecretKind, number> = { secret: 0, variable: 0, file: 0 }
+    for (const kind of kindByKey.values()) counts[kind]++
+    return counts
+  }, [kindByKey])
 
   const keys = useMemo(() => {
     const all = new Set<string>()
     for (const list of secretsByEnv.values()) {
       for (const secret of list) all.add(secret.key)
     }
+    // Everything the filter can match per key, across environments. Secret
+    // values are not searched: they aren't loaded until revealed.
+    const haystack = new Map<string, string>()
+    for (const list of secretsByEnv.values()) {
+      for (const secret of list) {
+        const parts = [
+          haystack.get(secret.key) ?? secret.key,
+          secret.kind,
+          secret.folder ?? '',
+          secret.comment ?? '',
+          (secret.tags ?? []).join(' '),
+          secret.owner_group_name ?? '',
+          secret.source_environment ?? '',
+          secret.kind === 'variable' ? (secret.value ?? '') : '',
+        ]
+        haystack.set(secret.key, parts.join('\u0000').toLowerCase())
+      }
+    }
+    const terms = filter.toLowerCase().split(/\s+/).filter(Boolean)
     return [...all]
       .sort((a, b) => a.localeCompare(b))
-      .filter((key) => key.toLowerCase().includes(filter.toLowerCase()))
+      .filter((key) => {
+        const text = haystack.get(key) ?? key.toLowerCase()
+        return terms.every((term) => text.includes(term))
+      })
       .filter((key) => {
         if (folderFilter === null) return true
         for (const list of secretsByEnv.values()) {
@@ -343,7 +402,17 @@ export function SecretsPage() {
         }
         return false
       })
-  }, [secretsByEnv, filter, folderFilter])
+      .filter((key) => kindFilter === 'all' || kindByKey.get(key) === kindFilter)
+  }, [secretsByEnv, filter, folderFilter, kindFilter, kindByKey])
+  const sections = useMemo(
+    () =>
+      grouped
+        ? kindOrder
+            .map((kind) => ({ kind, keys: keys.filter((key) => kindByKey.get(key) === kind) }))
+            .filter((section) => section.keys.length > 0)
+        : [{ kind: null, keys }],
+    [grouped, keys, kindByKey],
+  )
 
   useEffect(() => {
     if (!pendingKey || envs.length === 0 || secretQueries.some((query) => query.isLoading)) return
@@ -354,55 +423,6 @@ export function SecretsPage() {
     setDetail({ key: pendingKey, env: env?.slug ?? '' })
     setPendingKey(null)
   }, [pendingKey, envs, secretsByEnv, secretQueries])
-
-  const compareA = compareASlug || envs[0]?.slug || ''
-  const compareB = compareBSlug || envs[1]?.slug || envs[0]?.slug || ''
-
-  const compareQueries = useQueries({
-    queries: compare
-      ? [compareA, compareB].map((slug) => ({
-          queryKey: ['secrets-compare', org?.slug, projectSlug, slug],
-          enabled: Boolean(org && slug),
-          queryFn: async (): Promise<Secret[]> => {
-            if (!org || !slug) return []
-            const result = await api.GET(
-              '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets',
-              {
-                params: {
-                  path: { org: org.slug, project: projectSlug, env: slug },
-                  query: { reveal: true, channel: 'ui' },
-                },
-              },
-            )
-            if (result.error)
-              throw new Error(apiErrorMessage(result.error, 'Could not load comparison values.'))
-            return result.data?.secrets ?? []
-          },
-        }))
-      : [],
-  })
-
-  const compareRows = useMemo(() => {
-    if (!compare) return []
-    const left = compareQueries[0]?.data ?? []
-    const right = compareQueries[1]?.data ?? []
-    const leftMap = new Map(left.map((secret) => [secret.key, secret]))
-    const rightMap = new Map(right.map((secret) => [secret.key, secret]))
-    const allKeys = new Set([...leftMap.keys(), ...rightMap.keys()])
-    return [...allKeys]
-      .sort((a, b) => a.localeCompare(b))
-      .map((key) => ({
-        key,
-        left: leftMap.get(key),
-        right: rightMap.get(key),
-        missing: !leftMap.has(key) || !rightMap.has(key),
-        changed:
-          leftMap.has(key) &&
-          rightMap.has(key) &&
-          leftMap.get(key)?.value !== rightMap.get(key)?.value,
-      }))
-      .filter((row) => row.missing || row.changed)
-  }, [compare, compareQueries])
 
   const loading = projectQuery.isLoading || secretQueries.some((query) => query.isLoading)
   const loadError =
@@ -422,14 +442,7 @@ export function SecretsPage() {
   }
 
   const createSecret = useMutation({
-    mutationFn: async (input: {
-      env: string
-      key: string
-      value: string
-      kind: string
-      folder: string
-      message: string
-    }) => {
+    mutationFn: async (input: NewSecretInput) => {
       if (!org) throw new Error('No organization.')
       const result = await api.POST(
         '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets',
@@ -438,9 +451,14 @@ export function SecretsPage() {
           body: {
             key: input.key,
             value: input.value,
-            kind: input.kind as 'secret' | 'variable' | 'file',
+            kind: input.kind,
             folder: input.folder,
             message: input.message || 'Created from the web UI',
+            ...(input.comment ? { comment: input.comment } : {}),
+            ...(input.notes ? { notes: input.notes } : {}),
+            ...(input.providerURL ? { provider_url: input.providerURL } : {}),
+            ...(input.tags.length > 0 ? { tags: input.tags } : {}),
+            ...(input.expiresAt ? { expires_at: `${input.expiresAt}T00:00:00Z` } : {}),
           },
         },
       )
@@ -453,6 +471,63 @@ export function SecretsPage() {
       await queryClient.invalidateQueries({ queryKey: ['secrets', org?.slug, projectSlug] })
     },
   })
+
+  const revealedCount = Object.values(cells).filter((cell) => cell.revealed).length
+
+  async function revealAll() {
+    if (!org) return
+    if (revealedCount > 0) {
+      setCells({})
+      return
+    }
+    const hidden = envs.reduce(
+      (count, env) =>
+        count +
+        (secretsByEnv.get(env.slug) ?? []).filter((secret) => secret.kind !== 'variable').length,
+      0,
+    )
+    const hasProduction = envs.some((env) => env.type === 'production')
+    let reason = 'Revealed all values in the web UI'
+    if (hasProduction) {
+      const entered = await askRevealReason(
+        `all ${String(hidden)} secret and file values, production included`,
+        true,
+      )
+      if (!entered) return
+      reason = entered
+    } else if (
+      !(await confirmDialog({
+        title: 'Reveal every value?',
+        body: `${String(hidden)} secret and file values in ${String(envs.length)} environments will be shown in plain text. Each environment's reveal is recorded in the audit log.`,
+        confirmLabel: 'Reveal all',
+      }))
+    ) {
+      return
+    }
+    setRevealingAll(true)
+    const next: Record<string, CellState> = {}
+    for (const env of envs) {
+      const result = await api.GET(
+        '/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets',
+        {
+          params: {
+            path: { org: org.slug, project: projectSlug, env: env.slug },
+            query: { reveal: true, channel: 'ui', reason },
+          },
+        },
+      )
+      if (result.error) {
+        notify(`${env.slug}: ${apiErrorMessage(result.error, 'could not reveal values')}`, 'error')
+        continue
+      }
+      for (const secret of result.data?.secrets ?? []) {
+        if (secret.kind === 'variable' || secret.value === undefined) continue
+        next[`${env.slug}:${secret.key}`] = { value: secret.value, revealed: true, loading: false }
+      }
+    }
+    setCells(next)
+    setRevealingAll(false)
+  }
 
   async function toggleCell(env: Env, key: string) {
     if (!org) return
@@ -640,8 +715,9 @@ export function SecretsPage() {
             <p className="mt-1 text-sm text-muted">
               <span className="font-mono text-dim">{projectSlug}</span>
               {' · '}
-              {keys.length} {keys.length === 1 ? 'key' : 'keys'} across {envs.length}{' '}
+              {kindByKey.size} {kindByKey.size === 1 ? 'key' : 'keys'} across {envs.length}{' '}
               {envs.length === 1 ? 'environment' : 'environments'}
+              {keys.length !== kindByKey.size && ` · ${String(keys.length)} shown`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -686,6 +762,19 @@ export function SecretsPage() {
               <Upload className="size-4" /> Import
             </Button>
             <Button
+              variant="secondary"
+              size="icon"
+              className="size-9"
+              aria-label="Generate a secret"
+              title="Generate a secret (password, token, JWT key, key pair…)"
+              onClick={() => {
+                setGenerating(true)
+              }}
+              disabled={writableEnvs.length === 0}
+            >
+              <Sparkles className="size-4" />
+            </Button>
+            <Button
               variant="primary"
               onClick={() => {
                 setAdding(true)
@@ -699,18 +788,24 @@ export function SecretsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5 focus-within:border-accent-line sm:max-w-72">
+        <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-app-sm border border-border bg-surface px-2.5 focus-within:border-accent-line focus-within:ring-2 focus-within:ring-accent-soft sm:max-w-80">
           <Search className="size-3.5 shrink-0 text-dim" aria-hidden />
           <span className="sr-only">Filter keys</span>
-          <Input
-            className="bg-transparent"
+          <input
+            className="h-full min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-dim focus:outline-none"
             ref={filterRef}
-            placeholder="Filter keys…  /"
+            title="Matches key names, tags, comments, folders, kinds and variable values"
+            placeholder="Filter by key, tag, comment, folder…"
             value={filter}
             onChange={(event) => {
               setFilter(event.target.value)
             }}
           />
+          {!filter && (
+            <kbd className="rounded border border-border bg-elev px-1 font-mono text-3xs text-dim">
+              /
+            </kbd>
+          )}
           {filter && (
             <button
               type="button"
@@ -734,6 +829,72 @@ export function SecretsPage() {
         >
           <GitCompare className="size-3.5" /> Compare
         </Button>
+        {!compare && (
+          <>
+            <div
+              className="flex rounded-app-sm border border-border bg-surface p-0.5"
+              role="group"
+              aria-label="Show kinds"
+            >
+              {(['all', ...kindOrder] as KindFilter[]).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-pressed={kindFilter === kind}
+                  onClick={() => {
+                    setKindFilter(kind)
+                  }}
+                  className={cn(
+                    'flex h-6 items-center gap-1.5 rounded px-2 text-xs',
+                    kindFilter === kind
+                      ? 'bg-elev font-medium text-text'
+                      : 'text-muted hover:text-text',
+                  )}
+                >
+                  {kind === 'all' ? 'All' : kindMeta[kind].plural}
+                  <span className="text-2xs text-dim">
+                    {kind === 'all' ? kindByKey.size : kindCounts[kind]}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <Button
+              variant={grouped ? 'primary' : 'secondary'}
+              size="sm"
+              aria-pressed={grouped}
+              title="Show secrets, variables and files in separate sections"
+              onClick={() => {
+                const next = !grouped
+                setGrouped(next)
+                try {
+                  window.localStorage.setItem('clavis.secrets.grouped', String(next))
+                } catch {
+                  // Storage can be unavailable; the toggle still works for this visit.
+                }
+              }}
+            >
+              <Layers className="size-3.5" /> Group by kind
+            </Button>
+            <Button
+              variant={revealedCount > 0 ? 'primary' : 'secondary'}
+              size="sm"
+              disabled={revealingAll}
+              title="Show every secret and file value (audited)"
+              onClick={() => {
+                void revealAll()
+              }}
+            >
+              {revealingAll ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : revealedCount > 0 ? (
+                <EyeOff className="size-3.5" />
+              ) : (
+                <Eye className="size-3.5" />
+              )}
+              {revealedCount > 0 ? 'Hide all' : 'Reveal all'}
+            </Button>
+          </>
+        )}
         <Button
           variant={wide ? 'primary' : 'secondary'}
           size="sm"
@@ -774,99 +935,18 @@ export function SecretsPage() {
             </InfoHint>
           </>
         )}
-        {compare && envs.length >= 2 && (
-          <div className="flex items-center gap-1.5 text-xs text-muted">
-            <Select
-              size="sm"
-              aria-label="Compare from"
-              value={compareA}
-              onChange={(event) => {
-                setCompareASlug(event.target.value)
-              }}
-            >
-              {envs.map((env) => (
-                <option key={env.id} value={env.slug}>
-                  {env.slug}
-                </option>
-              ))}
-            </Select>
-            <span>vs</span>
-            <Select
-              size="sm"
-              aria-label="Compare to"
-              value={compareB}
-              onChange={(event) => {
-                setCompareBSlug(event.target.value)
-              }}
-            >
-              {envs.map((env) => (
-                <option key={env.id} value={env.slug}>
-                  {env.slug}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
       </div>
 
       {loadError && <Notice>{loadError}</Notice>}
 
-      {compare ? (
-        <div
-          className="overflow-x-auto rounded-app border border-border bg-surface"
-          role="region"
-          aria-label="Environment comparison"
-          tabIndex={0}
-        >
-          <table className="w-full min-w-[560px] border-collapse text-left">
-            <caption className="sr-only">
-              Keys that differ between {compareA} and {compareB}
-            </caption>
-            <thead>
-              <tr className="border-b border-border text-2xs uppercase tracking-[0.06em] text-dim">
-                <th scope="col" className="px-4 py-2.5 font-semibold">
-                  Key
-                </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold">
-                  {compareA}
-                </th>
-                <th scope="col" className="px-4 py-2.5 font-semibold">
-                  {compareB}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {compareRows.map((row) => (
-                <tr key={row.key} className="border-b border-border-soft last:border-0">
-                  <td className="px-4 py-2 font-mono text-xs text-text">{row.key}</td>
-                  {[row.left, row.right].map((side, index) => (
-                    <td key={index} className="max-w-64 truncate px-4 py-2 font-mono text-xs">
-                      {side ? (
-                        <span className="text-muted">{side.value || '(empty)'}</span>
-                      ) : (
-                        <span className="text-danger">missing</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              {compareRows.length === 0 && !compareQueries.some((query) => query.isLoading) && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-10 text-center text-sm text-muted">
-                    These environments have identical keys and values.
-                  </td>
-                </tr>
-              )}
-              {compareQueries.some((query) => query.isLoading) && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted">
-                    <Loader2 className="mr-2 inline size-3.5 animate-spin" /> Comparing…
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      {compare && org ? (
+        <CompareEnvironments
+          orgSlug={org.slug}
+          projectSlug={projectSlug}
+          envs={envs}
+          writableEnvs={writableEnvs}
+          filter={filter}
+        />
       ) : (
         <div className="flex gap-4">
           {folders.length > 0 && (
@@ -882,6 +962,7 @@ export function SecretsPage() {
                   }}
                 >
                   <Folder className="size-3.5 text-dim" /> All keys
+                  <span className="ml-auto text-2xs text-dim">{kindByKey.size}</span>
                 </FolderButton>
                 {folders.map(([path, count]) => (
                   <FolderButton
@@ -921,8 +1002,17 @@ export function SecretsPage() {
                 }}
               />
             ) : (
-              <table className="w-full border-collapse text-left">
+              <table
+                className={cn(
+                  'w-full border-collapse text-left',
+                  // Columns share the width; Wide values lets cells grow and scroll instead.
+                  !wide && !overlaySlug && 'table-fixed',
+                )}
+              >
                 <caption className="sr-only">Secrets by environment</caption>
+                <colgroup>
+                  <col className="w-64" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-border">
                     <th
@@ -954,197 +1044,249 @@ export function SecretsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {keys.map((key) => (
-                    <tr
-                      key={key}
-                      className="group border-b border-border-soft last:border-0 hover:bg-hover-soft"
-                    >
-                      <th
-                        scope="row"
-                        className="sticky left-0 z-10 max-w-72 bg-surface px-4 py-2 text-left font-normal group-hover:bg-[color-mix(in_srgb,var(--surface),var(--text)_2%)]"
-                      >
-                        <button
-                          type="button"
-                          className="max-w-full truncate font-mono text-xs text-text hover:text-accent-text hover:underline"
-                          title="Open details and history"
-                          onClick={() => {
-                            const first =
-                              envs.find((env) =>
-                                secretsByEnv.get(env.slug)?.some((secret) => secret.key === key),
-                              ) ?? envs[0]
-                            setDetail({ key, env: first?.slug ?? '' })
-                          }}
+                  {sections.map((section) => (
+                    <Fragment key={section.kind ?? 'all'}>
+                      {section.kind && (
+                        <tr className="border-b border-border-soft bg-panel">
+                          <th
+                            scope="rowgroup"
+                            colSpan={envs.length * (overlaySlug ? 2 : 1) + 1}
+                            className="sticky left-0 px-4 py-1.5 text-left text-2xs font-semibold uppercase tracking-[0.06em] text-dim"
+                          >
+                            <span className="inline-flex items-center gap-1.5">
+                              {kindMeta[section.kind].icon}
+                              {kindMeta[section.kind].plural}
+                              <span className="font-normal">{section.keys.length}</span>
+                              <span className="font-normal normal-case tracking-normal">
+                                · {kindMeta[section.kind].hint}
+                              </span>
+                            </span>
+                          </th>
+                        </tr>
+                      )}
+                      {section.keys.map((key) => (
+                        <tr
+                          key={key}
+                          className="group border-b border-border-soft last:border-0 hover:bg-hover-soft"
                         >
-                          {key}
-                        </button>
-                        <KeyBadges
-                          schemaType={schemaByKey.get(key)?.type}
-                          owner={ownerGroups.get(key)}
-                          inheritedFrom={inheritedSources.get(key)}
-                          overridden={overriddenKeys.has(key)}
-                          expires={expiringKeys.get(key)}
-                        />
-                      </th>
-                      {envs.map((env) => {
-                        const secret = secretsByEnv
-                          .get(env.slug)
-                          ?.find((candidate) => candidate.key === key)
-                        const id = `${env.slug}:${key}`
-                        const cell = cells[id]
-                        const edit = edits[id]
-                        const schemaEntry = schemaByKey.get(key)
-                        if (edit) {
-                          const validation =
-                            edit.value === '' ? null : validateSchemaValue(schemaEntry, edit.value)
-                          return (
-                            <td key={env.id} className="px-3 py-2">
-                              <div className="space-y-1">
-                                <Input
-                                  autoFocus
-                                  aria-label={`New value for ${key} in ${env.slug}`}
-                                  aria-invalid={validation ? true : undefined}
-                                  placeholder={edit.existing ? 'New value' : 'Value'}
-                                  autoComplete="off"
-                                  spellCheck={false}
-                                  className={cn(
-                                    'h-7 w-full rounded border border-accent-line bg-bg px-2 font-mono text-xs text-text focus:outline-none',
-                                    wide ? 'min-w-96' : 'min-w-36',
-                                    validation && 'border-danger',
-                                  )}
-                                  value={edit.value}
-                                  onChange={(event) => {
-                                    updateEdit(id, { value: event.target.value })
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Escape') cancelEdit(id)
-                                    if (event.key === 'Enter') event.currentTarget.blur()
-                                  }}
-                                />
-                                {validation && (
-                                  <p className="max-w-48 text-2xs text-danger">{validation}</p>
-                                )}
-                              </div>
-                            </td>
-                          )
-                        }
-                        if (!secret) {
-                          const required = isRequired(schemaEntry, env.type)
-                          const writable = !env.protected || canAdmin
-                          return (
-                            <td key={env.id} className="px-3 py-2">
-                              <button
-                                type="button"
-                                disabled={!writable}
-                                onClick={() => {
-                                  startEdit(env, key)
-                                }}
-                                className={cn(
-                                  'inline-flex h-6 items-center gap-1 rounded border border-dashed px-2 text-2xs disabled:cursor-not-allowed disabled:opacity-60',
-                                  required
-                                    ? 'border-danger/60 text-danger hover:border-danger'
-                                    : 'border-border text-dim hover:border-accent-line hover:text-text',
-                                )}
-                                aria-label={`Add ${key} to ${env.slug}`}
-                                title={required ? `Required in ${env.type}` : undefined}
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 bg-surface px-4 py-2 text-left font-normal group-hover:bg-[color-mix(in_srgb,var(--surface),var(--text)_2%)]"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span
+                                className="shrink-0 text-dim"
+                                title={kindMeta[kindByKey.get(key) ?? 'secret'].label}
                               >
-                                <Plus className="size-3" />
-                                {required ? 'Required' : 'Add'}
-                              </button>
-                            </td>
-                          )
-                        }
-                        const plain = secret.kind === 'variable'
-                        const shown = plain
-                          ? (secret.value ?? '')
-                          : cell?.revealed
-                            ? cell.value
-                            : null
-                        return (
-                          <td key={env.id} className="px-3 py-2">
-                            <div className="flex items-center gap-1">
-                              {plain ? (
-                                <span
-                                  className={cn(
-                                    'inline-flex h-6 items-center truncate rounded border border-transparent px-1 font-mono text-xs text-muted',
-                                    cellMax,
-                                  )}
-                                  title={shown ?? ''}
-                                >
-                                  {shown || <span className="text-dim">(empty)</span>}
-                                </span>
-                              ) : (
+                                {kindMeta[kindByKey.get(key) ?? 'secret'].icon}
+                              </span>
+                              <div className="min-w-0">
                                 <button
                                   type="button"
+                                  className="block max-w-full truncate font-mono text-xs text-text hover:text-accent-text hover:underline"
+                                  title={`${key}: open details and history`}
                                   onClick={() => {
-                                    void toggleCell(env, key)
+                                    const first =
+                                      envs.find((env) =>
+                                        secretsByEnv
+                                          .get(env.slug)
+                                          ?.some((secret) => secret.key === key),
+                                      ) ?? envs[0]
+                                    setDetail({ key, env: first?.slug ?? '' })
                                   }}
-                                  className={cn(
-                                    'inline-flex h-6 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted hover:border-accent-line hover:text-text',
-                                    cellMax,
-                                  )}
-                                  aria-label={
-                                    cell?.revealed
-                                      ? `Hide ${key} in ${env.slug}`
-                                      : `Reveal ${key} in ${env.slug}`
-                                  }
                                 >
-                                  {cell?.loading ? (
-                                    <Loader2 className="size-3 animate-spin" />
-                                  ) : cell?.revealed ? (
-                                    <EyeOff className="size-3 text-accent-text" />
-                                  ) : (
-                                    <Eye className="size-3 text-dim" />
-                                  )}
-                                  <span className="truncate">{shown ?? '••••••••'}</span>
+                                  {key}
                                 </button>
-                              )}
-                              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-                                {shown !== null && (
-                                  <CellAction
-                                    label={`Copy ${key} in ${env.slug}`}
-                                    onClick={() => {
-                                      void copy(id, shown)
-                                    }}
-                                  >
-                                    {copied === id ? (
-                                      <Check className="size-3 text-accent-text" />
-                                    ) : (
-                                      <Copy className="size-3" />
-                                    )}
-                                  </CellAction>
-                                )}
-                                {(!env.protected || canAdmin) && (
-                                  <CellAction
-                                    label={`Edit ${key} in ${env.slug}`}
-                                    onClick={() => {
-                                      startEdit(env, key, secret)
-                                    }}
-                                  >
-                                    <Pencil className="size-3" />
-                                  </CellAction>
-                                )}
-                                <CellAction
-                                  label={`Details for ${key} in ${env.slug}`}
-                                  onClick={() => {
-                                    setDetail({ key, env: env.slug })
-                                  }}
-                                >
-                                  <PanelRight className="size-3" />
-                                </CellAction>
+                                <KeyBadges
+                                  schemaType={schemaByKey.get(key)?.type}
+                                  owner={ownerGroups.get(key)}
+                                  inheritedFrom={inheritedSources.get(key)}
+                                  overridden={overriddenKeys.has(key)}
+                                  expires={expiringKeys.get(key)}
+                                />
                               </div>
                             </div>
-                          </td>
-                        )
-                      })}
-                      {overlaySlug &&
-                        envs.map((env) => (
-                          <td key={env.id + '-overlay'} className="px-3 py-2">
-                            <span className="inline-flex h-6 max-w-36 items-center truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted">
-                              {overlayByEnv.get(env.slug)?.get(key) || '—'}
-                            </span>
-                          </td>
-                        ))}
-                    </tr>
+                          </th>
+                          {envs.map((env) => {
+                            const secret = secretsByEnv
+                              .get(env.slug)
+                              ?.find((candidate) => candidate.key === key)
+                            const id = `${env.slug}:${key}`
+                            const cell = cells[id]
+                            const edit = edits[id]
+                            const schemaEntry = schemaByKey.get(key)
+                            if (edit) {
+                              const validation =
+                                edit.value === ''
+                                  ? null
+                                  : validateSchemaValue(schemaEntry, edit.value)
+                              return (
+                                <td key={env.id} className="px-3 py-2">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        autoFocus
+                                        aria-label={`New value for ${key} in ${env.slug}`}
+                                        aria-invalid={validation ? true : undefined}
+                                        placeholder={edit.existing ? 'New value' : 'Value'}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        className={cn(
+                                          'h-7 w-full rounded border border-accent-line bg-bg px-2 font-mono text-xs text-text focus:outline-none',
+                                          wide ? 'min-w-96' : 'min-w-36',
+                                          validation && 'border-danger',
+                                        )}
+                                        value={edit.value}
+                                        onChange={(event) => {
+                                          updateEdit(id, { value: event.target.value })
+                                        }}
+                                        onKeyDown={(event) => {
+                                          if (event.key === 'Escape') cancelEdit(id)
+                                          if (event.key === 'Enter') event.currentTarget.blur()
+                                        }}
+                                      />
+                                      {secret?.kind !== 'variable' && (
+                                        <CellAction
+                                          label={`Generate a value for ${key}`}
+                                          onClick={() => {
+                                            setGenerateFor(id)
+                                          }}
+                                        >
+                                          <Sparkles className="size-3" />
+                                        </CellAction>
+                                      )}
+                                    </div>
+                                    {validation && (
+                                      <p className="max-w-48 text-2xs text-danger">{validation}</p>
+                                    )}
+                                  </div>
+                                </td>
+                              )
+                            }
+                            if (!secret) {
+                              const required = isRequired(schemaEntry, env.type)
+                              const writable = !env.protected || canAdmin
+                              return (
+                                <td key={env.id} className="px-3 py-2">
+                                  <button
+                                    type="button"
+                                    disabled={!writable}
+                                    onClick={() => {
+                                      startEdit(env, key)
+                                    }}
+                                    className={cn(
+                                      'inline-flex h-6 items-center gap-1 rounded border border-dashed px-2 text-2xs disabled:cursor-not-allowed disabled:opacity-60',
+                                      required
+                                        ? 'border-danger/60 text-danger hover:border-danger'
+                                        : 'border-border text-dim hover:border-accent-line hover:text-text',
+                                    )}
+                                    aria-label={`Add ${key} to ${env.slug}`}
+                                    title={required ? `Required in ${env.type}` : undefined}
+                                  >
+                                    <Plus className="size-3" />
+                                    {required ? 'Required' : 'Add'}
+                                  </button>
+                                </td>
+                              )
+                            }
+                            const plain = secret.kind === 'variable'
+                            const shown = plain
+                              ? (secret.value ?? '')
+                              : cell?.revealed
+                                ? cell.value
+                                : null
+                            return (
+                              <td key={env.id} className="group/cell relative px-3 py-2">
+                                <div className="flex min-w-0 items-center gap-1">
+                                  {plain ? (
+                                    <span
+                                      className={cn(
+                                        'inline-flex h-6 items-center truncate rounded border border-transparent px-1 font-mono text-xs text-muted',
+                                        cellMax,
+                                      )}
+                                      title={shown ?? ''}
+                                    >
+                                      {shown || <span className="text-dim">(empty)</span>}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void toggleCell(env, key)
+                                      }}
+                                      className={cn(
+                                        'inline-flex h-6 items-center gap-1.5 truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted hover:border-accent-line hover:text-text',
+                                        cellMax,
+                                      )}
+                                      aria-label={
+                                        cell?.revealed
+                                          ? `Hide ${key} in ${env.slug}`
+                                          : `Reveal ${key} in ${env.slug}`
+                                      }
+                                    >
+                                      {cell?.loading ? (
+                                        <Loader2 className="size-3 animate-spin" />
+                                      ) : cell?.revealed ? (
+                                        <EyeOff className="size-3 text-accent-text" />
+                                      ) : (
+                                        <Eye className="size-3 text-dim" />
+                                      )}
+                                      <span className="truncate">{shown ?? '••••••••'}</span>
+                                    </button>
+                                  )}
+                                  {/* Floats over the cell's right edge so showing it never
+                                      widens the column (which pushed other environments
+                                      out of view with Wide values on). Touch screens
+                                      keep it inline. */}
+                                  <div className="absolute top-1/2 right-1.5 z-[1] hidden -translate-y-1/2 items-center gap-0.5 rounded-app-sm border border-border bg-surface p-0.5 shadow-sm group-focus-within/cell:flex group-hover/cell:flex [@media(hover:none)]:static [@media(hover:none)]:flex [@media(hover:none)]:translate-y-0 [@media(hover:none)]:border-0 [@media(hover:none)]:p-0 [@media(hover:none)]:shadow-none">
+                                    {shown !== null && (
+                                      <CellAction
+                                        label={`Copy ${key} in ${env.slug}`}
+                                        onClick={() => {
+                                          void copy(id, shown)
+                                        }}
+                                      >
+                                        {copied === id ? (
+                                          <Check className="size-3 text-accent-text" />
+                                        ) : (
+                                          <Copy className="size-3" />
+                                        )}
+                                      </CellAction>
+                                    )}
+                                    {(!env.protected || canAdmin) && (
+                                      <CellAction
+                                        label={`Edit ${key} in ${env.slug}`}
+                                        onClick={() => {
+                                          startEdit(env, key, secret)
+                                        }}
+                                      >
+                                        <Pencil className="size-3" />
+                                      </CellAction>
+                                    )}
+                                    <CellAction
+                                      label={`Details for ${key} in ${env.slug}`}
+                                      onClick={() => {
+                                        setDetail({ key, env: env.slug })
+                                      }}
+                                    >
+                                      <PanelRight className="size-3" />
+                                    </CellAction>
+                                  </div>
+                                </div>
+                              </td>
+                            )
+                          })}
+                          {overlaySlug &&
+                            envs.map((env) => (
+                              <td key={env.id + '-overlay'} className="px-3 py-2">
+                                <span className="inline-flex h-6 max-w-36 items-center truncate rounded border border-border bg-elev px-2 font-mono text-xs text-muted">
+                                  {overlayByEnv.get(env.slug)?.get(key) || '—'}
+                                </span>
+                              </td>
+                            ))}
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                   {keys.length === 0 && !loading && (
                     <tr>
@@ -1206,6 +1348,7 @@ export function SecretsPage() {
         <AddSecretDialog
           envs={writableEnvs}
           schemaKind={(key) => schemaByKey.get(key)?.kind}
+          folderOptions={folders.map(([path]) => path)}
           busy={createSecret.isPending}
           error={createSecret.error instanceof Error ? createSecret.error.message : null}
           onClose={() => {
@@ -1218,6 +1361,18 @@ export function SecretsPage() {
                 notify(`Added ${input.key} to ${input.env}.`)
               },
             })
+          }}
+        />
+      )}
+
+      {generateFor && (
+        <GenerateValueDialog
+          onClose={() => {
+            setGenerateFor(null)
+          }}
+          onUse={(value) => {
+            updateEdit(generateFor, { value })
+            setGenerateFor(null)
           }}
         />
       )}
@@ -1444,7 +1599,7 @@ function KeyBadges({
   const [now] = useState(() => Date.now())
   const soon = expiresAt ? expiresAt.getTime() - now < 14 * 86_400_000 : false
   return (
-    <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
+    <span className="mt-0.5 flex gap-1 overflow-hidden whitespace-nowrap empty:hidden">
       {schemaType && (
         <span className="rounded-full border border-border bg-elev px-1.5 text-3xs font-medium text-dim">
           {schemaType}
@@ -1472,7 +1627,7 @@ function KeyBadges({
             soon ? 'bg-danger-bg text-danger' : 'bg-elev text-dim',
           )}
         >
-          expires {expiresAt.toLocaleDateString()}
+          expires {formatDay(expiresAt)}
         </span>
       )}
     </span>
@@ -1517,9 +1672,24 @@ function EmptyState({
 
 const keyPattern = /^[A-Za-z_][A-Za-z0-9_.-]*$/
 
+type NewSecretInput = {
+  env: string
+  key: string
+  value: string
+  folder: string
+  kind: SecretKind
+  message: string
+  comment: string
+  notes: string
+  providerURL: string
+  tags: string[]
+  expiresAt: string
+}
+
 function AddSecretDialog({
   envs,
   schemaKind,
+  folderOptions,
   busy,
   error,
   onClose,
@@ -1527,81 +1697,147 @@ function AddSecretDialog({
 }: {
   envs: Env[]
   schemaKind: (key: string) => string | undefined
+  folderOptions: string[]
   busy: boolean
   error: string | null
   onClose: () => void
-  onSubmit: (input: {
-    env: string
-    key: string
-    value: string
-    folder: string
-    kind: string
-    message: string
-  }) => void
+  onSubmit: (input: NewSecretInput) => void
 }) {
   const [env, setEnv] = useState(
     envs.find((candidate) => candidate.type === 'development')?.slug ?? envs[0]?.slug ?? '',
   )
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
+  const [showValue, setShowValue] = useState(false)
+  const [fileName, setFileName] = useState<string | null>(null)
   const [folder, setFolder] = useState('')
-  const [kind, setKind] = useState('secret')
+  const [kind, setKind] = useState<SecretKind>('secret')
   const [kindTouched, setKindTouched] = useState(false)
   const [message, setMessage] = useState('')
-  const [more, setMore] = useState(false)
+  const [comment, setComment] = useState('')
+  const [notes, setNotes] = useState('')
+  const [providerURL, setProviderURL] = useState('')
+  const [tags, setTags] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [advanced, setAdvanced] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
   const target = envs.find((candidate) => candidate.slug === env)
   const keyError =
     key !== '' && !keyPattern.test(key)
       ? 'Start with a letter or _; use letters, digits, _ . -'
       : null
+  const urlError =
+    providerURL !== '' && !/^https?:\/\//.test(providerURL) ? 'Use an http(s) URL' : null
+
+  function pickKind(next: SecretKind) {
+    setKind(next)
+    setKindTouched(true)
+  }
+
+  function loadFile(file: File) {
+    if (file.size > 1024 * 1024) {
+      setLocalError('Files must be 1 MiB or smaller.')
+      return
+    }
+    setLocalError(null)
+    void file.text().then((text) => {
+      setValue(text)
+      setFileName(`${file.name} · ${String(file.size)} bytes`)
+      if (!key)
+        setKey(
+          file.name
+            .toUpperCase()
+            .replace(/[^A-Z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, ''),
+        )
+    })
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (keyError) return
-    onSubmit({ env, key, value, folder, kind, message })
+    if (keyError || urlError) return
+    onSubmit({
+      env,
+      key,
+      value,
+      folder,
+      kind,
+      message,
+      comment,
+      notes,
+      providerURL,
+      tags: tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      expiresAt,
+    })
   }
 
+  const masked = kind !== 'variable' && !showValue
+
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} className="max-w-xl">
       <form onSubmit={submit}>
         <ModalHeader
-          title="Add secret"
-          description="The value is encrypted before it reaches the database."
+          title="Add a key"
+          description="Values are encrypted before they reach the database."
           onClose={onClose}
         />
-        <div className="mt-4 space-y-3">
-          <Field label="Key" error={keyError}>
-            <Input
-              autoFocus
-              required
-              mono
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="STRIPE_SECRET_KEY"
-              value={key}
-              onChange={(event) => {
-                const next = event.target.value.toUpperCase().replace(/\s/g, '_')
-                setKey(next)
-                const fromSchema = schemaKind(next)
-                if (fromSchema && !kindTouched) setKind(fromSchema)
-              }}
-            />
-          </Field>
-          <Field label="Value">
-            <Textarea
-              required
-              mono
-              rows={3}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={kind === 'variable' ? 'info' : 'sk_live_…'}
-              value={value}
-              onChange={(event) => {
-                setValue(event.target.value)
-              }}
-            />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 space-y-4">
+          <div role="radiogroup" aria-label="Kind" className="grid grid-cols-3 gap-2">
+            {kindOrder.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="radio"
+                aria-checked={kind === option}
+                onClick={() => {
+                  pickKind(option)
+                }}
+                className={cn(
+                  'rounded-app-sm border px-3 py-2 text-left transition-colors',
+                  kind === option
+                    ? 'border-accent-line bg-accent-soft'
+                    : 'border-border hover:border-accent-line hover:bg-hover',
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  {kindMeta[option].icon} {kindMeta[option].label}
+                </span>
+                <span className="mt-0.5 block text-2xs leading-4 text-muted">
+                  {kindMeta[option].short}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+            <Field label="Key" error={keyError}>
+              <Input
+                autoFocus
+                required
+                mono
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={
+                  kind === 'file'
+                    ? 'TLS_CERT'
+                    : kind === 'variable'
+                      ? 'LOG_LEVEL'
+                      : 'STRIPE_SECRET_KEY'
+                }
+                value={key}
+                onChange={(event) => {
+                  const next = event.target.value.toUpperCase().replace(/\s/g, '_')
+                  setKey(next)
+                  const fromSchema = asSecretKind(schemaKind(next) ?? '')
+                  if (schemaKind(next) && !kindTouched) setKind(fromSchema)
+                }}
+              />
+            </Field>
             <Field label="Environment">
               <Select
                 value={env}
@@ -1611,72 +1847,280 @@ function AddSecretDialog({
               >
                 {envs.map((candidate) => (
                   <option key={candidate.id} value={candidate.slug}>
-                    {candidate.name} ({envShort[candidate.type] ?? candidate.type})
+                    {candidate.name}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Kind">
-              <Select
-                value={kind}
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-xs font-medium text-muted">Value</span>
+              {fileName && kind === 'file' && (
+                <span className="ml-1 truncate font-mono text-2xs text-dim">{fileName}</span>
+              )}
+              <div className="ml-auto flex gap-1">
+                {kind !== 'variable' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowValue((current) => !current)
+                    }}
+                  >
+                    {showValue ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    {showValue ? 'Hide' : 'Show'}
+                  </Button>
+                )}
+                {kind === 'file' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      fileInput.current?.click()
+                    }}
+                  >
+                    <Upload className="size-3.5" /> Load file
+                  </Button>
+                )}
+                {kind !== 'variable' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setGenerating(true)
+                    }}
+                  >
+                    <Sparkles className="size-3.5" /> Generate
+                  </Button>
+                )}
+              </div>
+            </div>
+            <input
+              ref={fileInput}
+              type="file"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) loadFile(file)
+                event.target.value = ''
+              }}
+            />
+            {kind === 'variable' ? (
+              <Input
+                required
+                mono
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="info"
+                value={value}
                 onChange={(event) => {
-                  setKind(event.target.value)
-                  setKindTouched(true)
+                  setValue(event.target.value)
+                }}
+              />
+            ) : (
+              <div
+                className="relative"
+                onDragOver={(event) => {
+                  if (kind === 'file') event.preventDefault()
+                }}
+                onDrop={(event) => {
+                  if (kind !== 'file') return
+                  event.preventDefault()
+                  const file = event.dataTransfer.files[0]
+                  if (file) loadFile(file)
                 }}
               >
-                <option value="secret">Secret — masked</option>
-                <option value="variable">Variable — plain</option>
-                <option value="file">File — masked</option>
-              </Select>
-            </Field>
+                <Textarea
+                  required
+                  mono
+                  rows={kind === 'file' ? 7 : 3}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={
+                    kind === 'file'
+                      ? 'Paste the contents, drop a file here, or use Load file\n-----BEGIN CERTIFICATE-----'
+                      : 'sk_live_…'
+                  }
+                  className={cn(masked && value && '[-webkit-text-security:disc]')}
+                  value={value}
+                  onChange={(event) => {
+                    setValue(event.target.value)
+                    setFileName(null)
+                  }}
+                />
+              </div>
+            )}
+            <p className="mt-1 text-2xs text-dim">
+              {kind === 'file'
+                ? 'Stored as text. `clavis run` can write it to a file and pass the path.'
+                : kind === 'variable'
+                  ? 'Shown in plain text to everyone who can see this environment.'
+                  : 'Hidden in the app; every reveal is audited.'}
+            </p>
           </div>
+
           {target?.type === 'production' && (
             <Notice tone="warning">This writes to production and applies immediately.</Notice>
           )}
-          {more ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Folder">
-                <Input
-                  mono
-                  placeholder="/backend/db"
-                  value={folder}
-                  onChange={(event) => {
-                    setFolder(event.target.value)
-                  }}
-                />
-              </Field>
-              <Field label="Change message">
-                <Input
-                  placeholder="Why this exists"
-                  value={message}
-                  onChange={(event) => {
-                    setMessage(event.target.value)
-                  }}
-                />
-              </Field>
-            </div>
-          ) : (
+
+          <div className="rounded-app-sm border border-border">
             <button
               type="button"
-              className="text-2xs font-medium text-accent-text hover:underline"
+              aria-expanded={advanced}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-muted hover:text-text"
               onClick={() => {
-                setMore(true)
+                setAdvanced((current) => !current)
               }}
             >
-              Folder and change message…
+              <ChevronRight
+                className={cn('size-3.5 transition-transform', advanced && 'rotate-90')}
+              />
+              Advanced
+              <span className="font-normal text-dim">
+                folder, comment, tags, expiry, provider link, notes
+              </span>
             </button>
-          )}
-          {error && <Notice>{error}</Notice>}
+            {advanced && (
+              <div className="grid gap-3 border-t border-border-soft p-3 sm:grid-cols-2">
+                <datalist id="add-secret-folders">
+                  {folderOptions.map((path) => (
+                    <option key={path} value={path} />
+                  ))}
+                </datalist>
+                <Field label="Folder">
+                  <Input
+                    mono
+                    list="add-secret-folders"
+                    placeholder="/backend/db"
+                    value={folder}
+                    onChange={(event) => {
+                      setFolder(event.target.value)
+                    }}
+                  />
+                </Field>
+                <Field label="Expires on" hint="You get a reminder before it lapses.">
+                  <DateInput value={expiresAt} onChange={setExpiresAt} />
+                </Field>
+                <Field label="Comment" className="sm:col-span-2">
+                  <Input
+                    placeholder="What this is for"
+                    value={comment}
+                    onChange={(event) => {
+                      setComment(event.target.value)
+                    }}
+                  />
+                </Field>
+                <Field label="Tags" hint="Comma-separated; the filter searches them.">
+                  <Input
+                    placeholder="billing, stripe"
+                    value={tags}
+                    onChange={(event) => {
+                      setTags(event.target.value)
+                    }}
+                  />
+                </Field>
+                <Field label="Provider URL" error={urlError}>
+                  <Input
+                    placeholder="https://dashboard.stripe.com/apikeys"
+                    value={providerURL}
+                    onChange={(event) => {
+                      setProviderURL(event.target.value)
+                    }}
+                  />
+                </Field>
+                <Field label="Runbook notes" className="sm:col-span-2">
+                  <Textarea
+                    rows={2}
+                    placeholder="How to rotate it, who owns it, what breaks."
+                    value={notes}
+                    onChange={(event) => {
+                      setNotes(event.target.value)
+                    }}
+                  />
+                </Field>
+                <Field
+                  label="Change message"
+                  className="sm:col-span-2"
+                  hint="Shown in the key's History (click the key name) next to this first version."
+                >
+                  <Input
+                    placeholder="Added for the Stripe integration"
+                    value={message}
+                    onChange={(event) => {
+                      setMessage(event.target.value)
+                    }}
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
+          {(localError ?? error) && <Notice>{localError ?? error}</Notice>}
         </div>
         <ModalFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" size="sm" disabled={busy || Boolean(keyError)}>
-            {busy && <Loader2 className="size-3.5 animate-spin" />} Add to {env || 'environment'}
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={busy || Boolean(keyError) || Boolean(urlError)}
+          >
+            {busy && <Loader2 className="size-3.5 animate-spin" />} Add to{' '}
+            {target?.name ?? 'environment'}
           </Button>
         </ModalFooter>
       </form>
+      {generating && (
+        <GenerateValueDialog
+          onClose={() => {
+            setGenerating(false)
+          }}
+          onUse={(generated, generatedKind) => {
+            setValue(generated)
+            setFileName(null)
+            if (generatedKind === 'file') pickKind('file')
+            setGenerating(false)
+          }}
+        />
+      )}
     </Modal>
   )
+}
+
+type SecretKind = 'secret' | 'variable' | 'file'
+type KindFilter = 'all' | SecretKind
+const kindOrder: SecretKind[] = ['secret', 'variable', 'file']
+
+const kindMeta: Record<
+  SecretKind,
+  { label: string; plural: string; hint: string; short: string; icon: React.ReactNode }
+> = {
+  secret: {
+    label: 'Secret',
+    plural: 'Secrets',
+    hint: 'hidden until revealed; every reveal is audited',
+    short: 'Masked, reveals audited',
+    icon: <KeyRound className="size-3.5" />,
+  },
+  variable: {
+    label: 'Variable',
+    plural: 'Variables',
+    hint: 'plain configuration, shown as is',
+    short: 'Plain config, visible',
+    icon: <Braces className="size-3.5" />,
+  },
+  file: {
+    label: 'File',
+    plural: 'Files',
+    hint: 'certificates, keys and other multi-line values written to disk',
+    short: 'Certs and keys, from disk',
+    icon: <FileText className="size-3.5" />,
+  },
+}
+
+function asSecretKind(kind: string): SecretKind {
+  return kind === 'variable' || kind === 'file' ? kind : 'secret'
 }

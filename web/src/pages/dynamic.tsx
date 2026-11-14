@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { Input, Select } from '@/components/ui/field'
+import { formatDateTime } from '@/lib/format'
 
 type Lease = components['schemas']['LeaseBody']
 
@@ -232,7 +233,7 @@ export function DynamicPage() {
                     {lease.identity_id ? lease.identity_id.slice(0, 8) : '—'}
                   </td>
                   <td className="px-4 py-2 text-xs text-muted">
-                    {new Date(lease.expires_at).toLocaleString()}
+                    {formatDateTime(lease.expires_at)}
                   </td>
                   <td className="px-4 py-2 text-xs text-muted">{status}</td>
                   <td className="px-4 py-2 text-right">

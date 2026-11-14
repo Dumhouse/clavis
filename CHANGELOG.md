@@ -2,6 +2,121 @@
 
 ## Unreleased
 
+### Added
+
+- The Clavis action works on Forgejo and Gitea Actions as well as GitHub:
+  `environment: prod` plus a machine token loads that environment into the job.
+  It installs the CLI itself (checksum verified), keeps multi-line values,
+  masks secrets, and takes `server-fingerprint` or `ca-cert` for self-signed
+  servers. This gives Forgejo, which has no deployment environments, separate
+  staging and production values under the same names. The old `export`,
+  `export-env` and `export-project` inputs still work; the `secrets-json`
+  output was removed, since it put every value into step outputs.
+- Integrations page reworked around the two ways to deliver secrets: **CI
+  access** (jobs fetch from Clavis with a machine token) and **syncs** (Clavis
+  pushes into a platform with that platform's access token, now called saved
+  credentials). A setup guide asks for the platform, recommends one way with
+  the reasons and the platform's limits (for example, Forgejo has no
+  per-environment secrets), then creates the CI tokens and writes the workflow,
+  or opens the sync form. Wider sync form with an explanation panel; it lists
+  the repositories a Forgejo, GitHub or GitLab token can reach, flags missing
+  admin rights, and warns when two syncs would overwrite each other in the same
+  repository. Syncs now report their target (`target` in the API).
+- The CI setup maps a branch to each environment (or deploy by hand), writes
+  one load step per environment, and can store the new tokens as repository
+  secrets for you (`POST …/syncs/ci-secrets`, `CLAVIS_*` names only). For
+  Forgejo it offers the action from GitHub, from a mirror on your Forgejo, or
+  plain `run:` steps without the action.
+- `clavis export --format github-env` (and so the Clavis action) reports failures as annotations with the cause and fix
+  (empty or rejected token, wrong environment, untrusted certificate,
+  unreachable server) and warns when an environment has no values.
+- Integrations opens on CI access; adding a sync goes through the guide, which
+  lists only platforms Clavis can push to.
+- Shared sets page reworked: a list of sets and the selected set, with keys
+  grouped into secrets, variables and files, inline editing, "Show values",
+  renaming (`PATCH /orgs/{org}/sets/{slug}`; the slug stays) and "Use in an
+  environment". Using a set is shown as the live link it is: nothing is copied.
+- `clavis login` remembers the server, so `clavis init` and other commands
+  in a new directory use it instead of `http://localhost:8080`.
+- Fixed: adding or signing in with a passkey failed with "can't access
+  property replace" (the WebAuthn options were passed one level too deep).
+  On an IP address, where browsers refuse passkeys, the app now says so. On a
+  self-signed server it explains that passkeys need the certificate trusted on
+  this computer, and a refused passkey says that instead of a generic error.
+- Organizations can be created and renamed (name and slug) from the
+  organization menu in the sidebar.
+- The hint bar and the shortcuts sheet (`?`) show the Clavis version.
+- Fixed: importing the same .env again showed secrets as changed when they
+  weren't (the secret list carries no secret values, so every secret looked
+  different), and wrote a new version of every key. A new endpoint,
+  `POST …/environments/{env}/secrets:compare`, compares values on the server
+  and returns only new / changed / same per key; it needs permission to read
+  values and is audited as `secret.compare`. The import now skips unchanged
+  keys and keeps the kind and folder of existing keys.
+- The import dialog is full-height: paste or load a file on the left, map keys
+  on the right with filters (new, changed, unchanged), masked values with
+  "Show values", a checkbox per key, and folder and kind for all checked keys
+  at once. Folders are picked from the environment's existing folders or typed
+  as new ones; new keys get a suggested kind (variable for `*_HOST`, `*_PORT`,
+  `NODE_ENV`, `VITE_*`…, file for multi-line values).
+- The secret generator shows the value as soon as it opens and explains how
+  each type is made. "JWT signing key" is labelled as the HMAC key that signs
+  tokens (32/48/64 bytes for HS256/384/512). Key pairs show the private and the
+  public key, save the private key as a file and can save the public key as
+  `…_PUBLIC_KEY`. RSA can be 2048, 3072 or 4096 bits. New types: AES-256 key,
+  numeric code, and a letters-and-digits token.
+- Compare shows every environment side by side instead of two, can hide
+  environments, and can include identical keys. Any value can be copied to
+  another environment from its cell.
+- The secrets table fits the page (columns share the width; "Wide values"
+  still scrolls), rows stay one line high, each key shows whether it is a
+  secret, variable or file, and the toolbar filters by kind or groups the
+  table into sections.
+- Add secret has cards for Secret, Variable and File, loads or drops a file
+  into the value, can generate the value, and has an Advanced section: folder,
+  expiry date, comment, tags, provider URL, runbook notes and the change
+  message (shown in the key's History).
+- History can preview any earlier version before restoring it
+  (`GET …/secrets/{key}/versions/{version}`, audited as a reveal; production
+  asks for a reason).
+- "Edit value" in the key panel loads the current value into the editor
+  (audited as a reveal; production asks for a reason), so a typo can be fixed
+  without retyping it. "Replace with a new value…" still starts empty.
+- Date fields (Expires on) follow the date format setting instead of the
+  browser's language, accept typed dates, and keep a calendar picker.
+- A Generate icon next to Add secret, and Generate buttons in Replace value
+  and in the table's inline edit.
+- The filter also searches tags, comments, folders, owner groups and variable
+  values, and several words must all match. The secrets header counts all
+  keys, and folder counts are distinct keys.
+- Group by kind is now the default.
+- "Reveal all" shows every value in the table at once; production asks for a
+  reason. The list endpoint takes an optional `reason`, recorded in the audit.
+- Settings → Appearance: date format (31.12.2026, 31/12/2026, 12/31/2026,
+  2026-12-31), 24- or 12-hour time, and the interface and code fonts (Geist,
+  Manrope, Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono or system
+  fonts). Fonts are bundled and load only when chosen. Saved in this browser.
+- Builds outside a release tag are stamped `0.3.2+dev.<commit>[.dirty]`
+  (latest release, commit, uncommitted changes) by `scripts/version.sh`, used
+  by `make build`. `GET /api/v1/version` adds `built`. The web UI shows a
+  development build as `0.3.2 dev 14.11.26 14:23*` (commit in the tooltip)
+  and a release as `v0.3.3`.
+- Fixed: with Wide values on, hovering a row widened the other environments'
+  cells (their copy/edit buttons took space) and pushed the last
+  environment out of view. The buttons now float over the cell.
+- Fixed: dialogs focused their close button instead of the first field, so
+  typing right away went nowhere and Enter closed the dialog.
+- Fixed: keys from shared sets showed as "106751 days old" in Health; they
+  now carry the set's timestamps and are not reported per environment.
+- The CI setup lists the repositories a saved platform token can see. Shared
+  set files can be loaded from disk, and a set can be used in all of a
+  project's environments at once.
+- Saved sync credentials are now called platform tokens in the app (still
+  `connections` in the API and CLI). Forms ask for the server URL before the
+  token, so the "Create a token" link points at your own server.
+- `clavis export --format github-env` appends values to `$GITHUB_ENV` with
+  masking and multi-line support.
+
 ## v0.3.2 — 2026-11-13
 
 ### Added

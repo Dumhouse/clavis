@@ -123,6 +123,16 @@ func (s *Store) GetSharedSet(ctx context.Context, orgID, slug string) (*SharedSe
 		WHERE org_id = ? AND lower(slug) = lower(?)`, orgID, slug))
 }
 
+// RenameSharedSet changes a set's display name; the slug stays.
+func (s *Store) RenameSharedSet(ctx context.Context, orgID, id, name string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE shared_sets SET name = ?, updated_at = ? WHERE id = ? AND org_id = ?`,
+		name, formatTime(time.Now().UTC()), id, orgID)
+	if err != nil {
+		return fmt.Errorf("store: rename shared set: %w", err)
+	}
+	return expectOne(res, "rename shared set")
+}
+
 // DeleteSharedSet removes a set and its imports/items.
 func (s *Store) DeleteSharedSet(ctx context.Context, orgID, id string) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM shared_sets WHERE id = ? AND org_id = ?`, id, orgID)

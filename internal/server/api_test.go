@@ -2061,6 +2061,14 @@ func TestSharedSets(t *testing.T) {
 		t.Fatalf("create set = %d body=%s", created.Code, created.Body)
 	}
 	setBase := "/api/v1/orgs/acme/sets/shared"
+	// Renaming keeps the slug, so everything that refers to the set still works.
+	if rec := owner.request(http.MethodPatch, setBase, map[string]any{"name": "Shared API keys"}); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"name":"Shared API keys"`) || !strings.Contains(rec.Body.String(), `"slug":"shared"`) {
+		t.Fatalf("rename = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPatch, setBase, map[string]any{"name": " "}); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("blank rename = %d body=%s", rec.Code, rec.Body)
+	}
 	if rec := owner.request(http.MethodPut, setBase+"/items/SHARED_KEY", map[string]any{"value": "from-set"}); rec.Code != http.StatusNoContent {
 		t.Fatalf("set item = %d body=%s", rec.Code, rec.Body)
 	}
@@ -2074,6 +2082,12 @@ func TestSharedSets(t *testing.T) {
 	imports := owner.request(http.MethodGet, "/api/v1/orgs/acme/projects/web-app/environments/dev/sets", nil)
 	if imports.Code != http.StatusOK || !strings.Contains(imports.Body.String(), "shared") {
 		t.Fatalf("imports = %d body=%s", imports.Code, imports.Body)
+	}
+	// Set keys have real timestamps and are not reported per environment
+	// (they used to show as "106751 days old").
+	if health := owner.request(http.MethodGet, "/api/v1/orgs/acme/health", nil); health.Code != http.StatusOK ||
+		strings.Contains(health.Body.String(), "SHARED_KEY") {
+		t.Fatalf("health = %d body=%s", health.Code, health.Body)
 	}
 
 	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
@@ -4835,5 +4849,67 @@ func TestOffboardingChecklistSurvivesRemoval(t *testing.T) {
 	// A person who never revealed anything leaves no checklist to show.
 	if gone := owner.request(http.MethodGet, "/api/v1/orgs/acme/members/00000000-0000-0000-0000-000000000000/offboarding", nil); gone.Code != http.StatusNotFound {
 		t.Fatalf("unknown member = %d", gone.Code)
+	}
+}
+
+// The import preview compares pasted values on the server: the secret list
+// carries no secret values, so the browser used to show every secret as
+// changed.
+func TestCompareSecretValues(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "API_TOKEN", "value": "same-value"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "DB_PASS", "value": "old"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodPost, dev+":compare", map[string]any{"entries": []map[string]string{
+		{"key": "API_TOKEN", "value": "same-value"},
+		{"key": "DB_PASS", "value": "new"},
+		{"key": "FRESH", "value": "x"},
+	}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("compare = %d body=%s", rec.Code, rec.Body)
+	}
+	var out struct {
+		Statuses map[string]string `json:"statuses"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"API_TOKEN": "same", "DB_PASS": "changed", "FRESH": "new"}
+	for key, status := range want {
+		if out.Statuses[key] != status {
+			t.Errorf("%s = %q, want %q (all: %v)", key, out.Statuses[key], status, out.Statuses)
+		}
+	}
+	if strings.Contains(rec.Body.String(), "same-value") || strings.Contains(rec.Body.String(), "old") {
+		t.Fatalf("compare must not return values: %s", rec.Body)
+	}
+	audit := owner.request(http.MethodGet, "/api/v1/orgs/acme/audit-events", nil)
+	if !strings.Contains(audit.Body.String(), "secret.compare") {
+		t.Fatalf("compare should be audited: %s", audit.Body)
+	}
+}
+
+// Old versions can be previewed before restoring; production needs a reason.
+func TestRevealSecretVersion(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	dev := "/api/v1/orgs/acme/projects/web-app/environments/dev/secrets"
+	if rec := owner.request(http.MethodPost, dev, map[string]any{"key": "TOKEN", "value": "first"}); rec.Code != http.StatusCreated {
+		t.Fatalf("create = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPut, dev+"/TOKEN", map[string]any{"value": "second"}); rec.Code != http.StatusOK {
+		t.Fatalf("update = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodGet, dev+"/TOKEN/versions/1", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"value":"first"`) {
+		t.Fatalf("version 1 = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodGet, dev+"/TOKEN/versions/9", nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing version = %d body=%s", rec.Code, rec.Body)
 	}
 }

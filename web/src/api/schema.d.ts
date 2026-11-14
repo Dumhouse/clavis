@@ -1662,6 +1662,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reveal one past version
+         * @description Returns the value of a past version. Audited as secret.reveal; production needs a reason.
+         */
+        get: operations["get-secret-version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:agent": {
         parameters: {
             query?: never;
@@ -1694,6 +1714,26 @@ export interface paths {
         head?: never;
         /** Apply atomic secret changes */
         patch: operations["batch-secrets"];
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compare values with the stored ones
+         * @description Reports per key whether the given value is new, changed or the same as the environment's current value. Values are never returned. Audited as secret.compare.
+         */
+        post: operations["compare-secrets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:eso": {
@@ -2023,6 +2063,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/ci-secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store CI tokens in a repository
+         * @description Writes CLAVIS_* secrets (machine tokens for CI access) into a Forgejo/Gitea, GitHub or GitLab repository with a platform token or a typed URL and token. Clavis does not keep the values.
+         */
+        post: operations["store-ci-secrets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orgs/{org}/projects/{project}/syncs/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * List repositories a credential can reach
+         * @description For the sync form: lists Forgejo/Gitea, GitHub or GitLab repositories and organizations for a platform token or a typed URL and token. Nothing is stored.
+         */
+        post: operations["list-sync-repositories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/projects/{project}/syncs/{id}": {
         parameters: {
             query?: never;
@@ -2233,7 +2313,11 @@ export interface paths {
         delete: operations["delete-shared-set"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename a shared set
+         * @description Changes the display name. The slug stays, so CLI commands and environments keep working.
+         */
+        patch: operations["rename-shared-set"];
         trace?: never;
     };
     "/api/v1/orgs/{org}/sets/{slug}/items/{key}": {
@@ -2656,6 +2740,19 @@ export interface components {
             include_values?: boolean;
             name: string;
             slug: string;
+        };
+        CompareEntry: {
+            key: string;
+            value: string;
+        };
+        CompareInputBody: {
+            entries: components["schemas"]["CompareEntry"][] | null;
+        };
+        CompareOutputBody: {
+            /** @description Per key: new, changed or same. Values are never returned. */
+            statuses: {
+                [key: string]: string;
+            };
         };
         ConnectionBody: {
             /**
@@ -3226,6 +3323,13 @@ export interface components {
         ListOrgsOutputBody: {
             orgs: components["schemas"]["OrgBody"][] | null;
         };
+        ListRepositoriesInputBody: {
+            base_url?: string;
+            connection_id?: string;
+            /** @enum {string} */
+            provider: "forgejo" | "github" | "gitlab";
+            token?: string;
+        };
         LoginInputBody: {
             /** Format: email */
             email: string;
@@ -3557,12 +3661,27 @@ export interface components {
         RenameGroupInputBody: {
             name: string;
         };
+        RenameSharedSetInputBody: {
+            name: string;
+        };
         RenewLeaseInputBody: {
             /** Format: int64 */
             ttl_seconds?: number;
         };
         ReplaceSchemaInputBody: {
             schema: components["schemas"]["SchemaEntryBody"][] | null;
+        };
+        Repository: {
+            can_write: boolean;
+            full_name: string;
+            private: boolean;
+            url?: string;
+        };
+        RepositoryList: {
+            identity?: string;
+            organizations: string[] | null;
+            repositories: components["schemas"]["Repository"][] | null;
+            truncated: boolean;
         };
         ResetPasswordInputBody: {
             password: string;
@@ -3874,6 +3993,22 @@ export interface components {
             provider?: "google" | "github" | "microsoft" | "okta" | "generic" | "saml";
             role?: string;
         };
+        StoreCISecretsInputBody: {
+            base_url?: string;
+            connection_id?: string;
+            /** @enum {string} */
+            provider: "forgejo" | "github" | "gitlab";
+            /** @description owner/name; for GitLab, the project path or ID */
+            repo: string;
+            /** @description CLAVIS_* names and values, usually CLAVIS_TOKEN_<ENV> */
+            secrets: {
+                [key: string]: string;
+            };
+            token?: string;
+        };
+        StoreCISecretsOutputBody: {
+            stored: string[] | null;
+        };
         SyncBody: {
             confirmed: boolean;
             /** @description Connection whose credential this sync uses; empty for an inline credential */
@@ -3890,6 +4025,8 @@ export interface components {
             last_synced_at?: string;
             provider: string;
             status: string;
+            /** @description Where the sync pushes, without credentials: a repository, project or path */
+            target: string;
         };
         SyncPreviewBody: {
             confirmed: boolean;
@@ -4023,11 +4160,18 @@ export interface components {
         VersionBody: {
             /** @example v1 */
             api_version: string;
+            /** @example 2026-11-14T15:02:00Z */
+            built?: string;
             commit?: string;
             /** @example clavis */
             name: string;
             /** @example 0.1.0 */
             version: string;
+        };
+        VersionValueOutputBody: {
+            value: string;
+            /** Format: int64 */
+            version: number;
         };
         VersionsOutputBody: {
             versions: components["schemas"]["SecretVersionBody"][] | null;
@@ -7900,6 +8044,8 @@ export interface operations {
                 reveal?: boolean;
                 channel?: "ui" | "cli" | "export" | "api";
                 overlay?: string;
+                /** @description Why the values are revealed; recorded in the audit log */
+                reason?: string;
             };
             header?: never;
             path: {
@@ -8221,6 +8367,43 @@ export interface operations {
             };
         };
     };
+    "get-secret-version": {
+        parameters: {
+            query?: {
+                reason?: string;
+            };
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+                key: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionValueOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "agent-secrets": {
         parameters: {
             query?: {
@@ -8284,6 +8467,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BatchOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "compare-secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+                env: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompareInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompareOutputBody"];
                 };
             };
             /** @description Error */
@@ -9097,6 +9317,78 @@ export interface operations {
             };
         };
     };
+    "store-ci-secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreCISecretsInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreCISecretsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-sync-repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ListRepositoriesInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryList"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "delete-sync": {
         parameters: {
             query?: never;
@@ -9697,6 +9989,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "rename-shared-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameSharedSetInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSetBody"];
+                };
             };
             /** @description Error */
             default: {

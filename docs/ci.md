@@ -73,6 +73,24 @@ jobs:
 Install the Clavis binary earlier in the job. If `.clavis.yaml` is not
 committed, add `CLAVIS_ORG`, `CLAVIS_PROJECT`, and `CLAVIS_ENV` to `env`.
 
+Or let the Clavis action install the CLI and load one environment into the
+job:
+
+```yaml
+      - uses: dumhouse/clavis/integrations/github-action@v0.3.3
+        with:
+          server: https://clavis.example.com
+          token: ${{ secrets.CLAVIS_TOKEN }}
+          environment: staging
+```
+
+## Forgejo and Gitea Actions
+
+Forgejo has no deployment environments, so one repository can't hold separate
+staging and production values for the same name. Store one machine token per
+environment and load the right one at run time with the same action:
+[Forgejo and Gitea Actions](./guides/forgejo-actions-secrets).
+
 ## GitLab CI
 
 ```yaml

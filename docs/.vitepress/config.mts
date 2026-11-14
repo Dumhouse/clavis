@@ -166,6 +166,7 @@ export default defineConfig({
           { text: 'Migration guides', link: '/migrations/' },
           { text: 'Replace .env files', link: '/guides/replace-env-files' },
           { text: 'GitHub Actions', link: '/guides/github-actions-secrets' },
+          { text: 'Forgejo and Gitea Actions', link: '/guides/forgejo-actions-secrets' },
           { text: 'Claude Code and Cursor', link: '/guides/claude-code-secrets' },
           { text: 'Compare with Vault, Infisical, Doppler', link: '/compare/' },
           { text: 'Fuzzing', link: '/fuzzing' },

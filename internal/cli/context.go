@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ func (o *Options) resolveContext(requireScope bool) (*resolvedContext, error) {
 		return nil, err
 	}
 	r := &resolvedContext{
-		Server:     firstNonEmpty(o.ServerURL, os.Getenv("CLAVIS_SERVER"), cfg.Server, defaultServer),
+		Server:     firstNonEmpty(o.ServerURL, os.Getenv("CLAVIS_SERVER"), cfg.Server, lastServer(), defaultServer),
 		Org:        firstNonEmpty(o.Org, os.Getenv("CLAVIS_ORG"), cfg.Org),
 		Project:    firstNonEmpty(o.Project, os.Getenv("CLAVIS_PROJECT"), cfg.Project),
 		Env:        firstNonEmpty(o.Env, os.Getenv("CLAVIS_ENV"), cfg.Env, "dev"),
@@ -78,6 +79,50 @@ func (r *resolvedContext) newAnonymousClient() (*client.Client, error) {
 		return nil, err
 	}
 	return client.New(r.Server, client.WithUserAgent("clavis-cli/"+version.Version), client.WithHTTPClient(hc))
+}
+
+// lastServerPath is where `clavis login` remembers the server it signed in
+// to, so commands in a directory without .clavis.yaml (like `clavis init`)
+// use it instead of localhost.
+func lastServerPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "clavis", "server"), nil
+}
+
+func lastServer() string {
+	path, err := lastServerPath()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // G304: the user's own config file
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func rememberServer(server string) error {
+	path, err := lastServerPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(server+"\n"), 0o600)
+}
+
+// forgetServer drops the remembered server when signing out of it.
+func forgetServer(server string) {
+	if lastServer() != server {
+		return
+	}
+	if path, err := lastServerPath(); err == nil {
+		_ = os.Remove(path)
+	}
 }
 
 func firstNonEmpty(values ...string) string {

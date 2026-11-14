@@ -405,10 +405,15 @@ func (s *Server) registerRoutes() error {
 		Summary:     "Server and API version",
 		Tags:        []string{"system"},
 	}, func(_ context.Context, _ *struct{}) (*VersionOutput, error) {
+		built := version.Date
+		if built == "unknown" {
+			built = ""
+		}
 		return &VersionOutput{Body: VersionBody{
 			Name:       "clavis",
 			Version:    version.Version,
 			Commit:     version.Commit,
+			Built:      built,
 			APIVersion: "v1",
 		}}, nil
 	})
@@ -548,9 +553,11 @@ func (s *Server) registerRoutes() error {
 
 // VersionBody is returned by GET /api/v1/version.
 type VersionBody struct {
-	Name       string `json:"name" example:"clavis"`
-	Version    string `json:"version" example:"0.1.0"`
-	Commit     string `json:"commit,omitempty"`
+	Name    string `json:"name" example:"clavis"`
+	Version string `json:"version" example:"0.1.0"`
+	Commit  string `json:"commit,omitempty"`
+	// Built is when the binary was built (RFC 3339), when known.
+	Built      string `json:"built,omitempty" example:"2026-11-14T15:02:00Z"`
 	APIVersion string `json:"api_version" example:"v1"`
 }
 

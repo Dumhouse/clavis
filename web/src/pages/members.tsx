@@ -16,6 +16,7 @@ import { ensureReauth } from '@/lib/reauth'
 import { confirmAction } from '@/components/ui/dialogs'
 import { Input, Select } from '@/components/ui/field'
 import { useShortcuts } from '@/lib/use-shortcuts'
+import { formatDate as formatDay } from '@/lib/format'
 
 type Member = components['schemas']['MemberBody']
 type Invite = components['schemas']['InviteBody']
@@ -514,9 +515,7 @@ function InviteForm({
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatDay(value, value)
 }
 
 function errorMessage(error: unknown): string {
