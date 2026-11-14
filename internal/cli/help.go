@@ -313,13 +313,14 @@ func containsAll(text, query string) bool {
 }
 
 func subsequence(text, query string) bool {
+	want := []rune(query)
 	i := 0
 	for _, r := range text {
-		if i < len(query) && byte(r) == query[i] {
+		if i < len(want) && r == want[i] {
 			i++
 		}
 	}
-	return i == len(query)
+	return i == len(want)
 }
 
 var (
