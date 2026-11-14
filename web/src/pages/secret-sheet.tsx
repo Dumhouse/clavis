@@ -102,14 +102,25 @@ export function SecretSheet({
 
       <div role="tablist" aria-label="Environment" className="flex gap-1 overflow-x-auto px-5 pt-3">
         {envs.map((candidate) => {
-          const present = Boolean(secretIn(candidate.slug))
+          const here = secretIn(candidate.slug)
           const selected = candidate.slug === env?.slug
+          const summary = here
+            ? [
+                here.inherited
+                  ? `Inherited from ${here.source_environment ?? 'another environment'}`
+                  : `Version ${String(here.version)}`,
+                here.updated_at ? `updated ${formatDateTime(here.updated_at)}` : '',
+              ]
+                .filter(Boolean)
+                .join(', ')
+            : `Not set in ${candidate.slug}`
           return (
             <button
               key={candidate.id}
               type="button"
               role="tab"
               aria-selected={selected}
+              title={summary}
               onClick={() => {
                 setEnvSlug(candidate.slug)
               }}
@@ -124,7 +135,13 @@ export function SecretSheet({
                 {candidate.slug}
               </span>
               {candidate.protected && <Lock className="size-3 text-dim" aria-label="protected" />}
-              {!present && <span className="text-3xs text-dim">unset</span>}
+              {here ? (
+                <span className="font-mono text-3xs text-dim">
+                  {here.inherited ? 'inherited' : `v${String(here.version)}`}
+                </span>
+              ) : (
+                <span className="text-3xs text-dim">unset</span>
+              )}
             </button>
           )
         })}

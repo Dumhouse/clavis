@@ -377,7 +377,7 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                   <div>
                     <p className="text-sm font-medium">Theme</p>
                     <p className="text-xs text-muted">
-                      System, dark, or light. Saved in this browser.
+                      System, dark, or light. Saved to your account.
                     </p>
                     <div className="mt-2 flex gap-2">
                       <Button
@@ -443,6 +443,9 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                         value={formatPrefs.date}
                         onChange={(event) => {
                           setFormatPrefs({ date: event.target.value as DateFormat })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { date_format: event.target.value as DateFormat },
+                          })
                         }}
                       >
                         {dateFormats.map((option) => (
@@ -459,6 +462,9 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                         value={formatPrefs.time}
                         onChange={(event) => {
                           setFormatPrefs({ time: event.target.value as TimeFormat })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { time_format: event.target.value as TimeFormat },
+                          })
                         }}
                       >
                         {timeFormats.map((option) => (
@@ -471,7 +477,7 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                     <p className="text-xs text-muted sm:col-span-2">
                       Now: <span className="font-mono text-text">{formatDate(sampleDate)}</span>{' '}
                       <span className="font-mono text-text">{formatClock(sampleDate)}</span>. Saved
-                      in this browser.
+                      to your account.
                     </p>
                     <label className="block">
                       <span className="text-sm font-medium">Font</span>
@@ -480,6 +486,9 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                         value={fonts.ui}
                         onChange={(event) => {
                           setFontPrefs({ ui: event.target.value })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { font: event.target.value },
+                          })
                           setFonts(fontPrefs())
                         }}
                       >
@@ -498,6 +507,9 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                         value={fonts.mono}
                         onChange={(event) => {
                           setFontPrefs({ mono: event.target.value })
+                          void api.PATCH('/api/v1/auth/preferences', {
+                            body: { font_mono: event.target.value },
+                          })
                           setFonts(fontPrefs())
                         }}
                       >

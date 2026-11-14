@@ -2495,6 +2495,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a newer Clavis release exists, and how to update this server */
+        get: operations["get-update-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/version": {
         parameters: {
             query?: never;
@@ -3276,6 +3293,12 @@ export interface components {
             last_used_ip?: string;
             prefix: string;
         };
+        Install: {
+            command?: string;
+            label: string;
+            method: string;
+            note?: string;
+        };
         InviteBody: {
             /** Format: date-time */
             created_at: string;
@@ -3544,13 +3567,31 @@ export interface components {
         };
         PreferencesBody: {
             appearance: string;
+            date_format?: string;
+            font?: string;
+            font_mono?: string;
             theme: string;
+            time_format?: string;
         };
         PreferencesInputBody: {
             /** @enum {string} */
-            appearance: "classic" | "warm";
+            appearance?: "classic" | "warm";
+            /**
+             * @description Date format.
+             * @enum {string}
+             */
+            date_format?: "auto" | "dmy-dot" | "dmy-slash" | "mdy" | "iso";
+            /** @description Interface font id. */
+            font?: string;
+            /** @description Code font id. */
+            font_mono?: string;
             /** @enum {string} */
-            theme: "system" | "dark" | "light";
+            theme?: "system" | "dark" | "light";
+            /**
+             * @description Time format.
+             * @enum {string}
+             */
+            time_format?: "auto" | "24h" | "12h";
         };
         ProjectBatchChange: {
             comment?: string;
@@ -4069,6 +4110,17 @@ export interface components {
             detail: string;
             identity?: string;
             ok: boolean;
+        };
+        UpdateBody: {
+            /** Format: date-time */
+            checked_at?: string;
+            current: string;
+            /** @description False when the server's update check is turned off. */
+            enabled: boolean;
+            install: components["schemas"]["Install"];
+            latest?: string;
+            release_url?: string;
+            update_available: boolean;
         };
         UpdateConnectionInputBody: {
             aws_access_key?: string;
@@ -10529,6 +10581,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClaimShareOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-update-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateBody"];
                 };
             };
             /** @description Error */

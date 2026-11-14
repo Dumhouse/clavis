@@ -4913,3 +4913,76 @@ func TestRevealSecretVersion(t *testing.T) {
 		t.Fatalf("missing version = %d body=%s", rec.Code, rec.Body)
 	}
 }
+
+// The web UI's update notice reads this endpoint; it needs a session and
+// reports the release found by the daily check and how to update this server.
+func TestUpdateStatus(t *testing.T) {
+	releases := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name":"v99.0.0"}`))
+	}))
+	defer releases.Close()
+	f := newFixtureOptions(t, server.WithReleasesURL(releases.URL))
+	owner, _ := f.setup(t)
+
+	anon := &apiClient{t: t, h: f.srv.Handler()}
+	if rec := anon.request(http.MethodGet, "/api/v1/system/update", nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous = %d", rec.Code)
+	}
+	type body struct {
+		Enabled         bool   `json:"enabled"`
+		Latest          string `json:"latest"`
+		UpdateAvailable bool   `json:"update_available"`
+		ReleaseURL      string `json:"release_url"`
+		Install         struct {
+			Method string `json:"method"`
+		} `json:"install"`
+	}
+	before := decode[body](t, owner.request(http.MethodGet, "/api/v1/system/update", nil))
+	if !before.Enabled || before.Latest != "" || before.UpdateAvailable || before.Install.Method == "" {
+		t.Fatalf("before check = %+v", before)
+	}
+	if err := f.srv.CheckForUpdates(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	after := decode[body](t, owner.request(http.MethodGet, "/api/v1/system/update", nil))
+	// Test builds are "dev", which is never reported as outdated.
+	if after.Latest != "99.0.0" || after.ReleaseURL != "https://github.com/Dumhouse/clavis/releases/tag/v99.0.0" {
+		t.Fatalf("after check = %+v", after)
+	}
+}
+
+// Date, time and font choices are saved on the account; a PATCH with one
+// field keeps the others.
+func TestPreferencesMerge(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"theme": "light", "appearance": "warm"}); rec.Code != http.StatusOK {
+		t.Fatalf("theme = %d body=%s", rec.Code, rec.Body)
+	}
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"date_format": "dmy-dot"}); rec.Code != http.StatusOK {
+		t.Fatalf("date = %d body=%s", rec.Code, rec.Body)
+	}
+	rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"font": "inter", "time_format": "24h"})
+	got := decode[struct {
+		Theme      string `json:"theme"`
+		Appearance string `json:"appearance"`
+		DateFormat string `json:"date_format"`
+		TimeFormat string `json:"time_format"`
+		Font       string `json:"font"`
+	}](t, rec)
+	if got.Theme != "light" || got.Appearance != "warm" || got.DateFormat != "dmy-dot" || got.TimeFormat != "24h" || got.Font != "inter" {
+		t.Fatalf("merged = %+v", got)
+	}
+	if rec := owner.request(http.MethodPatch, "/api/v1/auth/preferences", map[string]any{"date_format": "yyyy"}); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("bad date format = %d", rec.Code)
+	}
+	me := decode[struct {
+		Preferences struct {
+			DateFormat string `json:"date_format"`
+			Font       string `json:"font"`
+		} `json:"preferences"`
+	}](t, owner.request(http.MethodGet, "/api/v1/auth/me", nil))
+	if me.Preferences.DateFormat != "dmy-dot" || me.Preferences.Font != "inter" {
+		t.Fatalf("me = %+v", me.Preferences)
+	}
+}

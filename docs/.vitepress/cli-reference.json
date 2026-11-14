@@ -109,6 +109,7 @@
         "setup-token",
         "admin",
         "health",
+        "update",
         "upgrade",
         "version"
       ]
@@ -4037,6 +4038,29 @@
       "related": [
         "init",
         "link"
+      ]
+    },
+    {
+      "path": "update",
+      "slug": "update",
+      "group": "server",
+      "usage": "clavis update",
+      "summary": "Check for a new release and show how to update",
+      "description": "Check GitHub for a newer release and print the command that updates this\ncopy of Clavis. It works out how Clavis was installed (Homebrew, Scoop,\nWinGet, Docker, Helm, a .deb, .rpm or .apk package, `go install`, the\ninstall script, or a build from source) and shows the matching command.\nIt also shows the version of your server.\n\nInteractive commands print a short note once every few days when an\nupdate is waiting, or when the CLI and the server differ in minor\nversion. The check runs at most once a day, sends nothing about you, and\nis skipped in CI. Set `CLAVIS_NO_UPDATE_CHECK=1` to turn it off.",
+      "examples": [
+        {
+          "run": "clavis update"
+        },
+        {
+          "title": "For scripts",
+          "run": "clavis update --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "version",
+        "upgrade"
       ]
     },
     {

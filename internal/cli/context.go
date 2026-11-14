@@ -22,6 +22,8 @@ type resolvedContext struct {
 	Token      string
 	ConfigPath string
 	Cache      bool
+	// ServerFrom says where Server came from, for error messages.
+	ServerFrom string
 }
 
 const defaultServer = "http://localhost:8080"
@@ -41,6 +43,18 @@ func (o *Options) resolveContext(requireScope bool) (*resolvedContext, error) {
 		Cache:      cfg.Cache,
 	}
 	r.Server = strings.TrimRight(r.Server, "/")
+	switch {
+	case strings.TrimSpace(o.ServerURL) != "":
+		r.ServerFrom = "--server"
+	case strings.TrimSpace(os.Getenv("CLAVIS_SERVER")) != "":
+		r.ServerFrom = "CLAVIS_SERVER"
+	case strings.TrimSpace(cfg.Server) != "":
+		r.ServerFrom = path
+	case lastServer() != "":
+		r.ServerFrom = "your last login"
+	default:
+		r.ServerFrom = "the default"
+	}
 
 	if token := os.Getenv("CLAVIS_TOKEN"); token != "" {
 		r.Token = token
@@ -60,7 +74,7 @@ func (o *Options) resolveContext(requireScope bool) (*resolvedContext, error) {
 
 func (r *resolvedContext) newClient() (*client.Client, error) {
 	if r.Token == "" {
-		return nil, fmt.Errorf("not logged in to %s. Run: clavis login --server %s", r.Server, r.Server)
+		return nil, r.notLoggedIn()
 	}
 	hc, err := httpClientFor(r.Server, 30*time.Second)
 	if err != nil {
@@ -71,6 +85,18 @@ func (r *resolvedContext) newClient() (*client.Client, error) {
 		client.WithUserAgent("clavis-cli/"+version.Version),
 		client.WithHTTPClient(hc),
 	)
+}
+
+// notLoggedIn explains which server was asked and why, and points at the
+// server you did sign in to when that is a different one.
+func (r *resolvedContext) notLoggedIn() error {
+	msg := fmt.Sprintf("not logged in to %s (from %s). Run: clavis login --server %s", r.Server, r.ServerFrom, r.Server)
+	if last := strings.TrimRight(lastServer(), "/"); last != "" && last != r.Server {
+		if _, err := credentialStore().Get(last); err == nil {
+			msg += fmt.Sprintf("\nYou are signed in to %s. Use --server %s, set CLAVIS_SERVER=%s, or run `clavis init` to save it in .clavis.yaml.", last, last, last)
+		}
+	}
+	return errors.New(msg)
 }
 
 func (r *resolvedContext) newAnonymousClient() (*client.Client, error) {

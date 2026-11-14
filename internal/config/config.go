@@ -120,6 +120,13 @@ type ServerConfig struct {
 	MaxBodyBytes       int64    `yaml:"max_body_bytes"`
 	MetricsPublic      bool     `yaml:"metrics_public"`
 	RateLimitPerMinute int      `yaml:"rate_limit_per_minute"`
+	// UpdateCheck asks GitHub once a day whether a newer release exists, so
+	// admins see an update notice in the web UI. Nothing about the instance is
+	// sent. On by default; air-gapped servers can turn it off.
+	UpdateCheck bool `yaml:"update_check"`
+	// UpdateCheckURL replaces the GitHub releases endpoint, for a mirror. It
+	// must answer like GitHub's "latest release" API (a JSON tag_name).
+	UpdateCheckURL string `yaml:"update_check_url"`
 	// TrustedProxies lists CIDRs or IPs of reverse proxies whose
 	// X-Forwarded-For / X-Real-IP headers are believed. Empty (the default)
 	// means those headers are ignored and the socket peer is the client.
@@ -231,6 +238,7 @@ func Default() *Config {
 			MaxBodyBytes:       1 << 20, // 1 MiB
 			MetricsPublic:      true,
 			RateLimitPerMinute: 600,
+			UpdateCheck:        true,
 		},
 		Database: DatabaseConfig{Driver: "sqlite"},
 		Backup:   BackupConfig{Interval: Duration(24 * time.Hour), Keep: 7},
@@ -403,6 +411,7 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_EMAIL_FROM", &c.Email.From)
 	setString("CLAVIS_EMAIL_TLS", &c.Email.TLS)
 	setString("CLAVIS_BREACH_CHECK_URL", &c.Security.BreachCheckURL)
+	setString("CLAVIS_UPDATE_CHECK_URL", &c.Server.UpdateCheckURL)
 	setString("CLAVIS_TLS", &c.Server.TLS.Mode)
 	setString("CLAVIS_TLS_ADDR", &c.Server.TLS.Addr)
 	setString("CLAVIS_TLS_CERT_FILE", &c.Server.TLS.CertFile)
@@ -452,6 +461,7 @@ func applyEnv(c *Config) error {
 		setBool("CLAVIS_DEV", &c.Server.Dev),
 		setBool("CLAVIS_BACKUP_ENABLED", &c.Backup.Enabled),
 		setBool("CLAVIS_METRICS_PUBLIC", &c.Server.MetricsPublic),
+		setBool("CLAVIS_UPDATE_CHECK", &c.Server.UpdateCheck),
 		setDuration("CLAVIS_READ_TIMEOUT", &c.Server.ReadTimeout),
 		setDuration("CLAVIS_WRITE_TIMEOUT", &c.Server.WriteTimeout),
 		setDuration("CLAVIS_IDLE_TIMEOUT", &c.Server.IdleTimeout),

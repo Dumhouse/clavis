@@ -53,7 +53,7 @@ groups:
   - id: server
     title: "Server and administration"
     description: "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades."
-    commands: [server, setup-token, admin, health, upgrade, version]
+    commands: [server, setup-token, admin, health, update, upgrade, version]
 
 commands:
   # Get started
@@ -1220,6 +1220,24 @@ commands:
       - title: "Verify and replace the current binary"
         run: "clavis upgrade clavis_linux_amd64.tar.gz --install"
     related: [version]
+
+  update:
+    description: |-
+      Check GitHub for a newer release and print the command that updates this
+      copy of Clavis. It works out how Clavis was installed (Homebrew, Scoop,
+      WinGet, Docker, Helm, a .deb, .rpm or .apk package, `go install`, the
+      install script, or a build from source) and shows the matching command.
+      It also shows the version of your server.
+
+      Interactive commands print a short note once every few days when an
+      update is waiting, or when the CLI and the server differ in minor
+      version. The check runs at most once a day, sends nothing about you, and
+      is skipped in CI. Set `CLAVIS_NO_UPDATE_CHECK=1` to turn it off.
+    examples:
+      - run: "clavis update"
+      - title: "For scripts"
+        run: "clavis update --json"
+    related: [version, upgrade]
 
   version:
     description: "Print the version, commit and build date."

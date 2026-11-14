@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 122 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 123 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -124,6 +124,7 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./setup-token"><span class="cli-card-name"><code>clavis setup-token</code></span><span class="cli-card-text">Print the one-time first-run setup token</span></a>
 <a class="cli-card" href="./admin"><span class="cli-card-name"><code>clavis admin</code><span class="cli-card-meta">9 commands</span></span><span class="cli-card-text">Instance administration</span></a>
 <a class="cli-card" href="./health"><span class="cli-card-name"><code>clavis health</code></span><span class="cli-card-text">Show organization health findings</span></a>
+<a class="cli-card" href="./update"><span class="cli-card-name"><code>clavis update</code></span><span class="cli-card-text">Check for a new release and show how to update</span></a>
 <a class="cli-card" href="./upgrade"><span class="cli-card-name"><code>clavis upgrade</code></span><span class="cli-card-text">Verify a signed release artifact and install it</span></a>
 <a class="cli-card" href="./version"><span class="cli-card-name"><code>clavis version</code></span><span class="cli-card-text">Print version information</span></a>
 </div>

@@ -1,5 +1,5 @@
 /*
- * Font preference (Settings → Appearance), saved in this browser. It
+ * Font preference (Settings → Appearance), saved in this browser and on the account. It
  * overrides the --font / --font-mono variables the styles use. "Style
  * default" keeps what Classic (Geist) or Warm (Manrope) sets.
  *
@@ -110,4 +110,12 @@ export function setFontPrefs(next: { ui?: string; mono?: string }) {
     // Applies for this visit only.
   }
   applyFonts()
+}
+
+/** Applies the fonts saved on the account (empty means not chosen yet). */
+export function applyAccountFontPrefs(ui?: string, mono?: string) {
+  const next: { ui?: string; mono?: string } = {}
+  if (uiFonts.some((option) => option.value === ui)) next.ui = ui as string
+  if (monoFonts.some((option) => option.value === mono)) next.mono = mono as string
+  if (next.ui !== undefined || next.mono !== undefined) setFontPrefs(next)
 }

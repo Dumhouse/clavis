@@ -118,7 +118,7 @@ export default defineConfig({
     logo: '/brand/logo-mark.svg',
     siteTitle: 'Clavis',
     nav: [
-      { text: 'Docs', link: '/quickstart', activeMatch: '^/(quickstart|install|https|ci|architecture|self-hosting|helm|migrations)' },
+      { text: 'Docs', link: '/quickstart', activeMatch: '^/(quickstart|install|https|ci|architecture|self-hosting|helm|migrations|updating|web-app)' },
       { text: 'CLI', link: '/reference/', activeMatch: '^/(reference|commands)' },
       { text: 'Agents', link: '/agents', activeMatch: '^/agents' },
       { text: 'Security', link: '/security', activeMatch: '^/(security|supply-chain|reproducible-builds|vulnerability-disclosure)' },
@@ -141,6 +141,7 @@ export default defineConfig({
         items: [
           { text: 'Download', link: '/download' },
           { text: 'Quickstart', link: '/quickstart' },
+          { text: 'Using the web app', link: '/web-app' },
           { text: 'Install wizard (Docker)', link: '/install' },
           { text: 'Product tour', link: '/screenshots' },
           { text: 'CI and machine tokens', link: '/ci' },
@@ -154,6 +155,7 @@ export default defineConfig({
         items: [
           { text: 'Self-hosting', link: '/self-hosting' },
           { text: 'HTTPS and certificates', link: '/https' },
+          { text: 'Updating Clavis', link: '/updating' },
           { text: 'Security design', link: '/security' },
           { text: 'Supply chain', link: '/supply-chain' },
           { text: 'Reproducible builds', link: '/reproducible-builds' },

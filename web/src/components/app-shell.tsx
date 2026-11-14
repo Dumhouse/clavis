@@ -41,6 +41,7 @@ import { Button } from '@/components/ui/button'
 import { Menu } from '@/components/ui/menu'
 import { Modal } from '@/components/ui/modal'
 import { useTheme } from '@/components/theme-provider'
+import { UpdateNotice } from '@/components/update-notice'
 import { useAuth } from '@/lib/auth'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
@@ -417,6 +418,7 @@ export function AppShell() {
               /^\/projects\/[^/]+\/?$/.test(pathname) ? 'max-w-[110rem]' : 'max-w-6xl',
             )}
           >
+            <UpdateNotice canManage={org?.role === 'Owner' || org?.role === 'Admin'} />
             <Outlet />
           </div>
         </main>

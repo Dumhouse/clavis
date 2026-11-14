@@ -55,6 +55,14 @@ export function setFormatPrefs(next: Partial<Prefs>) {
   window.dispatchEvent(new CustomEvent(event))
 }
 
+/** Applies the choices saved on the account (empty means not chosen yet). */
+export function applyAccountFormatPrefs(date?: string, time?: string) {
+  const next: Partial<Prefs> = {}
+  if (dateFormats.some((option) => option.value === date)) next.date = date as DateFormat
+  if (timeFormats.some((option) => option.value === time)) next.time = time as TimeFormat
+  if (next.date !== undefined || next.time !== undefined) setFormatPrefs(next)
+}
+
 function subscribe(callback: () => void) {
   window.addEventListener(event, callback)
   return () => {

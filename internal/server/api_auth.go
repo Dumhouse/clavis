@@ -51,9 +51,16 @@ type loginInput struct {
 	}
 }
 
+// preferencesBody is the caller's own display settings. The date, time and
+// font choices are empty until the user picks one ("auto" and "default" keep
+// the browser's and the style's own).
 type preferencesBody struct {
 	Theme      string `json:"theme"`
 	Appearance string `json:"appearance"`
+	DateFormat string `json:"date_format,omitempty"`
+	TimeFormat string `json:"time_format,omitempty"`
+	Font       string `json:"font,omitempty"`
+	FontMono   string `json:"font_mono,omitempty"`
 }
 
 type sessionBody struct {
@@ -671,7 +678,30 @@ func (s *Server) registerAuthRoutes() error {
 		if !ok {
 			return nil, withRequestID(ctx, problem.Unauthorized("Sign in to continue."))
 		}
-		body := preferencesBody{Theme: in.Body.Theme, Appearance: in.Body.Appearance}
+		// Fields left out keep their stored value, so each setting can be saved on
+		// its own.
+		body := preferencesBody{Theme: "dark", Appearance: "classic"}
+		if principal.User.Preferences != "" {
+			_ = json.Unmarshal([]byte(principal.User.Preferences), &body)
+		}
+		if in.Body.Theme != "" {
+			body.Theme = in.Body.Theme
+		}
+		if in.Body.Appearance != "" {
+			body.Appearance = in.Body.Appearance
+		}
+		if in.Body.DateFormat != "" {
+			body.DateFormat = in.Body.DateFormat
+		}
+		if in.Body.TimeFormat != "" {
+			body.TimeFormat = in.Body.TimeFormat
+		}
+		if in.Body.Font != "" {
+			body.Font = in.Body.Font
+		}
+		if in.Body.FontMono != "" {
+			body.FontMono = in.Body.FontMono
+		}
 		if body.Theme != "dark" && body.Theme != "light" && body.Theme != "system" {
 			return nil, withRequestID(ctx, problem.New(http.StatusUnprocessableEntity, "invalid_theme", "Invalid theme", "Use system, dark, or light."))
 		}
@@ -756,8 +786,12 @@ type mfaRecoveryOutput struct {
 
 type preferencesInput struct {
 	Body struct {
-		Theme      string `json:"theme" enum:"system,dark,light"`
-		Appearance string `json:"appearance" enum:"classic,warm"`
+		Theme      string `json:"theme,omitempty" enum:"system,dark,light"`
+		Appearance string `json:"appearance,omitempty" enum:"classic,warm"`
+		DateFormat string `json:"date_format,omitempty" enum:"auto,dmy-dot,dmy-slash,mdy,iso" doc:"Date format."`
+		TimeFormat string `json:"time_format,omitempty" enum:"auto,24h,12h" doc:"Time format."`
+		Font       string `json:"font,omitempty" maxLength:"32" pattern:"^[a-z0-9-]*$" doc:"Interface font id."`
+		FontMono   string `json:"font_mono,omitempty" maxLength:"32" pattern:"^[a-z0-9-]*$" doc:"Code font id."`
 	}
 }
 

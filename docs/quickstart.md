@@ -228,7 +228,6 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_EMAIL_FROM` | — | From address (display name allowed) |
 | `CLAVIS_BREACH_CHECK` | `false` | Check new passwords against the HIBP range API (k-anonymity) |
 | `CLAVIS_BREACH_CHECK_URL` | HIBP range API | Override the breach-check endpoint |
-| `CLAVIS_OUTBOUND_ALLOWLIST` | | Comma-separated IPs or CIDRs that integrations may reach although they are private, for example a Forgejo on your LAN: `192.168.100.0/24` |
 | `CLAVIS_RATE_LIMIT_PER_MINUTE` | `600` | Per-identity API rate limit; `0` disables |
 | `CLAVIS_BACKUP_ENABLED` | `false` | Write encrypted database backups from the server |
 | `CLAVIS_BACKUP_DIR` | `<data>/backups` | Backup output directory |
@@ -236,6 +235,8 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_BACKUP_KEEP` | `7` | Number of backup files to retain |
 | `CLAVIS_OUTBOUND_ALLOWLIST` | — | Comma-separated IPs/CIDRs that syncs, webhooks, SSO discovery and audit exporters may reach even though they are private (for example `192.168.100.0/24` for a Forgejo on your LAN). Private, loopback and link-local addresses are blocked by default. |
 | `CLAVIS_TRUSTED_PROXIES` | — | Comma-separated IPs/CIDRs of reverse proxies whose `X-Forwarded-For`/`X-Real-IP` are trusted. Unset: those headers are ignored and the socket peer is the client IP (rate limits, audit log). Set it when running behind a proxy. |
+| `CLAVIS_UPDATE_CHECK` | `true` | Ask GitHub once a day whether a newer release exists, and show owners and admins an update notice with the command for this install. Sends nothing about the server. Set `false` for air-gapped servers. |
+| `CLAVIS_UPDATE_CHECK_URL` | GitHub releases API | A mirror that answers like GitHub's "latest release" endpoint |
 
 See [deploy/clavis.example.yaml](https://github.com/dumhouse/clavis/blob/main/deploy/clavis.example.yaml).
 

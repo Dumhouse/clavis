@@ -4,6 +4,27 @@
 
 ### Added
 
+- Update notices. The server checks GitHub once a day for a newer release
+  and shows owners and admins a notice with the command that updates this
+  install; "Later" hides it for a week. The CLI prints a short note at most
+  every three days and warns when it and the server differ in minor version.
+  Both work out how Clavis was installed (Homebrew, Scoop, WinGet, Docker,
+  Helm, .deb, .rpm, .apk, `go install`, the install script, or a build from
+  source) and show the matching command. `clavis update` checks right away.
+  The check sends nothing about the install; turn it off with
+  `CLAVIS_UPDATE_CHECK=false` (server) or `CLAVIS_NO_UPDATE_CHECK=1` (CLI),
+  or point it at a mirror with `CLAVIS_UPDATE_CHECK_URL`. New endpoint:
+  `GET /api/v1/system/update`.
+- Date format, time format and fonts are saved to your account
+  (`PATCH /api/v1/auth/preferences` takes `date_format`, `time_format`,
+  `font` and `font_mono`, and keeps fields you leave out), so they follow you
+  to other browsers.
+- "Not logged in" errors say where the server address came from and, when
+  you are signed in to a different server, how to use it.
+- The key panel's environment tabs show each environment's version, or
+  "inherited" / "unset", with the last update in the tooltip.
+- New docs pages: Using the web app, and Updating Clavis.
+- Web unit tests (`pnpm --dir web test`) for date parsing and formatting.
 - The Clavis action works on Forgejo and Gitea Actions as well as GitHub:
   `environment: prod` plus a machine token loads that environment into the job.
   It installs the CLI itself (checksum verified), keeps multi-line values,
