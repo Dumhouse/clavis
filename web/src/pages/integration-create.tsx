@@ -114,7 +114,13 @@ export const providers: Provider[] = [
         ?.trim()
         .replace(/\/api\/v3\/?$/, '')
         .replace(/\/+$/, '')
-      const web = !raw || raw.includes('api.github.com') ? 'https://github.com' : raw
+      let host = ''
+      try {
+        host = raw ? new URL(raw).hostname : ''
+      } catch {
+        // Not a URL yet; use it as typed.
+      }
+      const web = !raw || host === 'api.github.com' ? 'https://github.com' : raw
       return `${web}/settings/personal-access-tokens/new`
     },
     name: 'GitHub Actions',
