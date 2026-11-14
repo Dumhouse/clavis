@@ -467,7 +467,7 @@ func TestExportCIEnv(t *testing.T) {
 	t.Setenv("GITHUB_ENV", envFile)
 	var stdout, stderr bytes.Buffer
 	out := NewTestOutput(&stdout, &stderr, false, false)
-	values := map[string]string{
+	values := map[string]string{ //nolint:gosec // G101: test fixture values, not real credentials
 		"DATABASE_URL": "postgres://u:p@db/x",
 		"PRIVATE_KEY":  "-----BEGIN KEY-----\nabc=\n-----END KEY-----",
 		"RAILS_ENV":    "production",

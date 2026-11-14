@@ -101,7 +101,7 @@ func (s *Service) StoreCISecrets(ctx context.Context, actor authz.Actor, orgSlug
 		return nil, fmt.Errorf("%w: storing CI secrets works for Forgejo, GitHub and GitLab", ErrValidation)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrValidation, err)
+		return nil, fmt.Errorf("%w: %w", ErrValidation, err)
 	}
 	if err := s.record(ctx, toAuditActor(actor), org.ID, "ci_access.secrets_stored",
 		audit.Resource{Type: "project", ID: project.ID, Name: project.Slug, ProjectID: project.ID},

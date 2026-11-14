@@ -110,7 +110,7 @@ func (s *Service) ListRepositories(ctx context.Context, actor authz.Actor, orgSl
 func repoFetchError(provider, base string, status int, err error) error {
 	switch {
 	case err != nil:
-		return fmt.Errorf("%w: could not reach %s: %v. Check the URL, and that the Clavis server can reach it (private addresses need CLAVIS_OUTBOUND_ALLOWLIST)", ErrValidation, base, err)
+		return fmt.Errorf("%w: could not reach %s: %w. Check the URL, and that the Clavis server can reach it (private addresses need CLAVIS_OUTBOUND_ALLOWLIST)", ErrValidation, base, err)
 	case status == http.StatusUnauthorized:
 		return fmt.Errorf("%w: %s rejected the token: it is wrong, expired or revoked", ErrValidation, provider)
 	case status == http.StatusForbidden:
@@ -142,7 +142,7 @@ func (s *Service) listForgejoRepositories(ctx context.Context, base, token strin
 			} `json:"permissions"`
 		}
 		if err := json.Unmarshal(body, &repos); err != nil {
-			return nil, fmt.Errorf("%w: unexpected answer from %s: %v", ErrValidation, base, err)
+			return nil, fmt.Errorf("%w: unexpected answer from %s: %w", ErrValidation, base, err)
 		}
 		for _, repo := range repos {
 			if repo.Archived {

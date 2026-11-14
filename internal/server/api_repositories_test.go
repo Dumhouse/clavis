@@ -102,7 +102,7 @@ func TestStoreCISecrets(t *testing.T) {
 
 	rec := owner.request(http.MethodPost, path, map[string]any{
 		"provider": "forgejo", "base_url": forgejo.URL, "token": "fj", "repo": "dawidof/nexo",
-		"secrets": map[string]string{"CLAVIS_TOKEN_STAGING": "clv_mt_a", "CLAVIS_TOKEN_PRODUCTION": "clv_mt_b"},
+		"secrets": map[string]string{"CLAVIS_TOKEN_STAGING": "clv_mt_a", "CLAVIS_TOKEN_PRODUCTION": "clv_mt_b"}, //nolint:gosec // G101: test fixture tokens
 	})
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "CLAVIS_TOKEN_PRODUCTION") {
 		t.Fatalf("store = %d %s", rec.Code, rec.Body)

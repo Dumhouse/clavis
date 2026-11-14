@@ -28,7 +28,7 @@ func newExportCommand(opts *Options) *cobra.Command {
 			err := run(cmd, args)
 			if err != nil && format == "github-env" {
 				// Show the cause and fix on the CI run page, not only in the log.
-				fmt.Fprintln(opts.output().Out, ciErrorAnnotation(err))
+				_, _ = fmt.Fprintln(opts.output().Out, ciErrorAnnotation(err))
 			}
 			return err
 		},
@@ -211,7 +211,7 @@ func exportCIEnv(out *Output, path string, values, kinds map[string]string) erro
 		if kinds[key] != "variable" {
 			for _, line := range strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n") {
 				if strings.TrimSpace(line) != "" {
-					fmt.Fprintf(out.Out, "::add-mask::%s\n", line)
+					_, _ = fmt.Fprintf(out.Out, "::add-mask::%s\n", line)
 				}
 			}
 		}
@@ -236,7 +236,7 @@ func exportCIEnv(out *Output, path string, values, kinds map[string]string) erro
 	}
 	if exported == 0 {
 		// An annotation, so an empty environment is visible on the run page.
-		fmt.Fprintln(out.Out, "::warning::Clavis returned no values for this environment. Check that the environment has keys and that the token's environment is the one you meant.")
+		_, _ = fmt.Fprintln(out.Out, "::warning::Clavis returned no values for this environment. Check that the environment has keys and that the token's environment is the one you meant.")
 		return nil
 	}
 	out.Info("Exported %d values to the job environment: %s", exported, strings.Join(names, ", "))
