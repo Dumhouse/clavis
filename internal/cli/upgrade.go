@@ -202,12 +202,14 @@ func replaceWithRelease(ctx context.Context, opts *Options, target, downloadBase
 }
 
 func downloadFile(ctx context.Context, url, path string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	// The URL is the GitHub release download or a mirror the user chose with
+	// --download-base / CLAVIS_DOWNLOAD_BASE; the file is checksum-verified.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // G704: user-chosen release URL
 	if err != nil {
 		return err
 	}
 	req.Header.Set("User-Agent", "clavis-cli/"+version.Version)
-	resp, err := downloadHTTPClient.Do(req)
+	resp, err := downloadHTTPClient.Do(req) //nolint:gosec // G704: user-chosen release URL
 	if err != nil {
 		return err
 	}
