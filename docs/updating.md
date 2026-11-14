@@ -21,7 +21,7 @@ when an update is waiting, at most once every three days:
 
 ```text
 ! Clavis 0.3.3 is available (you have 0.3.2). Run: clavis upgrade
-  Run `clavis update` for details. Turn these notes off with CLAVIS_NO_UPDATE_CHECK=1.
+  Run `clavis update` for details. Turn these notes off with CLAVIS_UPDATE_CHECK=false.
 ```
 
 It also warns when the CLI and your server differ in minor version (for
@@ -103,7 +103,7 @@ reached, Clavis tries again an hour later and stays quiet.
 | --- | --- |
 | Server | `CLAVIS_UPDATE_CHECK=false` (or `server.update_check: false`) |
 | Server behind a mirror | `CLAVIS_UPDATE_CHECK_URL=https://mirror.example.com/latest`, answering like GitHub's API |
-| CLI | `CLAVIS_NO_UPDATE_CHECK=1` |
+| CLI | `CLAVIS_UPDATE_CHECK=false` (the same variable) |
 
 The CLI never checks in CI (when `CI` is set), with `--json`, or when its
 output isn't a terminal, and commands whose output other programs read

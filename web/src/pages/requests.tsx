@@ -125,7 +125,7 @@ export function RequestsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="font-head text-2xl font-semibold tracking-tight">Requests</h1>
+        <h1 className="font-head text-2xl font-semibold tracking-tight">Access requests</h1>
         <p className="mt-1 text-base text-muted">
           Just-in-time access requests. Approvals create a time-bound project grant; requesters
           cannot approve themselves.

@@ -21,6 +21,13 @@ clavis env freezes
 
 List upcoming and active freeze windows.
 
+## Examples
+
+```sh
+clavis env freezes
+clavis env freezes --env production
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

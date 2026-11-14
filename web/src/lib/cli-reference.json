@@ -9,7 +9,6 @@
         "logout",
         "whoami",
         "init",
-        "link",
         "unlink",
         "trust"
       ]
@@ -775,8 +774,8 @@
       "flags": [],
       "subcommands": [
         "agents allow",
-        "agents ls",
-        "agents revoke"
+        "agents disallow",
+        "agents ls"
       ],
       "related": [
         "mcp",
@@ -804,6 +803,34 @@
       "related": []
     },
     {
+      "path": "agents disallow",
+      "slug": "agents-disallow",
+      "parent": "agents",
+      "group": "agents",
+      "usage": "clavis agents disallow IDENTITY [COMMAND...] [flags]",
+      "summary": "Remove command patterns from an agent allowlist",
+      "description": "Remove patterns, or `--clear` to go back to deny-all.",
+      "examples": [
+        {
+          "run": "clavis agents disallow coding-agent \"pnpm dev\""
+        },
+        {
+          "run": "clavis agents disallow coding-agent --clear"
+        }
+      ],
+      "flags": [
+        {
+          "name": "clear",
+          "usage": "remove every command pattern (deny all)"
+        }
+      ],
+      "subcommands": [],
+      "related": [],
+      "aliases": [
+        "revoke"
+      ]
+    },
+    {
       "path": "agents ls",
       "slug": "agents-ls",
       "parent": "agents",
@@ -817,31 +844,6 @@
         }
       ],
       "flags": [],
-      "subcommands": [],
-      "related": []
-    },
-    {
-      "path": "agents revoke",
-      "slug": "agents-revoke",
-      "parent": "agents",
-      "group": "agents",
-      "usage": "clavis agents revoke IDENTITY [COMMAND...] [flags]",
-      "summary": "Remove command patterns from an agent allowlist",
-      "description": "Remove patterns, or `--clear` to go back to deny-all.",
-      "examples": [
-        {
-          "run": "clavis agents revoke coding-agent \"pnpm dev\""
-        },
-        {
-          "run": "clavis agents revoke coding-agent --clear"
-        }
-      ],
-      "flags": [
-        {
-          "name": "clear",
-          "usage": "remove every command pattern (deny all)"
-        }
-      ],
       "subcommands": [],
       "related": []
     },
@@ -1015,7 +1017,14 @@
       "usage": "clavis connections create NAME [flags]",
       "summary": "Save a provider credential for the organization",
       "description": "Save a provider credential for the organization. Pass `--token -` to read it from stdin.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis connections create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
+        },
+        {
+          "run": "clavis connections create \"GitHub org\" --provider github --token \"$GITHUB_TOKEN\""
+        }
+      ],
       "flags": [
         {
           "name": "aws-access-key",
@@ -1079,7 +1088,14 @@
       "usage": "clavis connections ls [flags]",
       "summary": "List connections (credentials are never shown)",
       "description": "List connections and the syncs that use them. Credentials are never shown.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis connections ls"
+        },
+        {
+          "run": "clavis connections ls --provider forgejo"
+        }
+      ],
       "flags": [
         {
           "name": "provider",
@@ -1098,7 +1114,11 @@
       "usage": "clavis connections rm ID",
       "summary": "Delete a connection that no sync uses",
       "description": "Delete a connection that no sync uses. The token itself stays valid at the provider.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis connections rm 123e4567"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -1111,7 +1131,14 @@
       "usage": "clavis connections rotate ID [flags]",
       "summary": "Replace a connection's credential (or rename it / change its URL)",
       "description": "Replace a connection's credential, or rename it or change its URL. Every sync that uses it picks up the new value.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis connections rotate 123e4567 --token -"
+        },
+        {
+          "run": "clavis connections rotate 123e4567 --name \"Forgejo (main)\""
+        }
+      ],
       "flags": [
         {
           "name": "aws-access-key",
@@ -1347,7 +1374,14 @@
       "usage": "clavis env freezes",
       "summary": "List freeze windows",
       "description": "List upcoming and active freeze windows.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis env freezes"
+        },
+        {
+          "run": "clavis env freezes --env production"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": [
@@ -1379,7 +1413,11 @@
       "usage": "clavis env unfreeze FREEZE_ID",
       "summary": "Delete a freeze window",
       "description": "Delete a freeze window. Break-glass access also lifts an active freeze.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis env unfreeze 7f3a9c"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": [
@@ -1835,7 +1873,7 @@
       "group": "get-started",
       "usage": "clavis init [flags]",
       "summary": "Link this directory to a project",
-      "description": "Link the current folder to an organization, project and default\nenvironment by writing [`.clavis.yaml`](./clavis-yaml). The file holds no\nsecrets, so commit it: everyone on the team then gets the same context.\n\n`init` asks for anything it can't work out, offers to import an existing\n`.env`, and detects how to start your app (`package.json` scripts,\n`bin/rails`, `manage.py`, `artisan`, `go.mod`, `Cargo.toml`, Maven,\nGradle, Docker Compose) so a plain `clavis run` works right away.",
+      "description": "Link the current folder to an organization, project and default\nenvironment by writing [`.clavis.yaml`](./clavis-yaml). The file holds no\nsecrets, so commit it: everyone on the team then gets the same context.\n\n`init` asks for anything it can't work out, offers to import an existing\n`.env`, and detects how to start your app (`package.json` scripts,\n`bin/rails`, `manage.py`, `artisan`, `go.mod`, `Cargo.toml`, Maven,\nGradle, Docker Compose) so a plain `clavis run` works right away.\n\nRun it again to point the folder at another project or environment.\n`clavis link` is the same command.",
       "examples": [
         {
           "title": "Interactive",
@@ -1848,6 +1886,10 @@
         {
           "title": "Create the project too",
           "run": "clavis init --project-name \"Web app\""
+        },
+        {
+          "title": "Switch this folder to staging",
+          "run": "clavis init --project web-app --env staging"
         }
       ],
       "flags": [
@@ -1859,9 +1901,11 @@
       ],
       "subcommands": [],
       "related": [
-        "link",
         "unlink",
         "run"
+      ],
+      "aliases": [
+        "link"
       ]
     },
     {
@@ -1898,7 +1942,11 @@
       "usage": "clavis lease configs",
       "summary": "List dynamic secret configs",
       "description": "List credential sources set up with `lease setup`.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis lease configs"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -1934,7 +1982,11 @@
       "usage": "clavis lease ls CONFIG_ID",
       "summary": "List leases for a config",
       "description": "List a config's leases and their status.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis lease ls 4a1c…"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -1947,7 +1999,11 @@
       "usage": "clavis lease renew LEASE_ID [flags]",
       "summary": "Renew a lease",
       "description": "Extend a lease, up to the config's maximum TTL.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis lease renew 8d2e… --ttl 3600"
+        }
+      ],
       "flags": [
         {
           "name": "ttl",
@@ -1966,7 +2022,11 @@
       "usage": "clavis lease revoke LEASE_ID",
       "summary": "Revoke a lease and drop its credentials",
       "description": "Revoke a lease now: the generated database role is dropped.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis lease revoke 8d2e…"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -2109,25 +2169,6 @@
       "related": [],
       "aliases": [
         "config-create"
-      ]
-    },
-    {
-      "path": "link",
-      "slug": "link",
-      "group": "get-started",
-      "usage": "clavis link",
-      "summary": "Change the project linked to this directory",
-      "description": "Point this folder at another project or environment by updating `.clavis.yaml`.",
-      "examples": [
-        {
-          "run": "clavis link --project web-app --env staging"
-        }
-      ],
-      "flags": [],
-      "subcommands": [],
-      "related": [
-        "init",
-        "unlink"
       ]
     },
     {
@@ -2528,7 +2569,11 @@
       "usage": "clavis rotation disable POLICY_ID",
       "summary": "Pause a rotation schedule",
       "description": "Pause a schedule without deleting it.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis rotation disable 9b1e7d"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -2541,7 +2586,11 @@
       "usage": "clavis rotation enable POLICY_ID",
       "summary": "Resume a paused rotation schedule",
       "description": "Resume a paused schedule.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis rotation enable 9b1e7d"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -2554,7 +2603,11 @@
       "usage": "clavis rotation ls",
       "summary": "List rotation policies",
       "description": "List policies with their interval, next run and last status.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis rotation ls"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -2567,7 +2620,11 @@
       "usage": "clavis rotation rm POLICY_ID",
       "summary": "Delete a rotation policy",
       "description": "Delete a policy. The secret itself stays.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis rotation rm 9b1e7d"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -2597,7 +2654,11 @@
       "usage": "clavis rotation runs POLICY_ID",
       "summary": "Show rotation run history",
       "description": "Show a policy's run history with each phase and error.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis rotation runs 9b1e7d"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -3297,7 +3358,11 @@
       "usage": "clavis sets ls",
       "summary": "List shared sets",
       "description": "List the organization's shared sets.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis sets ls"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -3848,7 +3913,11 @@
       "usage": "clavis syncs logs ID",
       "summary": "Show recent sync runs",
       "description": "Show recent runs with status, key count and errors.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis syncs logs 123e4567"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -3861,7 +3930,14 @@
       "usage": "clavis syncs ls",
       "summary": "List syncs for the linked project",
       "description": "List the linked project's syncs.",
-      "examples": [],
+      "examples": [
+        {
+          "run": "clavis syncs ls"
+        },
+        {
+          "run": "clavis syncs ls --json"
+        }
+      ],
       "flags": [],
       "subcommands": [],
       "related": []
@@ -4045,8 +4121,7 @@
       "flags": [],
       "subcommands": [],
       "related": [
-        "init",
-        "link"
+        "init"
       ]
     },
     {
@@ -4055,7 +4130,7 @@
       "group": "server",
       "usage": "clavis update",
       "summary": "Check for a new release and show how to upgrade",
-      "description": "Check GitHub for a newer release and show how to install it, based on\nhow this copy was installed (Homebrew, Scoop, WinGet, Docker, Helm, a\npackage, the install script or a source build). `clavis update` only\nchecks; `clavis upgrade` installs.\n\nThe CLI also checks once a day by itself and prints a one-line notice\nat most every three days. `CLAVIS_NO_UPDATE_CHECK=1` turns that off; it\nis off in CI.",
+      "description": "Check GitHub for a newer release and show how to install it, based on\nhow this copy was installed (Homebrew, Scoop, WinGet, Docker, Helm, a\npackage, the install script or a source build). `clavis update` only\nchecks; `clavis upgrade` installs.\n\nThe CLI also checks once a day by itself and prints a one-line notice\nat most every three days. `CLAVIS_UPDATE_CHECK=false` turns that off; it\nis off in CI.",
       "examples": [
         {
           "run": "clavis update"

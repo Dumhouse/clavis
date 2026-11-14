@@ -21,6 +21,12 @@ clavis rotation enable POLICY_ID
 
 Resume a paused schedule.
 
+## Examples
+
+```sh
+clavis rotation enable 9b1e7d
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

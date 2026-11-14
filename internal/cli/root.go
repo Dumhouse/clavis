@@ -65,7 +65,6 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newLogoutCommand(opts))
 	root.AddCommand(newWhoamiCommand(opts))
 	root.AddCommand(newInitCommand(opts))
-	root.AddCommand(newLinkCommand(opts))
 	root.AddCommand(newUnlinkCommand(opts))
 	root.AddCommand(newSecretsCommand(opts))
 	root.AddCommand(newEnvCommand(opts))

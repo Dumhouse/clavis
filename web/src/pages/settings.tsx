@@ -1285,6 +1285,7 @@ function SettingsNav({ items }: { items: NavItem[] }) {
 
 function sessionLabel(userAgent: string): string {
   if (!userAgent) return 'Unknown device'
+  if (userAgent.startsWith('clavis-cli/')) return `Clavis CLI ${userAgent.slice(11)}`
   if (userAgent.includes('Edg/')) return 'Microsoft Edge'
   if (userAgent.includes('Chrome/')) return 'Chrome'
   if (userAgent.includes('Safari/')) return 'Safari'

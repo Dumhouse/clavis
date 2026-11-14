@@ -20,7 +20,7 @@ function slugify(name: string) {
 /**
  * Create an organization, or rename the current one. Renaming can change
  * the slug too; CLI configs (.clavis.yaml) that use the old slug then need
- * `clavis link`.
+ * `clavis init`.
  */
 export function OrgDialog({
   existing,
@@ -103,7 +103,7 @@ export function OrgDialog({
             label="Slug"
             hint={
               existing && nextSlug !== existing.slug
-                ? `Used in URLs and the CLI. Directories linked to “${existing.slug}” need \`clavis link\` afterwards.`
+                ? `Used in URLs and the CLI. Directories linked to “${existing.slug}” need \`clavis init\` afterwards.`
                 : 'Used in URLs and the CLI (clavis init --org …).'
             }
           >

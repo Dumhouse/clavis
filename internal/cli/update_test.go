@@ -18,7 +18,7 @@ func TestUpdateNoticePolicy(t *testing.T) {
 	lines := updateNotice(updateState{Latest: "0.3.3"}, now, "0.3.2", brew)
 	if len(lines) != 2 || !strings.Contains(lines[0], "0.3.3 is available") ||
 		!strings.Contains(lines[0], "Run: clavis upgrade") ||
-		!strings.Contains(lines[1], "CLAVIS_NO_UPDATE_CHECK") {
+		!strings.Contains(lines[1], "CLAVIS_UPDATE_CHECK=false") {
 		t.Fatalf("lines = %q", lines)
 	}
 	// Installs clavis can't upgrade itself get their own command.
@@ -104,7 +104,7 @@ func TestUpdateStateRoundTrip(t *testing.T) {
 
 func TestUpdateChecksDisabled(t *testing.T) {
 	t.Setenv("CI", "")
-	t.Setenv("CLAVIS_NO_UPDATE_CHECK", "")
+	t.Setenv("CLAVIS_UPDATE_CHECK", "")
 	if updateChecksDisabled() {
 		t.Fatal("enabled by default")
 	}
@@ -113,7 +113,7 @@ func TestUpdateChecksDisabled(t *testing.T) {
 		t.Fatal("CI turns it off")
 	}
 	t.Setenv("CI", "")
-	t.Setenv("CLAVIS_NO_UPDATE_CHECK", "1")
+	t.Setenv("CLAVIS_UPDATE_CHECK", "false")
 	if !updateChecksDisabled() {
 		t.Fatal("opt-out")
 	}

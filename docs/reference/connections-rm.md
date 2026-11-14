@@ -21,6 +21,12 @@ clavis connections rm ID
 
 Delete a connection that no sync uses. The token itself stays valid at the provider.
 
+## Examples
+
+```sh
+clavis connections rm 123e4567
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

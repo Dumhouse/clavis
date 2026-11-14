@@ -21,6 +21,13 @@ clavis connections ls [flags]
 
 List connections and the syncs that use them. Credentials are never shown.
 
+## Examples
+
+```sh
+clavis connections ls
+clavis connections ls --provider forgejo
+```
+
 ## Flags
 
 <dl class="cli-flags">

@@ -134,7 +134,7 @@ export const guides: DocGuide[] = [
         body: 'The allowlist starts deny-all. Patterns support * and ?; a bare * is rejected. An agent cannot change its own allowlist, and every denied or allowed command is audited.',
         snippets: [
           { code: 'clavis agents allow coding-agent "go test ./..." "npm test" "pnpm dev"' },
-          { code: 'clavis agents revoke coding-agent --clear' },
+          { code: 'clavis agents disallow coding-agent --clear' },
         ],
       },
       {

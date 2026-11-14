@@ -28,8 +28,8 @@ on the server, so an agent can't edit its own.
 
 <div class="cli-cards cli-cards-list">
 <a class="cli-card" href="./agents-allow"><span class="cli-card-name"><code>clavis agents allow</code></span><span class="cli-card-text">Add command patterns to an agent allowlist</span></a>
+<a class="cli-card" href="./agents-disallow"><span class="cli-card-name"><code>clavis agents disallow</code></span><span class="cli-card-text">Remove command patterns from an agent allowlist</span></a>
 <a class="cli-card" href="./agents-ls"><span class="cli-card-name"><code>clavis agents ls</code></span><span class="cli-card-text">List agent identities</span></a>
-<a class="cli-card" href="./agents-revoke"><span class="cli-card-name"><code>clavis agents revoke</code></span><span class="cli-card-text">Remove command patterns from an agent allowlist</span></a>
 </div>
 
 ## Examples

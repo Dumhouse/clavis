@@ -21,6 +21,13 @@ clavis connections rotate ID [flags]
 
 Replace a connection's credential, or rename it or change its URL. Every sync that uses it picks up the new value.
 
+## Examples
+
+```sh
+clavis connections rotate 123e4567 --token -
+clavis connections rotate 123e4567 --name "Forgejo (main)"
+```
+
 ## Flags
 
 <dl class="cli-flags">

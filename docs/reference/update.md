@@ -25,7 +25,7 @@ package, the install script or a source build). `clavis update` only
 checks; `clavis upgrade` installs.
 
 The CLI also checks once a day by itself and prints a one-line notice
-at most every three days. `CLAVIS_NO_UPDATE_CHECK=1` turns that off; it
+at most every three days. `CLAVIS_UPDATE_CHECK=false` turns that off; it
 is off in CI.
 
 ## Examples

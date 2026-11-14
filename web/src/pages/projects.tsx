@@ -304,14 +304,51 @@ function CollapseButton({
   )
 }
 
+const cliConnectedKey = 'clavis.cliConnected'
+
+/**
+ * Whether this user has signed in with the CLI. `clavis login` creates a
+ * session with a `clavis-cli/…` user agent; once seen, it is remembered in
+ * this browser so the step stays done after that session expires.
+ */
+function useCliConnected(): boolean {
+  const remembered = (() => {
+    try {
+      return localStorage.getItem(cliConnectedKey) === '1'
+    } catch {
+      return false
+    }
+  })()
+  const sessions = useQuery({
+    queryKey: ['auth-sessions'],
+    enabled: !remembered,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/auth/sessions')
+      if (result.error) return []
+      return result.data.sessions ?? []
+    },
+  })
+  const seen = (sessions.data ?? []).some((session) => session.user_agent.startsWith('clavis-cli/'))
+  if (seen && !remembered) {
+    try {
+      localStorage.setItem(cliConnectedKey, '1')
+    } catch {
+      // Storage can be unavailable; the session check still works.
+    }
+  }
+  return remembered || seen
+}
+
 function GettingStarted({ projectCount }: { projectCount: number }) {
+  const cliConnected = useCliConnected()
   const steps = [
     { label: 'Create your organization', done: true },
     { label: 'Create a project', done: projectCount > 0 },
-    { label: 'Connect the CLI', done: false },
+    { label: 'Connect the CLI', done: cliConnected },
   ]
   const completed = steps.filter((step) => step.done).length
   const [collapsed, toggle] = useCollapsed('getting-started')
+  if (completed === steps.length) return null
 
   return (
     <section className="rounded-app border border-border bg-surface p-4 shadow-app">
@@ -351,7 +388,7 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
             ))}
           </div>
         </div>
-        {!collapsed && (
+        {!collapsed && !cliConnected && (
           <Button
             variant="secondary"
             size="sm"

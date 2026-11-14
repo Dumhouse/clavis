@@ -21,6 +21,12 @@ clavis rotation disable POLICY_ID
 
 Pause a schedule without deleting it.
 
+## Examples
+
+```sh
+clavis rotation disable 9b1e7d
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

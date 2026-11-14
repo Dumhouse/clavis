@@ -16,7 +16,7 @@ const webRoot = resolve(here, '..')
 const repoRoot = resolve(webRoot, '..')
 const marker = join(webRoot, '.e2e-data-dir')
 const outDir = join(repoRoot, 'docs', 'assets', 'screenshots')
-const port = Number(process.env.CLAVIS_SHOT_PORT ?? 18110)
+const port = Number(process.env.CLAVIS_E2E_PORT ?? 18110)
 const base = `http://127.0.0.1:${port}`
 const password = 'correct horse battery staple'
 
@@ -181,10 +181,9 @@ async function seed() {
 }
 
 async function shoot(state) {
-  // CLAVIS_SHOT_CHANNEL=chrome uses the installed Chrome instead of Playwright's.
-  const browser = await chromium.launch(
-    process.env.CLAVIS_SHOT_CHANNEL ? { channel: process.env.CLAVIS_SHOT_CHANNEL } : {},
-  )
+  // PLAYWRIGHT_CHANNEL=chrome uses the installed Chrome, as in the e2e tests.
+  const channel = process.env.PLAYWRIGHT_CHANNEL
+  const browser = await chromium.launch(channel ? { channel } : {})
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1.5,

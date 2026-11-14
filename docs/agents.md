@@ -36,7 +36,7 @@ clavis identities create claude-code --type agent --project web-app --identity-e
 clavis agents allow claude-code "go test ./..." "npm test" "pnpm dev"
 ```
 
-`clavis agents revoke claude-code --clear` returns the agent to deny-all.
+`clavis agents disallow claude-code --clear` returns the agent to deny-all.
 
 ## MCP server
 

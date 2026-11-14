@@ -21,6 +21,13 @@ clavis syncs ls
 
 List the linked project's syncs.
 
+## Examples
+
+```sh
+clavis syncs ls
+clavis syncs ls --json
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

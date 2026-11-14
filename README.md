@@ -78,7 +78,7 @@ All methods, including `go install`, are listed in the [CLI docs](https://dumhou
 
 ```sh
 clavis login
-clavis link --project web-app --env development
+clavis init --project web-app --env development
 clavis run pnpm dev            # output is masked against injected values
 ```
 

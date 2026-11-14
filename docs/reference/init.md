@@ -19,6 +19,8 @@ clavis init [flags]
 
 </div>
 
+Also available as `link`.
+
 Link the current folder to an organization, project and default
 environment by writing [`.clavis.yaml`](./clavis-yaml). The file holds no
 secrets, so commit it: everyone on the team then gets the same context.
@@ -27,6 +29,9 @@ secrets, so commit it: everyone on the team then gets the same context.
 `.env`, and detects how to start your app (`package.json` scripts,
 `bin/rails`, `manage.py`, `artisan`, `go.mod`, `Cargo.toml`, Maven,
 Gradle, Docker Compose) so a plain `clavis run` works right away.
+
+Run it again to point the folder at another project or environment.
+`clavis link` is the same command.
 
 ## Examples
 
@@ -46,6 +51,12 @@ clavis init --org acme --project web-app --env dev
 
 ```sh
 clavis init --project-name "Web app"
+```
+
+<p class="cli-example-title">Switch this folder to staging</p>
+
+```sh
+clavis init --project web-app --env staging
 ```
 
 ## Flags
@@ -75,7 +86,6 @@ These work with every command.
 ## Related
 
 <div class="cli-cards">
-<a class="cli-card" href="./link"><span class="cli-card-name"><code>clavis link</code></span><span class="cli-card-text">Change the project linked to this directory</span></a>
 <a class="cli-card" href="./unlink"><span class="cli-card-name"><code>clavis unlink</code></span><span class="cli-card-text">Remove the .clavis.yaml in this directory</span></a>
 <a class="cli-card" href="./run"><span class="cli-card-name"><code>clavis run</code></span><span class="cli-card-text">Run a command with secrets injected and output masked</span></a>
 </div>

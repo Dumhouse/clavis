@@ -21,6 +21,12 @@ clavis lease renew LEASE_ID [flags]
 
 Extend a lease, up to the config's maximum TTL.
 
+## Examples
+
+```sh
+clavis lease renew 8d2e… --ttl 3600
+```
+
 ## Flags
 
 <dl class="cli-flags">

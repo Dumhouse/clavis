@@ -1,5 +1,5 @@
 ---
-title: "clavis agents revoke"
+title: "clavis agents disallow"
 description: "Remove command patterns from an agent allowlist"
 ---
 
@@ -7,25 +7,27 @@ description: "Remove command patterns from an agent allowlist"
 
 <p class="cli-crumbs"><a href="./">CLI reference</a><span aria-hidden="true">/</span><a href="./#agents">AI agents</a><span aria-hidden="true">/</span><a href="./agents">agents</a></p>
 
-# clavis agents revoke
+# clavis agents disallow
 
 <p class="cli-lead">Remove command patterns from an agent allowlist</p>
 
 <div class="cli-usage">
 
 ```sh
-clavis agents revoke IDENTITY [COMMAND...] [flags]
+clavis agents disallow IDENTITY [COMMAND...] [flags]
 ```
 
 </div>
+
+Also available as `revoke`.
 
 Remove patterns, or `--clear` to go back to deny-all.
 
 ## Examples
 
 ```sh
-clavis agents revoke coding-agent "pnpm dev"
-clavis agents revoke coding-agent --clear
+clavis agents disallow coding-agent "pnpm dev"
+clavis agents disallow coding-agent --clear
 ```
 
 ## Flags

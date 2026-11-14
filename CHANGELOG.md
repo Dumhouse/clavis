@@ -22,7 +22,7 @@
   Helm, .deb, .rpm, .apk, `go install`, the install script, or a build from
   source) and show the matching command. `clavis update` checks right away.
   The check sends nothing about the install; turn it off with
-  `CLAVIS_UPDATE_CHECK=false` (server) or `CLAVIS_NO_UPDATE_CHECK=1` (CLI),
+  `CLAVIS_UPDATE_CHECK=false` (server and CLI),
   or point it at a mirror with `CLAVIS_UPDATE_CHECK_URL`. New endpoint:
   `GET /api/v1/system/update`.
 - Date format, time format and fonts are saved to your account
@@ -153,6 +153,18 @@
 - Shorter, clearer command names: `clavis sets use` (was `sets import`),
   `clavis access ls` (was `access requests`) and `clavis lease setup` (was
   `lease config-create`). The old names keep working.
+- `clavis link` is now another name for `clavis init` (it ran the same code),
+  and `clavis agents revoke` is `clavis agents disallow`, so it isn't
+  confused with `clavis identities revoke`. The old names keep working.
+- The CLI's update notes are turned off with `CLAVIS_UPDATE_CHECK=false`, the
+  same variable as the server.
+- Setting only `CLAVIS_DB_DSN` now selects Postgres; before, the server stayed
+  on SQLite and ignored it unless `CLAVIS_DB_DRIVER=postgres` was set too.
+- Sidebar: Secrets (projects, shared sets, integrations, health), Access
+  (members, agents, who has access, access requests, audit log) and Settings.
+- The setup checklist ticks "Connect the CLI" once you sign in with
+  `clavis login`, and hides when every step is done. The sessions list names
+  CLI sessions "Clavis CLI".
 
 ## v0.3.2 — 2026-11-13
 

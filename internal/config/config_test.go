@@ -337,3 +337,24 @@ func TestOutboundAllowlistEnv(t *testing.T) {
 		t.Fatalf("outbound allowlist = %q", got)
 	}
 }
+
+func TestDSNImpliesPostgres(t *testing.T) {
+	t.Setenv("CLAVIS_DB_DSN", "postgres://clavis@db/clavis")
+	t.Setenv("CLAVIS_DATA_DIR", t.TempDir())
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Database.Driver != "postgres" {
+		t.Fatalf("driver = %q, want postgres", cfg.Database.Driver)
+	}
+
+	t.Setenv("CLAVIS_DB_DRIVER", "sqlite")
+	cfg, err = Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Database.Driver != "sqlite" {
+		t.Fatalf("explicit driver = %q, want sqlite", cfg.Database.Driver)
+	}
+}

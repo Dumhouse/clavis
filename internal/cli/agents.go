@@ -101,9 +101,10 @@ func newAgentsAllowCommand(opts *Options) *cobra.Command {
 func newAgentsRevokeCommand(opts *Options) *cobra.Command {
 	var clearAll bool
 	cmd := &cobra.Command{
-		Use:   "revoke IDENTITY [COMMAND...]",
-		Short: "Remove command patterns from an agent allowlist",
-		Args:  cobra.MinimumNArgs(1),
+		Use:     "disallow IDENTITY [COMMAND...]",
+		Aliases: []string{"revoke"}, // the old name; `identities revoke` revokes the identity itself
+		Short:   "Remove command patterns from an agent allowlist",
+		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			remove := args[1:]
 			if clearAll {

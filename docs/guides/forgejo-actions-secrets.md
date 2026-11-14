@@ -163,7 +163,7 @@ prints. Nothing has to be installed on the runner:
 ```yaml
         with:
           server: https://192.168.1.20
-          server-fingerprint: ${{ vars.CLAVIS_FINGERPRINT }}
+          server-fingerprint: ${{ vars.CLAVIS_SERVER_FINGERPRINT }}
 ```
 
 With your own certificate authority, pass `ca-cert` instead (a file path, or

@@ -48,23 +48,25 @@ import { cn } from '@/lib/utils'
 
 type NavItem = { to: string; label: string; icon: LucideIcon }
 
-const workspaceNav: NavItem[] = [
+// Grouped by what people come for: their secrets, who can reach them, and
+// settings. Access requests sit with access, not with the secrets.
+const secretsNav: NavItem[] = [
   { to: '/', label: 'Projects', icon: FolderKanban },
   { to: '/sets', label: 'Shared sets', icon: Layers },
   { to: '/integrations', label: 'Integrations', icon: Cable },
   { to: '/health', label: 'Health', icon: HeartPulse },
-  { to: '/requests', label: 'Requests', icon: Inbox },
 ]
 
-const orgNav: NavItem[] = [
+const accessNav: NavItem[] = [
   { to: '/members', label: 'Members', icon: Users },
   { to: '/identities', label: 'Agents & machines', icon: Bot },
   { to: '/access', label: 'Who has access', icon: ShieldCheck },
+  { to: '/requests', label: 'Access requests', icon: Inbox },
   { to: '/audit', label: 'Audit log', icon: ScrollText },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const accountNav: NavItem[] = [
+const settingsNav: NavItem[] = [
+  { to: '/settings', label: 'Org settings', icon: Settings },
   { to: '/account', label: 'Your account', icon: UserRound },
   { to: '/docs', label: 'Docs', icon: BookOpen },
 ]
@@ -231,7 +233,7 @@ export function AppShell() {
           (item) => projectHref(item.to, projectSlug) === pathname,
         )?.label
       : undefined) ??
-    [...workspaceNav, ...orgNav, ...accountNav].find((item) => item.to === pathname)?.label ??
+    [...secretsNav, ...accessNav, ...settingsNav].find((item) => item.to === pathname)?.label ??
     'Projects'
 
   return (
@@ -561,9 +563,9 @@ function SidebarContent({
 
       <nav className="scroll-quiet flex flex-1 flex-col gap-6 overflow-y-auto pb-4 pl-3 pr-1">
         {projectSlug && <ProjectNavGroup slug={projectSlug} pathname={pathname} />}
-        <NavGroup label="Workspace" items={workspaceNav} pathname={pathname} />
-        <NavGroup label="Organization" items={orgNav} pathname={pathname} />
-        <NavGroup label="You" items={accountNav} pathname={pathname} />
+        <NavGroup label="Secrets" items={secretsNav} pathname={pathname} />
+        <NavGroup label="Access" items={accessNav} pathname={pathname} />
+        <NavGroup label="Settings" items={settingsNav} pathname={pathname} />
       </nav>
 
       <div className="border-t border-border p-3">

@@ -390,6 +390,11 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_DB_DRIVER", &c.Database.Driver)
 	setString("CLAVIS_DB_PATH", &c.Database.Path)
 	setString("CLAVIS_DB_DSN", &c.Database.DSN)
+	// A DSN alone means Postgres: with Docker it is often the only database
+	// variable set, and SQLite would silently ignore it.
+	if _, driverSet := os.LookupEnv("CLAVIS_DB_DRIVER"); !driverSet && os.Getenv("CLAVIS_DB_DSN") != "" {
+		c.Database.Driver = "postgres"
+	}
 	setString("CLAVIS_BACKUP_DIR", &c.Backup.Dir)
 	setString("CLAVIS_KEY_PROVIDER", &c.Keys.Provider)
 	setString("CLAVIS_ROOT_KEY_FILE", &c.Keys.RootKeyFile)

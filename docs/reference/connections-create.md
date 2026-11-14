@@ -21,6 +21,13 @@ clavis connections create NAME [flags]
 
 Save a provider credential for the organization. Pass `--token -` to read it from stdin.
 
+## Examples
+
+```sh
+clavis connections create "Home Forgejo" --provider forgejo --url https://git.example.com --token -
+clavis connections create "GitHub org" --provider github --token "$GITHUB_TOKEN"
+```
+
 ## Flags
 
 <dl class="cli-flags">

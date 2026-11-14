@@ -78,11 +78,15 @@ func saveUpdateState(s updateState) {
 }
 
 // updateChecksDisabled is true for CI, scripts and anyone who opted out.
+// updateChecksDisabled is true in CI and with CLAVIS_UPDATE_CHECK=false, the
+// same switch the server uses.
 func updateChecksDisabled() bool {
-	for _, name := range []string{"CLAVIS_NO_UPDATE_CHECK", "CI"} {
-		if v := strings.TrimSpace(os.Getenv(name)); v != "" && v != "0" && v != "false" {
-			return true
-		}
+	if v := strings.TrimSpace(os.Getenv("CI")); v != "" && v != "0" && v != "false" {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("CLAVIS_UPDATE_CHECK"))) {
+	case "false", "0", "no", "off":
+		return true
 	}
 	return false
 }
@@ -116,7 +120,7 @@ func updateNotice(s updateState, now time.Time, current string, install updatech
 		}
 	}
 	if len(lines) > 0 {
-		lines = append(lines, "Run `clavis update` for details. Turn these notes off with CLAVIS_NO_UPDATE_CHECK=1.")
+		lines = append(lines, "Run `clavis update` for details. Turn these notes off with CLAVIS_UPDATE_CHECK=false.")
 	}
 	return lines
 }

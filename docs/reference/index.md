@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 123 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 122 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -24,7 +24,6 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./logout"><span class="cli-card-name"><code>clavis logout</code></span><span class="cli-card-text">Sign out and delete the saved token</span></a>
 <a class="cli-card" href="./whoami"><span class="cli-card-name"><code>clavis whoami</code></span><span class="cli-card-text">Show the signed-in user and organizations</span></a>
 <a class="cli-card" href="./init"><span class="cli-card-name"><code>clavis init</code></span><span class="cli-card-text">Link this directory to a project</span></a>
-<a class="cli-card" href="./link"><span class="cli-card-name"><code>clavis link</code></span><span class="cli-card-text">Change the project linked to this directory</span></a>
 <a class="cli-card" href="./unlink"><span class="cli-card-name"><code>clavis unlink</code></span><span class="cli-card-text">Remove the .clavis.yaml in this directory</span></a>
 <a class="cli-card" href="./trust"><span class="cli-card-name"><code>clavis trust</code><span class="cli-card-meta">3 commands</span></span><span class="cli-card-text">Trust a server&#39;s self-signed certificate on this computer</span></a>
 </div>

@@ -21,6 +21,12 @@ clavis lease configs
 
 List credential sources set up with `lease setup`.
 
+## Examples
+
+```sh
+clavis lease configs
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

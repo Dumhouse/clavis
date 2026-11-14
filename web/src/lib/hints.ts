@@ -124,9 +124,12 @@ export const pageHints: Record<string, PageHints> = {
     ],
   },
   '/requests': {
-    title: 'Requests',
+    title: 'Access requests',
     keys: [],
-    cmds: [{ cmd: 'clavis access explain', description: 'Explain effective access' }],
+    cmds: [
+      { cmd: 'clavis access ls', description: 'List access requests' },
+      { cmd: 'clavis access request', description: 'Ask for temporary access' },
+    ],
     tips: [
       'Approvals show the exact diff and require a reason.',
       'Temporary grants expire automatically.',
