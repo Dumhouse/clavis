@@ -58,6 +58,6 @@ These work with every command.
 ## Related
 
 <div class="cli-cards">
-<a class="cli-card" href="./access-requests"><span class="cli-card-name"><code>clavis access requests</code></span><span class="cli-card-text">List access requests</span></a>
+<a class="cli-card" href="./access-ls"><span class="cli-card-name"><code>clavis access ls</code></span><span class="cli-card-text">List access requests</span></a>
 <a class="cli-card" href="./access-approve"><span class="cli-card-name"><code>clavis access approve</code></span><span class="cli-card-text">Approve an access request</span></a>
 </div>

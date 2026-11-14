@@ -155,7 +155,7 @@ export const pageHints: Record<string, PageHints> = {
     keys: [],
     cmds: [
       { cmd: 'clavis sets ls', description: 'List shared sets' },
-      { cmd: 'clavis sets import <set>', description: 'Use a set in the current environment' },
+      { cmd: 'clavis sets use <set>', description: 'Use a set in the current environment' },
     ],
     tips: [
       'Using a set is a live link: environments read its current values, nothing is copied.',

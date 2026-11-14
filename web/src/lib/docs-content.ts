@@ -272,7 +272,7 @@ export const guides: DocGuide[] = [
         body: 'Dynamic configs create real database users or AWS credentials with a TTL. lease run revokes the credential automatically when the command exits.',
         snippets: [
           {
-            code: 'clavis lease config-create --host db.internal --database app --username admin --password "$PGPASS"',
+            code: 'clavis lease setup --host db.internal --database app --username admin --password "$PGPASS"',
           },
           { code: 'clavis lease run CONFIG_ID -- psql "$DATABASE_URL"' },
           { code: 'clavis lease renew LEASE_ID\nclavis lease revoke LEASE_ID' },

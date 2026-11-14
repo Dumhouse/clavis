@@ -96,9 +96,12 @@ func updateNotice(s updateState, now time.Time, current string, install updatech
 	var lines []string
 	if updatecheck.Newer(s.Latest, current) {
 		line := "Clavis " + s.Latest + " is available (you have " + current + ")."
-		if install.Command != "" {
-			line += " Update: " + install.Command
-		} else if install.Note != "" {
+		switch {
+		case selfUpgrade[install.Method]:
+			line += " Run: clavis upgrade"
+		case install.Command != "":
+			line += " Upgrade: " + install.Command
+		case install.Note != "":
 			line += " " + install.Note
 		}
 		lines = append(lines, line)
@@ -195,7 +198,7 @@ func maybeNotifyUpdate(ctx context.Context, opts *Options, command string) {
 func newUpdateCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "update",
-		Short: "Check for a new release and show how to update",
+		Short: "Check for a new release and show how to upgrade",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := opts.output()
@@ -226,9 +229,15 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 				out.Info("Server:         %s runs %s", s.Server, s.ServerVersion)
 			}
 			if available || install.Method == "source" {
-				if install.Command != "" {
-					out.Info("")
-					out.Info("Update with:")
+				out.Info("")
+				if selfUpgrade[install.Method] {
+					out.Info("Upgrade with:")
+					out.Info("  clavis upgrade")
+					if install.Command != "" {
+						out.Hint("(runs: %s)", install.Command)
+					}
+				} else if install.Command != "" {
+					out.Info("Upgrade with:")
 					out.Info("  %s", install.Command)
 				}
 				if install.Note != "" {

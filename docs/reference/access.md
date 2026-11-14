@@ -29,9 +29,9 @@ on its own.
 <a class="cli-card" href="./access-approve"><span class="cli-card-name"><code>clavis access approve</code></span><span class="cli-card-text">Approve an access request</span></a>
 <a class="cli-card" href="./access-break-glass"><span class="cli-card-name"><code>clavis access break-glass</code></span><span class="cli-card-text">Immediately grant break-glass access and lift an active freeze</span></a>
 <a class="cli-card" href="./access-explain"><span class="cli-card-name"><code>clavis access explain</code></span><span class="cli-card-text">Explain why a user or group has access</span></a>
+<a class="cli-card" href="./access-ls"><span class="cli-card-name"><code>clavis access ls</code></span><span class="cli-card-text">List access requests</span></a>
 <a class="cli-card" href="./access-reject"><span class="cli-card-name"><code>clavis access reject</code></span><span class="cli-card-text">Reject an access request</span></a>
 <a class="cli-card" href="./access-request"><span class="cli-card-name"><code>clavis access request</code></span><span class="cli-card-text">Request temporary project/environment access</span></a>
-<a class="cli-card" href="./access-requests"><span class="cli-card-name"><code>clavis access requests</code></span><span class="cli-card-text">List access requests</span></a>
 <a class="cli-card" href="./access-review"><span class="cli-card-name"><code>clavis access review</code></span><span class="cli-card-text">Report who can read values in an environment</span></a>
 </div>
 

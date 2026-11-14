@@ -217,16 +217,20 @@ func newSetsRemoveCommand(opts *Options) *cobra.Command {
 
 func newSetsImportCommand(opts *Options, detach bool) *cobra.Command {
 	var environment string
-	use := "import SET"
-	short := "Import a shared set into an environment"
+	use := "use SET"
+	short := "Use a shared set in an environment"
+	var aliases []string
 	if detach {
 		use = "detach SET"
-		short = "Detach a shared set from an environment"
+		short = "Stop using a shared set in an environment"
+	} else {
+		aliases = []string{"import"} // the old name
 	}
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: short,
-		Args:  cobra.ExactArgs(1),
+		Use:     use,
+		Aliases: aliases,
+		Short:   short,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()
 			resolved, err := opts.resolveContext(true)

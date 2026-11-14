@@ -27,12 +27,12 @@ itself always wins. Each set has its own encryption key.
 
 <div class="cli-cards cli-cards-list">
 <a class="cli-card" href="./sets-create"><span class="cli-card-name"><code>clavis sets create</code></span><span class="cli-card-text">Create a shared set</span></a>
-<a class="cli-card" href="./sets-detach"><span class="cli-card-name"><code>clavis sets detach</code></span><span class="cli-card-text">Detach a shared set from an environment</span></a>
-<a class="cli-card" href="./sets-import"><span class="cli-card-name"><code>clavis sets import</code></span><span class="cli-card-text">Import a shared set into an environment</span></a>
+<a class="cli-card" href="./sets-detach"><span class="cli-card-name"><code>clavis sets detach</code></span><span class="cli-card-text">Stop using a shared set in an environment</span></a>
 <a class="cli-card" href="./sets-ls"><span class="cli-card-name"><code>clavis sets ls</code></span><span class="cli-card-text">List shared sets</span></a>
 <a class="cli-card" href="./sets-rm"><span class="cli-card-name"><code>clavis sets rm</code></span><span class="cli-card-text">Remove a shared set value</span></a>
 <a class="cli-card" href="./sets-set"><span class="cli-card-name"><code>clavis sets set</code></span><span class="cli-card-text">Set a shared set value</span></a>
 <a class="cli-card" href="./sets-show"><span class="cli-card-name"><code>clavis sets show</code></span><span class="cli-card-text">Show a shared set</span></a>
+<a class="cli-card" href="./sets-use"><span class="cli-card-name"><code>clavis sets use</code></span><span class="cli-card-text">Use a shared set in an environment</span></a>
 </div>
 
 ## Examples
@@ -40,7 +40,7 @@ itself always wins. Each set has its own encryption key.
 ```sh
 clavis sets create shared-api
 clavis sets set shared-api STRIPE_KEY
-clavis sets import shared-api --env staging
+clavis sets use shared-api --env staging
 ```
 
 <details class="cli-globals"><summary>Global flags</summary>

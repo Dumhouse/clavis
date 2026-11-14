@@ -1,6 +1,6 @@
 # CLI
 
-Single Go binary `clavis` (same binary as the server). See [Install the CLI](#install-the-cli) for every method. One binary is both the CLI and the server, so the version never drifts between them.
+Single Go binary `clavis` (same binary as the server). See [Install the CLI](#install-the-cli) for every method. The CLI and the server are the same binary, but each install is upgraded on its own; the CLI warns when it and your server differ in minor version (see [Updating Clavis](./updating)).
 
 ## Install the CLI
 
@@ -14,7 +14,7 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
 | Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis` (see the [install wizard](./install)) or `ghcr.io/dumhouse/clavis` | Available |
 
-winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. Hosted apt and rpm repositories are published to Cloudsmith from each release.
+winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. There are no hosted apt or rpm repositories yet; install the `.deb`, `.rpm` or `.apk` from the release.
 
 ## UX rules
 

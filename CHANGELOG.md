@@ -4,6 +4,16 @@
 
 ### Added
 
+- `clavis upgrade` installs the latest release the way Clavis was installed:
+  it runs `brew`, `scoop`, `winget` or `go install` after you confirm, or,
+  for the install script and downloaded binaries, downloads the release,
+  checks it against `checksums.txt` (and its cosign signature when `cosign`
+  is installed) and replaces itself. Docker, Helm, packages and source
+  builds get the command to run. `clavis update` only checks.
+  `--version`, `--download-base` / `CLAVIS_DOWNLOAD_BASE` and `--yes` are
+  supported; `clavis upgrade ARCHIVE [--install]` still verifies a
+  downloaded archive.
+
 - Update notices. The server checks GitHub once a day for a newer release
   and shows owners and admins a notice with the command that updates this
   install; "Later" hides it for a week. The CLI prints a short note at most
@@ -137,6 +147,12 @@
   token, so the "Create a token" link points at your own server.
 - `clavis export --format github-env` appends values to `$GITHUB_ENV` with
   masking and multi-line support.
+
+### Changed
+
+- Shorter, clearer command names: `clavis sets use` (was `sets import`),
+  `clavis access ls` (was `access requests`) and `clavis lease setup` (was
+  `lease config-create`). The old names keep working.
 
 ## v0.3.2 — 2026-11-13
 

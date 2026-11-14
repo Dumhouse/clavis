@@ -129,9 +129,9 @@
         "access approve",
         "access break-glass",
         "access explain",
+        "access ls",
         "access reject",
         "access request",
-        "access requests",
         "access review"
       ],
       "related": [
@@ -156,7 +156,7 @@
       "subcommands": [],
       "related": [
         "access reject",
-        "access requests"
+        "access ls"
       ]
     },
     {
@@ -238,6 +238,36 @@
       "related": []
     },
     {
+      "path": "access ls",
+      "slug": "access-ls",
+      "parent": "access",
+      "group": "access",
+      "usage": "clavis access ls [flags]",
+      "summary": "List access requests",
+      "description": "List access requests. Members see their own; admins see everyone's. (Formerly `access requests`, which still works.)",
+      "examples": [
+        {
+          "run": "clavis access ls"
+        },
+        {
+          "run": "clavis access ls --status approved"
+        }
+      ],
+      "flags": [
+        {
+          "name": "status",
+          "type": "string",
+          "default": "pending",
+          "usage": "pending, approved, or rejected"
+        }
+      ],
+      "subcommands": [],
+      "related": [],
+      "aliases": [
+        "requests"
+      ]
+    },
+    {
       "path": "access reject",
       "slug": "access-reject",
       "parent": "access",
@@ -296,36 +326,9 @@
       ],
       "subcommands": [],
       "related": [
-        "access requests",
+        "access ls",
         "access approve"
       ]
-    },
-    {
-      "path": "access requests",
-      "slug": "access-requests",
-      "parent": "access",
-      "group": "access",
-      "usage": "clavis access requests [flags]",
-      "summary": "List access requests",
-      "description": "List access requests. Members see their own; admins see everyone's.",
-      "examples": [
-        {
-          "run": "clavis access requests"
-        },
-        {
-          "run": "clavis access requests --status approved"
-        }
-      ],
-      "flags": [
-        {
-          "name": "status",
-          "type": "string",
-          "default": "pending",
-          "usage": "pending, approved, or rejected"
-        }
-      ],
-      "subcommands": [],
-      "related": []
     },
     {
       "path": "access review",
@@ -1875,128 +1878,17 @@
       ],
       "flags": [],
       "subcommands": [
-        "lease config-create",
         "lease configs",
         "lease create",
         "lease ls",
         "lease renew",
         "lease revoke",
-        "lease run"
+        "lease run",
+        "lease setup"
       ],
       "related": [
         "rotation"
       ]
-    },
-    {
-      "path": "lease config-create",
-      "slug": "lease-config-create",
-      "parent": "lease",
-      "group": "automation",
-      "usage": "clavis lease config-create [flags]",
-      "summary": "Create a PostgreSQL or AWS STS dynamic secret config",
-      "description": "Describe how to issue credentials: a Postgres server and the role to grant, or an AWS role to assume.",
-      "examples": [
-        {
-          "title": "Postgres",
-          "run": "clavis lease config-create --host db.internal --database app \\\n  --username clavis_admin --password \"$PGPASSWORD\" \\\n  --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400"
-        },
-        {
-          "title": "AWS STS",
-          "run": "clavis lease config-create --engine aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-role-arn arn:aws:iam::123456789012:role/deploy"
-        }
-      ],
-      "notes": "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease.",
-      "flags": [
-        {
-          "name": "aws-access-key",
-          "type": "string",
-          "usage": "AWS access key ID"
-        },
-        {
-          "name": "aws-external-id",
-          "type": "string",
-          "usage": "STS external ID"
-        },
-        {
-          "name": "aws-region",
-          "type": "string",
-          "default": "us-east-1",
-          "usage": "AWS region"
-        },
-        {
-          "name": "aws-role-arn",
-          "type": "string",
-          "usage": "role ARN to assume"
-        },
-        {
-          "name": "aws-secret-key",
-          "type": "string",
-          "usage": "AWS secret access key"
-        },
-        {
-          "name": "aws-session-name",
-          "type": "string",
-          "usage": "STS session name"
-        },
-        {
-          "name": "database",
-          "type": "string",
-          "usage": "PostgreSQL database"
-        },
-        {
-          "name": "default-ttl",
-          "type": "int",
-          "default": "3600",
-          "usage": "default lease TTL in seconds"
-        },
-        {
-          "name": "engine",
-          "type": "string",
-          "default": "postgres",
-          "usage": "dynamic engine (postgres)"
-        },
-        {
-          "name": "grant-role",
-          "type": "string",
-          "usage": "role granted to generated users"
-        },
-        {
-          "name": "host",
-          "type": "string",
-          "default": "localhost",
-          "usage": "PostgreSQL host"
-        },
-        {
-          "name": "max-ttl",
-          "type": "int",
-          "default": "86400",
-          "usage": "maximum lease TTL in seconds"
-        },
-        {
-          "name": "password",
-          "type": "string",
-          "usage": "admin password"
-        },
-        {
-          "name": "port",
-          "type": "int",
-          "default": "5432",
-          "usage": "PostgreSQL port"
-        },
-        {
-          "name": "sslmode",
-          "type": "string",
-          "default": "disable",
-          "usage": "PostgreSQL sslmode"
-        },
-        {
-          "name": "username",
-          "type": "string",
-          "usage": "admin username"
-        }
-      ],
-      "subcommands": [],
-      "related": []
     },
     {
       "path": "lease configs",
@@ -2005,7 +1897,7 @@
       "group": "automation",
       "usage": "clavis lease configs",
       "summary": "List dynamic secret configs",
-      "description": "List dynamic secret configs.",
+      "description": "List credential sources set up with `lease setup`.",
       "examples": [],
       "flags": [],
       "subcommands": [],
@@ -2104,6 +1996,120 @@
       ],
       "subcommands": [],
       "related": []
+    },
+    {
+      "path": "lease setup",
+      "slug": "lease-setup",
+      "parent": "lease",
+      "group": "automation",
+      "usage": "clavis lease setup [flags]",
+      "summary": "Set up a PostgreSQL or AWS STS credential source",
+      "description": "Set up a credential source: a Postgres server and the role to grant, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)",
+      "examples": [
+        {
+          "title": "Postgres",
+          "run": "clavis lease setup --host db.internal --database app \\\n  --username clavis_admin --password \"$PGPASSWORD\" \\\n  --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400"
+        },
+        {
+          "title": "AWS STS",
+          "run": "clavis lease setup --engine aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-role-arn arn:aws:iam::123456789012:role/deploy"
+        }
+      ],
+      "notes": "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease.",
+      "flags": [
+        {
+          "name": "aws-access-key",
+          "type": "string",
+          "usage": "AWS access key ID"
+        },
+        {
+          "name": "aws-external-id",
+          "type": "string",
+          "usage": "STS external ID"
+        },
+        {
+          "name": "aws-region",
+          "type": "string",
+          "default": "us-east-1",
+          "usage": "AWS region"
+        },
+        {
+          "name": "aws-role-arn",
+          "type": "string",
+          "usage": "role ARN to assume"
+        },
+        {
+          "name": "aws-secret-key",
+          "type": "string",
+          "usage": "AWS secret access key"
+        },
+        {
+          "name": "aws-session-name",
+          "type": "string",
+          "usage": "STS session name"
+        },
+        {
+          "name": "database",
+          "type": "string",
+          "usage": "PostgreSQL database"
+        },
+        {
+          "name": "default-ttl",
+          "type": "int",
+          "default": "3600",
+          "usage": "default lease TTL in seconds"
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "default": "postgres",
+          "usage": "dynamic engine (postgres)"
+        },
+        {
+          "name": "grant-role",
+          "type": "string",
+          "usage": "role granted to generated users"
+        },
+        {
+          "name": "host",
+          "type": "string",
+          "default": "localhost",
+          "usage": "PostgreSQL host"
+        },
+        {
+          "name": "max-ttl",
+          "type": "int",
+          "default": "86400",
+          "usage": "maximum lease TTL in seconds"
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "usage": "admin password"
+        },
+        {
+          "name": "port",
+          "type": "int",
+          "default": "5432",
+          "usage": "PostgreSQL port"
+        },
+        {
+          "name": "sslmode",
+          "type": "string",
+          "default": "disable",
+          "usage": "PostgreSQL sslmode"
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "usage": "admin username"
+        }
+      ],
+      "subcommands": [],
+      "related": [],
+      "aliases": [
+        "config-create"
+      ]
     },
     {
       "path": "link",
@@ -3228,18 +3234,18 @@
           "run": "clavis sets set shared-api STRIPE_KEY"
         },
         {
-          "run": "clavis sets import shared-api --env staging"
+          "run": "clavis sets use shared-api --env staging"
         }
       ],
       "flags": [],
       "subcommands": [
         "sets create",
         "sets detach",
-        "sets import",
         "sets ls",
         "sets rm",
         "sets set",
-        "sets show"
+        "sets show",
+        "sets use"
       ],
       "related": []
     },
@@ -3272,28 +3278,11 @@
       "parent": "sets",
       "group": "sets",
       "usage": "clavis sets detach SET [flags]",
-      "summary": "Detach a shared set from an environment",
+      "summary": "Stop using a shared set in an environment",
       "description": "Stop using a set in an environment.",
       "examples": [
         {
           "run": "clavis sets detach shared-api --env staging"
-        }
-      ],
-      "flags": [],
-      "subcommands": [],
-      "related": []
-    },
-    {
-      "path": "sets import",
-      "slug": "sets-import",
-      "parent": "sets",
-      "group": "sets",
-      "usage": "clavis sets import SET [flags]",
-      "summary": "Import a shared set into an environment",
-      "description": "Use a set in an environment.",
-      "examples": [
-        {
-          "run": "clavis sets import shared-api --env staging"
         }
       ],
       "flags": [],
@@ -3368,6 +3357,26 @@
       ],
       "subcommands": [],
       "related": []
+    },
+    {
+      "path": "sets use",
+      "slug": "sets-use",
+      "parent": "sets",
+      "group": "sets",
+      "usage": "clavis sets use SET [flags]",
+      "summary": "Use a shared set in an environment",
+      "description": "Use a set in an environment: its keys appear there, live. Nothing is copied. (Formerly `sets import`, which still works.)",
+      "examples": [
+        {
+          "run": "clavis sets use shared-api --env staging"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [],
+      "aliases": [
+        "import"
+      ]
     },
     {
       "path": "setup-token",
@@ -4045,64 +4054,83 @@
       "slug": "update",
       "group": "server",
       "usage": "clavis update",
-      "summary": "Check for a new release and show how to update",
-      "description": "Check GitHub for a newer release and print the command that updates this\ncopy of Clavis. It works out how Clavis was installed (Homebrew, Scoop,\nWinGet, Docker, Helm, a .deb, .rpm or .apk package, `go install`, the\ninstall script, or a build from source) and shows the matching command.\nIt also shows the version of your server.\n\nInteractive commands print a short note once every few days when an\nupdate is waiting, or when the CLI and the server differ in minor\nversion. The check runs at most once a day, sends nothing about you, and\nis skipped in CI. Set `CLAVIS_NO_UPDATE_CHECK=1` to turn it off.",
+      "summary": "Check for a new release and show how to upgrade",
+      "description": "Check GitHub for a newer release and show how to install it, based on\nhow this copy was installed (Homebrew, Scoop, WinGet, Docker, Helm, a\npackage, the install script or a source build). `clavis update` only\nchecks; `clavis upgrade` installs.\n\nThe CLI also checks once a day by itself and prints a one-line notice\nat most every three days. `CLAVIS_NO_UPDATE_CHECK=1` turns that off; it\nis off in CI.",
       "examples": [
         {
           "run": "clavis update"
-        },
-        {
-          "title": "For scripts",
-          "run": "clavis update --json"
         }
       ],
       "flags": [],
       "subcommands": [],
       "related": [
-        "version",
-        "upgrade"
+        "upgrade",
+        "version"
       ]
     },
     {
       "path": "upgrade",
       "slug": "upgrade",
       "group": "server",
-      "usage": "clavis upgrade ARTIFACT [flags]",
-      "summary": "Verify a signed release artifact and install it",
-      "description": "Verify a downloaded release archive with cosign before installing it.\nNeeds `cosign` on your `PATH` and the release's `.sigstore.json` bundle\nnext to the archive.",
+      "usage": "clavis upgrade [ARCHIVE] [flags]",
+      "summary": "Install the latest Clavis release",
+      "description": "Install the latest release, the way this copy was installed:\n\n- **Homebrew, Scoop, WinGet, `go install`**: runs the package manager's\n  upgrade after you confirm.\n- **Install script or downloaded binary**: downloads the release for\n  your system, checks it against the release's `checksums.txt` (and its\n  cosign signature when `cosign` is installed), and replaces itself.\n- **Docker, Helm, .deb, .rpm, .apk, source builds**: prints the command,\n  since those are upgraded outside the CLI.\n\n`clavis update` only checks; `clavis upgrade` installs. With `ARCHIVE`,\nit verifies a release you downloaded yourself with cosign, and\n`--install` puts it in place.",
       "examples": [
         {
-          "title": "Verify only",
-          "run": "clavis upgrade clavis_linux_amd64.tar.gz"
+          "run": "clavis upgrade"
         },
         {
-          "title": "Verify and replace the current binary",
-          "run": "clavis upgrade clavis_linux_amd64.tar.gz --install"
+          "title": "Without the question, for scripts",
+          "run": "clavis upgrade --yes"
+        },
+        {
+          "title": "A specific version from a mirror",
+          "run": "clavis upgrade --version 0.3.3 --download-base https://mirror.example.com/clavis"
+        },
+        {
+          "title": "Verify a downloaded archive, then install it",
+          "run": "clavis upgrade clavis_0.3.3_linux_amd64.tar.gz --install"
         }
       ],
       "flags": [
         {
           "name": "bundle",
           "type": "string",
-          "usage": "Sigstore bundle (default ARTIFACT.sigstore.json)"
+          "usage": "with ARCHIVE: Sigstore bundle (default ARCHIVE.sigstore.json)"
+        },
+        {
+          "name": "download-base",
+          "type": "string",
+          "usage": "where releases are downloaded from, for a mirror (default: GitHub releases)"
         },
         {
           "name": "identity",
           "type": "string",
-          "usage": "certificate identity regexp"
+          "usage": "with ARCHIVE: certificate identity regexp"
         },
         {
           "name": "install",
-          "usage": "replace the running binary after verification"
+          "usage": "with ARCHIVE: replace the running binary after verification"
         },
         {
           "name": "issuer",
           "type": "string",
-          "usage": "OIDC issuer"
+          "usage": "with ARCHIVE: OIDC issuer"
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "usage": "version to install (default: the latest release)"
+        },
+        {
+          "name": "yes",
+          "shorthand": "y",
+          "usage": "don't ask before upgrading"
         }
       ],
       "subcommands": [],
       "related": [
+        "update",
         "version"
       ]
     },

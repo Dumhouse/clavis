@@ -43,7 +43,10 @@ async function waitFor(url, timeout = 60_000) {
 }
 
 async function seed() {
-  const token = readFileSync(join(readFileSync(marker, 'utf8').trim(), 'setup-token'), 'utf8').trim()
+  const token = readFileSync(
+    join(readFileSync(marker, 'utf8').trim(), 'setup-token'),
+    'utf8',
+  ).trim()
   const api = await request.newContext({ baseURL: base })
   await api.post('/api/v1/setup', {
     data: {
@@ -178,7 +181,10 @@ async function seed() {
 }
 
 async function shoot(state) {
-  const browser = await chromium.launch()
+  // CLAVIS_SHOT_CHANNEL=chrome uses the installed Chrome instead of Playwright's.
+  const browser = await chromium.launch(
+    process.env.CLAVIS_SHOT_CHANNEL ? { channel: process.env.CLAVIS_SHOT_CHANNEL } : {},
+  )
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1.5,

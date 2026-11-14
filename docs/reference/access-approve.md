@@ -49,5 +49,5 @@ These work with every command.
 
 <div class="cli-cards">
 <a class="cli-card" href="./access-reject"><span class="cli-card-name"><code>clavis access reject</code></span><span class="cli-card-text">Reject an access request</span></a>
-<a class="cli-card" href="./access-requests"><span class="cli-card-name"><code>clavis access requests</code></span><span class="cli-card-text">List access requests</span></a>
+<a class="cli-card" href="./access-ls"><span class="cli-card-name"><code>clavis access ls</code></span><span class="cli-card-text">List access requests</span></a>
 </div>

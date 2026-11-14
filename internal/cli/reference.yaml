@@ -736,19 +736,19 @@ commands:
       - run: |-
           clavis access request --env prod --role Developer --duration 1h \
             --reason "Debugging checkout latency"
-    related: [access requests, access approve]
+    related: [access ls, access approve]
 
-  "access requests":
-    description: "List access requests. Members see their own; admins see everyone's."
+  "access ls":
+    description: "List access requests. Members see their own; admins see everyone's. (Formerly `access requests`, which still works.)"
     examples:
-      - run: "clavis access requests"
-      - run: "clavis access requests --status approved"
+      - run: "clavis access ls"
+      - run: "clavis access ls --status approved"
 
   "access approve":
     description: "Approve a request. The last required approval creates the time-limited grant. You can't approve your own request."
     examples:
       - run: "clavis access approve 4f2a9c"
-    related: [access reject, access requests]
+    related: [access reject, access ls]
 
   "access reject":
     description: "Reject a request."
@@ -792,7 +792,7 @@ commands:
     examples:
       - run: "clavis sets create shared-api"
       - run: "clavis sets set shared-api STRIPE_KEY"
-      - run: "clavis sets import shared-api --env staging"
+      - run: "clavis sets use shared-api --env staging"
 
   "sets ls":
     description: "List the organization's shared sets."
@@ -812,10 +812,10 @@ commands:
     description: "Remove a key from a set."
     examples:
       - run: "clavis sets rm shared-api OLD_KEY"
-  "sets import":
-    description: "Use a set in an environment."
+  "sets use":
+    description: "Use a set in an environment: its keys appear there, live. Nothing is copied. (Formerly `sets import`, which still works.)"
     examples:
-      - run: "clavis sets import shared-api --env staging"
+      - run: "clavis sets use shared-api --env staging"
   "sets detach":
     description: "Stop using a set in an environment."
     examples:
@@ -875,22 +875,22 @@ commands:
       - run: "clavis lease run 4a1c… -- psql"
     related: [rotation]
 
-  "lease config-create":
-    description: "Describe how to issue credentials: a Postgres server and the role to grant, or an AWS role to assume."
+  "lease setup":
+    description: "Set up a credential source: a Postgres server and the role to grant, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)"
     examples:
       - title: "Postgres"
         run: |-
-          clavis lease config-create --host db.internal --database app \
+          clavis lease setup --host db.internal --database app \
             --username clavis_admin --password "$PGPASSWORD" \
             --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400
       - title: "AWS STS"
         run: |-
-          clavis lease config-create --engine aws --aws-region eu-central-1 \
+          clavis lease setup --engine aws --aws-region eu-central-1 \
             --aws-access-key "$AWS_ACCESS_KEY_ID" --aws-secret-key "$AWS_SECRET_ACCESS_KEY" \
             --aws-role-arn arn:aws:iam::123456789012:role/deploy
     notes: "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease."
   "lease configs":
-    description: "List dynamic secret configs."
+    description: "List credential sources set up with `lease setup`."
   "lease create":
     description: "Issue credentials. The password is shown once."
     examples:
@@ -1209,35 +1209,44 @@ commands:
       - run: "clavis health --json"
     related: [rotation status]
 
-  upgrade:
-    description: |-
-      Verify a downloaded release archive with cosign before installing it.
-      Needs `cosign` on your `PATH` and the release's `.sigstore.json` bundle
-      next to the archive.
-    examples:
-      - title: "Verify only"
-        run: "clavis upgrade clavis_linux_amd64.tar.gz"
-      - title: "Verify and replace the current binary"
-        run: "clavis upgrade clavis_linux_amd64.tar.gz --install"
-    related: [version]
-
   update:
     description: |-
-      Check GitHub for a newer release and print the command that updates this
-      copy of Clavis. It works out how Clavis was installed (Homebrew, Scoop,
-      WinGet, Docker, Helm, a .deb, .rpm or .apk package, `go install`, the
-      install script, or a build from source) and shows the matching command.
-      It also shows the version of your server.
+      Check GitHub for a newer release and show how to install it, based on
+      how this copy was installed (Homebrew, Scoop, WinGet, Docker, Helm, a
+      package, the install script or a source build). `clavis update` only
+      checks; `clavis upgrade` installs.
 
-      Interactive commands print a short note once every few days when an
-      update is waiting, or when the CLI and the server differ in minor
-      version. The check runs at most once a day, sends nothing about you, and
-      is skipped in CI. Set `CLAVIS_NO_UPDATE_CHECK=1` to turn it off.
+      The CLI also checks once a day by itself and prints a one-line notice
+      at most every three days. `CLAVIS_NO_UPDATE_CHECK=1` turns that off; it
+      is off in CI.
     examples:
       - run: "clavis update"
-      - title: "For scripts"
-        run: "clavis update --json"
-    related: [version, upgrade]
+    related: [upgrade, version]
+
+  upgrade:
+    description: |-
+      Install the latest release, the way this copy was installed:
+
+      - **Homebrew, Scoop, WinGet, `go install`**: runs the package manager's
+        upgrade after you confirm.
+      - **Install script or downloaded binary**: downloads the release for
+        your system, checks it against the release's `checksums.txt` (and its
+        cosign signature when `cosign` is installed), and replaces itself.
+      - **Docker, Helm, .deb, .rpm, .apk, source builds**: prints the command,
+        since those are upgraded outside the CLI.
+
+      `clavis update` only checks; `clavis upgrade` installs. With `ARCHIVE`,
+      it verifies a release you downloaded yourself with cosign, and
+      `--install` puts it in place.
+    examples:
+      - run: "clavis upgrade"
+      - title: "Without the question, for scripts"
+        run: "clavis upgrade --yes"
+      - title: "A specific version from a mirror"
+        run: "clavis upgrade --version 0.3.3 --download-base https://mirror.example.com/clavis"
+      - title: "Verify a downloaded archive, then install it"
+        run: "clavis upgrade clavis_0.3.3_linux_amd64.tar.gz --install"
+    related: [update, version]
 
   version:
     description: "Print the version, commit and build date."

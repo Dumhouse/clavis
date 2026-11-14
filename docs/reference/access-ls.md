@@ -1,5 +1,5 @@
 ---
-title: "clavis access requests"
+title: "clavis access ls"
 description: "List access requests"
 ---
 
@@ -7,25 +7,27 @@ description: "List access requests"
 
 <p class="cli-crumbs"><a href="./">CLI reference</a><span aria-hidden="true">/</span><a href="./#access">Team and access</a><span aria-hidden="true">/</span><a href="./access">access</a></p>
 
-# clavis access requests
+# clavis access ls
 
 <p class="cli-lead">List access requests</p>
 
 <div class="cli-usage">
 
 ```sh
-clavis access requests [flags]
+clavis access ls [flags]
 ```
 
 </div>
 
-List access requests. Members see their own; admins see everyone's.
+Also available as `requests`.
+
+List access requests. Members see their own; admins see everyone's. (Formerly `access requests`, which still works.)
 
 ## Examples
 
 ```sh
-clavis access requests
-clavis access requests --status approved
+clavis access ls
+clavis access ls --status approved
 ```
 
 ## Flags

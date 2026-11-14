@@ -20,7 +20,7 @@ release notes. **Later** hides it for a week; a newer release shows it again.
 when an update is waiting, at most once every three days:
 
 ```text
-! Clavis 0.3.3 is available (you have 0.3.2). Update: brew upgrade dumhouse/tap/clavis
+! Clavis 0.3.3 is available (you have 0.3.2). Run: clavis upgrade
   Run `clavis update` for details. Turn these notes off with CLAVIS_NO_UPDATE_CHECK=1.
 ```
 
@@ -28,7 +28,12 @@ It also warns when the CLI and your server differ in minor version (for
 example a 0.3 CLI with a 0.4 server), since that is when commands may stop
 working.
 
-`clavis update` checks right away and prints everything:
+## `clavis update` and `clavis upgrade`
+
+The two commands follow the usual split, as in `apt update` / `apt upgrade`:
+
+- `clavis update` **checks**. It changes nothing.
+- `clavis upgrade` **installs** the latest release.
 
 ```sh
 clavis update
@@ -39,9 +44,29 @@ This CLI:       0.3.2 (Homebrew)
 Latest release: 0.3.3, update available
 Server:         https://clavis.example.com runs 0.3.3
 
-Update with:
-  brew upgrade dumhouse/tap/clavis
+Upgrade with:
+  clavis upgrade
+  (runs: brew upgrade dumhouse/tap/clavis)
 ```
+
+What `clavis upgrade` does depends on how Clavis was installed:
+
+| Installed with | `clavis upgrade` |
+| --- | --- |
+| Homebrew, Scoop, WinGet, `go install` | Runs the package manager's command after you confirm (`--yes` skips the question). |
+| Install script, or a binary you downloaded | Downloads the release for your system, checks it against the release's `checksums.txt` (and verifies that file's signature when [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/) is installed), and replaces itself. The old binary is kept as `clavis.old` until the next upgrade. |
+| Docker, Helm, `.deb`, `.rpm`, `.apk`, source build | Prints the command to run. These are upgraded outside the CLI, often with `sudo`. |
+
+Flags:
+
+- `--yes`: no question, for scripts.
+- `--version 0.3.3`: a specific release instead of the latest.
+- `--download-base URL` (or `CLAVIS_DOWNLOAD_BASE`): download from a mirror
+  that serves the release files under `URL/v0.3.3/`.
+
+To verify an archive you downloaded yourself, pass it:
+`clavis upgrade clavis_0.3.3_linux_amd64.tar.gz` checks it with cosign, and
+`--install` also puts it in place.
 
 ## How the install is detected
 
@@ -61,8 +86,8 @@ Clavis looks at where its binary lives and what it runs in:
 | Built from source | a development version (`0.3.2+dev.<commit>`) | `git pull && make build` |
 | Install script | `/usr/local/bin` or `~/.local/bin` | re-run the [install script](./download) |
 
-There are no apt, yum or apk repositories yet, so package installs download
-each release. A binary you put somewhere else is reported as a downloaded
+There are no hosted apt, yum or apk repositories yet, so package installs
+download each release from GitHub. A binary you put somewhere else is reported as a downloaded
 binary, with the install script as the suggestion.
 
 ## What the check sends

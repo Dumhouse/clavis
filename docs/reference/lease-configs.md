@@ -19,7 +19,7 @@ clavis lease configs
 
 </div>
 
-List dynamic secret configs.
+List credential sources set up with `lease setup`.
 
 <details class="cli-globals"><summary>Global flags</summary>
 

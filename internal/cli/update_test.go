@@ -17,9 +17,14 @@ func TestUpdateNoticePolicy(t *testing.T) {
 
 	lines := updateNotice(updateState{Latest: "0.3.3"}, now, "0.3.2", brew)
 	if len(lines) != 2 || !strings.Contains(lines[0], "0.3.3 is available") ||
-		!strings.Contains(lines[0], "brew upgrade dumhouse/tap/clavis") ||
+		!strings.Contains(lines[0], "Run: clavis upgrade") ||
 		!strings.Contains(lines[1], "CLAVIS_NO_UPDATE_CHECK") {
 		t.Fatalf("lines = %q", lines)
+	}
+	// Installs clavis can't upgrade itself get their own command.
+	docker := updatecheck.Install{Method: "docker", Command: "docker compose pull && docker compose up -d"}
+	if got := updateNotice(updateState{Latest: "0.3.3"}, now, "0.3.2", docker); !strings.Contains(got[0], "Upgrade: docker compose pull") {
+		t.Fatalf("docker = %q", got)
 	}
 	// Shown recently: quiet until a few days pass.
 	recent := updateState{Latest: "0.3.3", NotifiedAt: now.Add(-24 * time.Hour)}

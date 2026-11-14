@@ -13,7 +13,7 @@ file such as `clavis-values.yaml`, then install the chart:
 ```sh
 helm install clavis oci://ghcr.io/dumhouse/charts/clavis \
   --namespace clavis --create-namespace \
-  --version 0.3.0 \
+  --version 0.3.2 \
   --values clavis-values.yaml
 ```
 
@@ -120,7 +120,7 @@ preserved:
 ```sh
 helm upgrade clavis oci://ghcr.io/dumhouse/charts/clavis \
   --namespace clavis \
-  --version 0.3.0 \
+  --version 0.3.2 \
   --values clavis-values.yaml
 ```
 
