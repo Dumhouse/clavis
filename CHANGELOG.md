@@ -4,6 +4,21 @@
 
 ### Added
 
+- `clavis help` is now a full-screen browser in a terminal: group tabs, a
+  searchable list, a live preview with numbered examples that you can copy
+  (`c`) or edit and run (`r`, with a "type yes" check for production and
+  destructive commands), starred commands (`f`) and the ones you open most
+  first, mouse and resize support, and a header that shows where commands
+  will run and the next step (sign in, link the folder).
+- Help menu in the web app (documentation, shortcuts, Discussions, issues)
+  with "Copy diagnostics" for bug reports.
+- Leave an organization, or delete it (owners), from Org settings → Leave or
+  delete. New endpoint `POST /api/v1/orgs/{org}/leave`; the last owner can't
+  leave.
+- The setup checklist adds "Invite a teammate" and "Connect CI" for owners
+  and admins, ticked from real data.
+- GitLab CI include file (`integrations/gitlab/clavis.gitlab-ci.yml`) and a
+  pre-commit hook (`clavis-scan`), with guides.
 - `clavis doctor` checks the CLI install, `.clavis.yaml`, the server address
   (and where it came from), reachability, HTTPS trust, the server and CLI
   versions, the clock, the sign-in and project access, and prints the command
@@ -157,6 +172,8 @@
 
 ### Changed
 
+- `clavis tokens` is the main name for `clavis connections` (the web app calls
+  them platform tokens). The old name keeps working.
 - Shorter, clearer command names: `clavis sets use` (was `sets import`),
   `clavis access ls` (was `access requests`) and `clavis lease setup` (was
   `lease config-create`). The old names keep working.

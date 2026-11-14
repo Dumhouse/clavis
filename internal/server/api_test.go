@@ -4986,3 +4986,39 @@ func TestPreferencesMerge(t *testing.T) {
 		t.Fatalf("me = %+v", me.Preferences)
 	}
 }
+
+func TestLeaveOrganization(t *testing.T) {
+	f := newFixture(t)
+	owner, _ := f.setup(t)
+	invite := owner.request(http.MethodPost, "/api/v1/orgs/acme/invites", map[string]any{"role": "Developer"})
+	inv := decode[struct {
+		URL string `json:"url"`
+	}](t, invite)
+	token := inv.URL[strings.Index(inv.URL, "token=")+len("token="):]
+	member := &apiClient{t: t, h: f.srv.Handler()}
+	if accept := member.request(http.MethodPost, "/api/v1/invites/"+token+"/accept", map[string]string{
+		"name": "Leaver", "email": "leaver@example.com", "password": "another long password",
+	}); accept.Code != http.StatusOK {
+		t.Fatalf("accept = %d %s", accept.Code, accept.Body)
+	}
+
+	// A plain member can leave on their own, and stays signed in.
+	leave := member.requestHeaders(http.MethodPost, "/api/v1/orgs/acme/leave", nil,
+		map[string]string{"X-Clavis-Reauth": member.reauth("another long password")})
+	if leave.Code != http.StatusNoContent {
+		t.Fatalf("leave = %d %s", leave.Code, leave.Body)
+	}
+	if me := member.request(http.MethodGet, "/api/v1/auth/me", nil); me.Code != http.StatusOK {
+		t.Fatalf("session should survive leaving: %d", me.Code)
+	}
+	if again := member.request(http.MethodGet, "/api/v1/orgs/acme/projects", nil); again.Code == http.StatusOK {
+		t.Fatalf("a former member can still read the org: %d", again.Code)
+	}
+
+	// The last owner can't.
+	last := owner.requestHeaders(http.MethodPost, "/api/v1/orgs/acme/leave", nil,
+		map[string]string{"X-Clavis-Reauth": owner.reauth("correct horse battery staple")})
+	if last.Code != http.StatusConflict {
+		t.Fatalf("last owner leave = %d %s", last.Code, last.Body)
+	}
+}

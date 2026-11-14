@@ -35,6 +35,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import { CommandPalette } from '@/components/command-palette'
+import { HelpMenu } from '@/components/help-menu'
 import { HintBar, ShortcutsSheet } from '@/components/hints'
 import { OrgDialog } from '@/components/org-dialog'
 import { Button } from '@/components/ui/button'
@@ -368,6 +369,14 @@ export function AppShell() {
               <Palette className="size-3.5" />
               <span className="capitalize">{appearance}</span>
             </Button>
+            <HelpMenu
+              onShortcuts={() => {
+                setSheetOpen(true)
+              }}
+              onDocs={() => {
+                void navigate({ to: '/docs' })
+              }}
+            />
             <Menu
               label={`Account menu for ${initials}`}
               triggerClassName="ml-1 flex size-7 items-center justify-center rounded-full bg-elev text-xs font-semibold text-muted hover:ring-2 hover:ring-accent-line"

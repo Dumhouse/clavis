@@ -18,6 +18,7 @@ import {
 import { api } from '@/api/client'
 import type { components } from '@/api/schema'
 import { MfaSettings } from '@/components/mfa-settings'
+import { OrgDangerZone } from '@/components/org-danger-zone'
 import { PersonalTokens } from '@/components/personal-tokens'
 import { Passkeys } from '@/components/passkeys'
 import { ScimSettings } from '@/components/scim-settings'
@@ -1192,6 +1193,8 @@ export function SettingsPage({ scope = 'org' }: { scope?: 'account' | 'org' }) {
                   </div>
                 </section>
               )}
+
+              <OrgDangerZone />
             </>
           )}
         </div>
@@ -1222,6 +1225,7 @@ function orgNav(canAdmin: boolean): NavItem[] {
           { id: 'templates', label: 'Environment templates' },
         ]
       : []),
+    { id: 'danger', label: 'Leave or delete' },
   ]
 }
 

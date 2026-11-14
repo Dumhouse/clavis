@@ -27,9 +27,14 @@ winget is set up in the release pipeline and goes live once Microsoft accepts th
 
 ## Finding your way
 
-- `clavis help` opens a finder in your terminal: type a few letters
-  (`sec set`, `rotate`, `token`), move with ↑/↓ and press Enter to see usage,
-  examples and flags. Outside a terminal it prints every command by group.
+- `clavis help` opens a full-screen browser in your terminal. Type to search
+  (`sec set`, `rotate`, `token`), switch groups with ←/→, press Enter to open
+  a command, then `1`–`9` to pick an example, `c` to copy it, `r` to edit and
+  run it (production and destructive commands ask you to type `yes`), and `f`
+  to star the command. The header shows the project and environment commands
+  will use, and the next step when you aren't signed in or linked yet. Mouse
+  clicks and the wheel work. Outside a terminal it prints every command by
+  group.
 - `clavis help COMMAND` and `clavis COMMAND --help` show one command, from the
   same text as the [CLI reference](./reference/).
 - `clavis help -s WORD` lists every command that mentions a word.

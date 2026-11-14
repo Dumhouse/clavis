@@ -241,7 +241,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&cfScript, "cloudflare-script", "", "Cloudflare Workers script name")
 	cmd.Flags().BoolVar(&deleteMissing, "delete-missing", false, "delete remote keys not present in Clavis")
 	cmd.Flags().StringVar(&token, "cloudflare-token", "", "Cloudflare API token")
-	cmd.Flags().StringVar(&connection, "connection", "", "use a saved connection's credential instead of a token flag (see `clavis connections ls`)")
+	cmd.Flags().StringVar(&connection, "connection", "", "use a saved connection's credential instead of a token flag (see `clavis tokens ls`)")
 	return cmd
 }
 

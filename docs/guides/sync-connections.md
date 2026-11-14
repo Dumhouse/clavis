@@ -9,7 +9,7 @@ Clavis gets secrets to other systems in two ways:
 
 - **Sync (push):** Clavis writes values into GitHub, Forgejo, Vercel, AWS and
   others, using *that platform's* access token. This page is about those
-  tokens, shown as **Platform tokens** in the app (`clavis connections` in
+  tokens, shown as **Platform tokens** in the app (`clavis tokens` in
   the CLI).
 - **CI access (fetch):** a pipeline asks Clavis for one environment when it
   runs, with a *Clavis* machine token. No platform token is involved. See
@@ -52,12 +52,12 @@ Forgejo on your LAN needs `CLAVIS_OUTBOUND_ALLOWLIST`.
 ## From the CLI
 
 ```sh
-clavis connections create "Home Forgejo" --provider forgejo \
+clavis tokens create "Home Forgejo" --provider forgejo \
   --url https://git.example.com --token -          # reads the token from stdin
-clavis connections test <ID>
+clavis tokens test <ID>
 clavis syncs create dev --provider forgejo --forgejo-repo team/web --connection <ID>
-clavis connections rotate <ID> --token -
-clavis connections ls
+clavis tokens rotate <ID> --token -
+clavis tokens ls
 ```
 
 `clavis syncs create --forgejo-token …` (and the other token flags) still work

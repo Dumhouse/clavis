@@ -44,8 +44,9 @@ func newHelpCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "help [COMMAND]",
 		Short: "Find a command and see how to use it",
-		Long: "Without arguments in a terminal, opens a finder: type to filter, " +
-			"↑/↓ to move, Enter to open. `clavis help COMMAND` shows one command; " +
+		Long: "Without arguments in a terminal, opens a full-screen browser: type to search, " +
+			"←/→ for groups, Enter to open a command, then copy or run its examples. " +
+			"`clavis help COMMAND` shows one command; " +
 			"`--search WORD` lists every command that mentions WORD.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := cmd.Root()
@@ -66,11 +67,7 @@ func newHelpCommand(opts *Options) *cobra.Command {
 				return renderSearch(w, out, ref, query)
 			}
 			if !opts.JSON && interactiveTerminal() {
-				picked, err := runFinder(ref, out)
-				if err != nil || picked == "" {
-					return err
-				}
-				return renderCommandHelp(w, out, ref, picked)
+				return runHelpScreen(opts, ref, out)
 			}
 			renderOverview(w, out, ref)
 			return nil
@@ -145,7 +142,7 @@ func renderOverview(w io.Writer, out *Output, ref *Reference) {
 	}
 
 	p("\n%s\n", out.style("MORE HELP", helpDim))
-	p("  %s %s\n", out.style(padRight("clavis help", 28), helpCode), "find a command by typing (in a terminal)")
+	p("  %s %s\n", out.style(padRight("clavis help", 28), helpCode), "browse, search, copy and run examples (in a terminal)")
 	p("  %s %s\n", out.style(padRight("clavis help COMMAND", 28), helpCode), "usage, examples and flags for one command")
 	p("  %s %s\n", out.style(padRight("clavis help -s WORD", 28), helpCode), "every command that mentions WORD")
 	p("  %s %s\n", out.style(padRight("clavis COMMAND --help", 28), helpCode), "same as clavis help COMMAND")

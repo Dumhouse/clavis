@@ -26,8 +26,9 @@ type connectionJSON struct {
 
 func newConnectionsCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "connections",
-		Short: "Manage org-wide provider credentials that syncs share",
+		Use:     "tokens",
+		Aliases: []string{"connections"}, // the old name; the web app says "platform tokens"
+		Short:   "Manage org-wide platform tokens that syncs share",
 		Long: "A connection stores one provider credential (a Forgejo or GitHub token, AWS keys, ...)\n" +
 			"for the whole organization. Syncs created with --connection reuse it, and rotating\n" +
 			"the connection updates every sync that uses it.",
@@ -147,7 +148,7 @@ func newConnectionsCreateCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create NAME",
 		Short: "Save a provider credential for the organization",
-		Example: "  clavis connections create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -\n" +
+		Example: "  clavis tokens create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -\n" +
 			"  clavis syncs create dev --provider forgejo --forgejo-repo team/web --connection <ID>",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -177,7 +178,7 @@ func newConnectionsCreateCommand(opts *Options) *cobra.Command {
 				return out.PrintJSON(created)
 			}
 			out.Success("Saved connection %q (%s).", created.Name, created.ID)
-			out.Info("Check it: clavis connections test %s", created.ID)
+			out.Info("Check it: clavis tokens test %s", created.ID)
 			return nil
 		},
 	}

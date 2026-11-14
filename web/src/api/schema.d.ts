@@ -1014,6 +1014,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orgs/{org}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave an organization */
+        post: operations["leave-org"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orgs/{org}/members": {
         parameters: {
             query?: never;
@@ -6433,6 +6450,39 @@ export interface operations {
             path: {
                 org: string;
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "leave-org": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Short-lived token from /auth/reauthenticate */
+                "X-Clavis-Reauth"?: string;
+            };
+            path: {
+                /** @description Organization slug */
+                org: string;
             };
             cookie?: never;
         };

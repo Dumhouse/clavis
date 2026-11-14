@@ -173,7 +173,11 @@ export function ProjectsPage() {
         </Button>
       </header>
 
-      <GettingStarted projectCount={projects.data?.length ?? 0} />
+      <GettingStarted
+        projectCount={projects.data?.length ?? 0}
+        orgSlug={org?.slug}
+        canManage={org?.role === 'Owner' || org?.role === 'Admin'}
+      />
 
       {projects.isLoading && (
         <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-sm text-muted">
@@ -339,13 +343,60 @@ function useCliConnected(): boolean {
   return remembered || seen
 }
 
-function GettingStarted({ projectCount }: { projectCount: number }) {
+type SetupStep = { label: string; done: boolean; to?: '/members' | '/integrations' }
+
+function GettingStarted({
+  projectCount,
+  orgSlug,
+  canManage,
+}: {
+  projectCount: number
+  orgSlug: string | undefined
+  canManage: boolean
+}) {
   const cliConnected = useCliConnected()
-  const steps = [
+  // Owners and admins also get the two steps that need their rights. Each is
+  // done when there is real data for it: a second member or a pending
+  // invite, and a machine identity that CI can sign in with.
+  const members = useQuery({
+    queryKey: ['setup-checklist', 'members', orgSlug],
+    enabled: Boolean(orgSlug) && canManage,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/members', {
+        params: { path: { org: orgSlug ?? '' } },
+      })
+      return result.data ?? null
+    },
+  })
+  const identities = useQuery({
+    queryKey: ['setup-checklist', 'identities', orgSlug],
+    enabled: Boolean(orgSlug) && canManage,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/identities', {
+        params: { path: { org: orgSlug ?? '' } },
+      })
+      return result.data ?? null
+    },
+  })
+  const steps: SetupStep[] = [
     { label: 'Create your organization', done: true },
     { label: 'Create a project', done: projectCount > 0 },
     { label: 'Connect the CLI', done: cliConnected },
   ]
+  if (canManage && members.data && identities.data) {
+    steps.push(
+      {
+        label: 'Invite a teammate',
+        done: (members.data.members?.length ?? 0) > 1 || (members.data.invites?.length ?? 0) > 0,
+        to: '/members',
+      },
+      {
+        label: 'Connect CI',
+        done: (identities.data.identities?.length ?? 0) > 0,
+        to: '/integrations',
+      },
+    )
+  }
   const completed = steps.filter((step) => step.done).length
   const [collapsed, toggle] = useCollapsed('getting-started')
   if (completed === steps.length) return null
@@ -381,9 +432,15 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
                 >
                   {step.done && <Check className="size-2.5" strokeWidth={3} />}
                 </span>
-                <span className={step.done ? 'text-muted line-through' : 'text-text'}>
-                  {step.label}
-                </span>
+                {step.to && !step.done ? (
+                  <Link to={step.to} className="text-text underline-offset-2 hover:underline">
+                    {step.label}
+                  </Link>
+                ) : (
+                  <span className={step.done ? 'text-muted line-through' : 'text-text'}>
+                    {step.label}
+                  </span>
+                )}
               </span>
             ))}
           </div>

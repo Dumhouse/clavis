@@ -56,7 +56,7 @@ func TestRankCommands(t *testing.T) {
 		"secrets set":       "secrets set",
 		"clavis upgrade":    "upgrade",
 		"doc":               "doctor",
-		"rotate credential": "connections rotate",
+		"rotate credential": "tokens rotate",
 	}
 	for query, want := range cases {
 		if got := first(query); got != want {
@@ -72,44 +72,137 @@ func TestRankCommands(t *testing.T) {
 	}
 }
 
-func TestFinderKeys(t *testing.T) {
-	s := newFinderState(testReference(t).Commands)
-	for _, r := range "upgr" {
-		s.handle(keyRune, r)
+func key(m *helpModel, keys ...string) {
+	for _, k := range keys {
+		switch k {
+		case "enter", "esc", "down", "right", "backspace":
+			m.Update(helpKey{Name: k})
+		default:
+			m.Update(helpKey{Text: k})
+		}
 	}
-	if s.matches[0].Path != "upgrade" {
-		t.Fatalf("first match %q", s.matches[0].Path)
+}
+
+func testModel(t *testing.T) *helpModel {
+	t.Helper()
+	path := t.TempDir() + "/help.json"
+	old := helpStorePath
+	helpStorePath = func() string { return path }
+	t.Cleanup(func() { helpStorePath = old })
+	return newHelpModel(testReference(t), loadHelpStore(), helpContext{Server: "https://x"})
+}
+
+func TestHelpScreenSearchOpenCopy(t *testing.T) {
+	m := testModel(t)
+	var copied string
+	old := clipboardCopy
+	clipboardCopy = func(s string) error { copied = s; return nil }
+	t.Cleanup(func() { clipboardCopy = old })
+
+	key(m, "u", "p", "g", "r")
+	if c, _ := m.current(); c.Path != "upgrade" {
+		t.Fatalf("search → %q", c.Path)
 	}
-	s.handle(keyBackspace, 0)
-	if s.query != "upg" {
-		t.Fatalf("query %q", s.query)
+	key(m, "enter")
+	if m.mode != modeDetail {
+		t.Fatal("enter should open the command")
 	}
-	s.handle(keyClear, 0)
-	s.handle(keyDown, 0)
-	s.handle(keyDown, 0)
-	if s.selected != 2 {
-		t.Fatalf("selected %d", s.selected)
+	key(m, "2", "c")
+	if copied != "clavis upgrade --yes" {
+		t.Fatalf("copied %q", copied)
 	}
-	s.handle(keyUp, 0)
-	picked, done := s.handle(keyEnter, 0)
-	if !done || picked != s.matches[1].Path {
-		t.Fatalf("enter picked %q done=%v", picked, done)
+	key(m, "f")
+	if !m.store.isFavorite("upgrade") {
+		t.Fatal("f should save the command")
 	}
-	if _, done := s.handle(keyQuit, 0); !done {
-		t.Fatal("quit")
+	if got := loadHelpStore(); !got.isFavorite("upgrade") || got.Opened["upgrade"] != 1 {
+		t.Fatalf("store not persisted: %+v", got)
 	}
-	if key, _ := decodeKey([]byte{27, '[', 'A'}); key != keyUp {
-		t.Fatal("arrow up")
-	}
-	if keys := splitKeys([]byte("up\x1b[Bé\r")); len(keys) != 5 || string(keys[2]) != "\x1b[B" || string(keys[3]) != "é" {
-		t.Fatalf("split %q", keys)
-	}
-	if key, _ := decodeKey([]byte{27}); key != keyQuit {
-		t.Fatal("esc")
-	}
-	var out bytes.Buffer
-	view := strings.Join(s.view(NewTestOutput(&out, &out, false, false), 100), "\n")
-	if !strings.Contains(view, "Enter open") || !strings.Contains(view, "clavis help ›") {
+	if view := m.View(); !strings.Contains(view, "EXAMPLES") || !strings.Contains(view, "▶") || !strings.Contains(view, "saved upgrade") {
 		t.Fatalf("view:\n%s", view)
+	}
+}
+
+func TestHelpScreenRunAndConfirm(t *testing.T) {
+	m := testModel(t)
+	key(m, "d", "o", "c", "t", "o", "r", "enter", "r", "enter")
+	if m.run != "clavis doctor" {
+		t.Fatalf("run %q (mode %d)", m.run, m.mode)
+	}
+
+	m = testModel(t)
+	key(m, "e", "n", "v", " ", "f", "r", "e", "e", "z", "e", "enter", "r")
+	if m.mode != modeEdit || !strings.Contains(m.edit, "freeze") {
+		t.Fatalf("edit mode: %d %q", m.mode, m.edit)
+	}
+	m.edit = "clavis env freeze --env production"
+	key(m, "enter")
+	if m.mode != modeConfirm || m.run != "" {
+		t.Fatalf("production must ask first: mode %d run %q", m.mode, m.run)
+	}
+	key(m, "y", "e", "s", "enter")
+	if m.run != "clavis env freeze --env production" {
+		t.Fatalf("run %q", m.run)
+	}
+}
+
+func TestHelpScreenTabsAndLayout(t *testing.T) {
+	m := testModel(t)
+	key(m, "right", "right")
+	if m.tabs[m.tab].Group != "get-started" {
+		t.Fatalf("tab %+v", m.tabs[m.tab])
+	}
+	for _, c := range m.list {
+		if c.Group != "get-started" {
+			t.Fatalf("%s is in %s", c.Path, c.Group)
+		}
+	}
+	for _, size := range [][2]int{{120, 40}, {70, 24}} {
+		m.Update(helpResize{W: size[0], H: size[1]})
+		if view := m.View(); !strings.Contains(view, "Clavis help") {
+			t.Fatalf("%v view:\n%s", size, view)
+		}
+	}
+	if !strings.Contains(m.contextLine(), "not signed in") {
+		t.Fatalf("header %q", m.contextLine())
+	}
+}
+
+func TestExampleLineJoinsContinuations(t *testing.T) {
+	if got := exampleLine("clavis a \\\n  --b c"); got != "clavis a --b c" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestParseInput(t *testing.T) {
+	events := parseInput([]byte("a\x1b[B\x1b[5~\x1b[<64;10;5M\x1b[<0;3;3M\r\x1b"))
+	want := []any{
+		helpKey{Text: "a"}, helpKey{Name: "down"}, helpKey{Name: "pgup"},
+		helpMouse{X: 9, Y: 4, Button: "wheelup"}, helpMouse{X: 2, Y: 2, Button: "left"},
+		helpKey{Name: "enter"}, helpKey{Name: "esc"},
+	}
+	if len(events) != len(want) {
+		t.Fatalf("events %#v", events)
+	}
+	for i := range want {
+		if events[i] != want[i] {
+			t.Errorf("event %d = %#v, want %#v", i, events[i], want[i])
+		}
+	}
+	if got := parseInput([]byte("é")); len(got) != 1 || got[0] != (helpKey{Text: "é"}) {
+		t.Fatalf("utf8 %#v", got)
+	}
+}
+
+func TestHelpScreenMouse(t *testing.T) {
+	m := testModel(t)
+	m.Update(helpMouse{X: 5, Y: 7, Button: "left"}) // third list row
+	if m.sel != 2 {
+		t.Fatalf("click selected %d", m.sel)
+	}
+	m.View()
+	m.Update(helpMouse{X: 20, Y: 2, Button: "left"}) // a tab
+	if m.tab == 0 {
+		t.Fatal("tab click ignored")
 	}
 }
