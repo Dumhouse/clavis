@@ -98,6 +98,14 @@ type sharedSetImportsOutput struct {
 	}
 }
 
+type renameSharedSetInput struct {
+	Org  string `path:"org"`
+	Slug string `path:"slug"`
+	Body struct {
+		Name string `json:"name" minLength:"1" maxLength:"100"`
+	}
+}
+
 func (s *Server) registerSharedSetRoutes() error {
 	base := "/api/v1/orgs/{org}/sets"
 	if err := s.registry.Declare(http.MethodGet, base, authz.OrgRead, "list shared sets"); err != nil {
@@ -148,6 +156,22 @@ func (s *Server) registerSharedSetRoutes() error {
 			return nil, s.apiError(ctx, err)
 		}
 		return &sharedSetOutput{Body: sharedSetFromView(*view, in.Reveal)}, nil
+	})
+
+	if err := s.registry.Declare(http.MethodPatch, base+"/{slug}", authz.RolesManage, "rename shared sets"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "rename-shared-set", Method: http.MethodPatch, Path: base + "/{slug}",
+		Summary: "Rename a shared set", Tags: []string{"sets"},
+		Description: "Changes the display name. The slug stays, so CLI commands and environments keep working.",
+	}, func(ctx context.Context, in *renameSharedSetInput) (*sharedSetOutput, error) {
+		actor, _ := actorFrom(ctx)
+		set, err := s.svc.RenameSharedSet(ctx, actor, in.Org, in.Slug, in.Body.Name, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &sharedSetOutput{Body: sharedSetFromView(service.SharedSetView{Set: set}, false)}, nil
 	})
 
 	if err := s.registry.Declare(http.MethodDelete, base+"/{slug}", authz.RolesManage, "delete shared sets"); err != nil {

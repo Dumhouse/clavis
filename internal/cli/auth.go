@@ -123,6 +123,9 @@ func runLogin(cmd *cobra.Command, opts *Options, open bool) error {
 		if err := credentialStore().Set(resolved.Server, poll.Token); err != nil {
 			return err
 		}
+		if err := rememberServer(resolved.Server); err != nil {
+			out.Warn("Could not remember %s as the default server: %v", resolved.Server, err)
+		}
 		name := ""
 		if poll.User != nil {
 			name = poll.User.Name
@@ -168,6 +171,7 @@ func newLogoutCommand(opts *Options) *cobra.Command {
 			if err := credentialStore().Delete(resolved.Server); err != nil {
 				return err
 			}
+			forgetServer(resolved.Server)
 			out.Success("Signed out of %s", resolved.Server)
 			return nil
 		},
@@ -213,26 +217,16 @@ func newWhoamiCommand(opts *Options) *cobra.Command {
 func newInitCommand(opts *Options) *cobra.Command {
 	var projectName string
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Link this directory to a project",
-		Args:  cobra.NoArgs,
+		Use:     "init",
+		Aliases: []string{"link"}, // `link` used to be a separate command doing the same
+		Short:   "Link this directory to a project",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runInit(cmd, opts, projectName)
 		},
 	}
 	cmd.Flags().StringVar(&projectName, "project-name", "", "create a project with this name if none exist")
 	return cmd
-}
-
-func newLinkCommand(opts *Options) *cobra.Command {
-	return &cobra.Command{
-		Use:   "link",
-		Short: "Change the project linked to this directory",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runInit(cmd, opts, "")
-		},
-	}
 }
 
 func newUnlinkCommand(opts *Options) *cobra.Command {

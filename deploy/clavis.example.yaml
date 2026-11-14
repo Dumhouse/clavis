@@ -10,6 +10,10 @@ server:
   shutdown_timeout: 20s
   max_body_bytes: 1048576
   metrics_public: true
+  # Ask GitHub once a day for a newer release and show admins an update notice.
+  # Sends nothing about this server. Turn off for air-gapped installs.
+  update_check: true
+  # update_check_url: https://mirror.example.com/clavis/latest
   # HTTPS built in. mode: off | self-signed | file | acme
   # Any mode except off needs an https:// base_url; addr then only redirects.
   tls:

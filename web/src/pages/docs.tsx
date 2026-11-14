@@ -663,6 +663,11 @@ function PageHeader({ page }: { page: DocPage }) {
   )
 }
 
+/** Doc snippets are written for a local server; show this server's address. */
+function withOrigin(code: string): string {
+  return code.replaceAll('http://localhost:8080', window.location.origin)
+}
+
 function Overview() {
   const origin = window.location.origin
   const guidePages = pages.filter((page) => page.kind === 'guide')
@@ -1088,7 +1093,7 @@ function SnippetGroup({ snippets }: { snippets: DocSnippet[] }) {
     return (
       <div className="space-y-1.5">
         {snippets.map((snippet) => (
-          <CodeBlock key={snippet.code} code={snippet.code} />
+          <CodeBlock key={snippet.code} code={withOrigin(snippet.code)} />
         ))}
       </div>
     )
@@ -1119,7 +1124,7 @@ function SnippetGroup({ snippets }: { snippets: DocSnippet[] }) {
           </button>
         ))}
       </div>
-      <CodeBlock code={current.code} bare />
+      <CodeBlock code={withOrigin(current.code)} bare />
     </div>
   )
 }

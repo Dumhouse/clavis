@@ -13,7 +13,7 @@ const lines = [
   { t: 'cmt', s: '# sign in once and link the repo' },
   { t: 'cmd', s: 'clavis login' },
   { t: 'ok', s: '✓ Signed in as ada@acme.dev (token stored in OS keychain)' },
-  { t: 'cmd', s: 'clavis link --project web-app --env development' },
+  { t: 'cmd', s: 'clavis init --project web-app --env development' },
   { t: 'ok', s: '✓ Wrote .clavis.yaml' },
   { t: 'cmt', s: '# run with secrets injected; output is masked' },
   { t: 'cmd', s: 'clavis run -- pnpm dev' },

@@ -44,6 +44,7 @@ type listSecretsInput struct {
 	Reveal  bool   `query:"reveal" doc:"Decrypt values (requires secrets:read-values)"`
 	Channel string `query:"channel" enum:"ui,cli,export,api" default:"ui"`
 	Overlay string `query:"overlay" maxLength:"60"`
+	Reason  string `query:"reason" maxLength:"512" doc:"Why the values are revealed; recorded in the audit log"`
 }
 
 type getSecretInput struct {
@@ -163,7 +164,9 @@ func (s *Server) registerSecretRoutes() error {
 		Summary: "List secrets", Tags: []string{"secrets"},
 	}, func(ctx context.Context, in *listSecretsInput) (*secretsOutput, error) {
 		actor, _ := actorFrom(ctx)
-		secrets, etag, err := s.svc.ListSecretsWithOverlay(ctx, actor, in.Org, in.Project, in.Env, in.Overlay, in.Reveal, in.Channel, metaFrom(ctx))
+		meta := metaFrom(ctx)
+		meta.Reason = in.Reason
+		secrets, etag, err := s.svc.ListSecretsWithOverlay(ctx, actor, in.Org, in.Project, in.Env, in.Overlay, in.Reveal, in.Channel, meta)
 		if err != nil {
 			return nil, s.apiError(ctx, err)
 		}
@@ -280,6 +283,40 @@ func (s *Server) registerSecretRoutes() error {
 				Version: v.Version, ChangeMessage: v.ChangeMessage, ActorID: v.ActorID, CreatedAt: v.CreatedAt,
 			})
 		}
+		return out, nil
+	})
+
+	type versionValueInput struct {
+		Org     string `path:"org"`
+		Project string `path:"project"`
+		Env     string `path:"env"`
+		Key     string `path:"key"`
+		Version int    `path:"version" minimum:"1"`
+		Reason  string `query:"reason" maxLength:"512"`
+	}
+	type versionValueOutput struct {
+		Body struct {
+			Version int    `json:"version"`
+			Value   string `json:"value"`
+		}
+	}
+	versionValuePath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets/{key}/versions/{version}"
+	if err := s.registry.Declare(http.MethodGet, versionValuePath, authz.SecretsReadValues, "preview an old version before restoring it"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "get-secret-version", Method: http.MethodGet, Path: versionValuePath,
+		Summary: "Reveal one past version", Tags: []string{"secrets"},
+		Description: "Returns the value of a past version. Audited as secret.reveal; production needs a reason.",
+	}, func(ctx context.Context, in *versionValueInput) (*versionValueOutput, error) {
+		actor, _ := actorFrom(ctx)
+		value, err := s.svc.RevealSecretVersion(ctx, actor, in.Org, in.Project, in.Env, in.Key, in.Version, in.Reason, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &versionValueOutput{}
+		out.Body.Version = in.Version
+		out.Body.Value = value
 		return out, nil
 	})
 
@@ -410,6 +447,46 @@ func (s *Server) registerSecretRoutes() error {
 		out.Body.Updated = result.Updated
 		out.Body.Deleted = result.Deleted
 		out.Body.ETag = result.ETag
+		return out, nil
+	})
+
+	type compareEntry struct {
+		Key   string `json:"key" minLength:"1" maxLength:"256"`
+		Value string `json:"value" maxLength:"1048576"`
+	}
+	type compareInput struct {
+		Org     string `path:"org"`
+		Project string `path:"project"`
+		Env     string `path:"env"`
+		Body    struct {
+			Entries []compareEntry `json:"entries" maxItems:"1000"`
+		}
+	}
+	type compareOutput struct {
+		Body struct {
+			Statuses map[string]string `json:"statuses" doc:"Per key: new, changed or same. Values are never returned."`
+		}
+	}
+	comparePath := "/api/v1/orgs/{org}/projects/{project}/environments/{env}/secrets:compare"
+	if err := s.registry.Declare(http.MethodPost, comparePath, authz.SecretsReadValues, "compare values for an import preview; an equality check reads the value"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "compare-secrets", Method: http.MethodPost, Path: comparePath,
+		Summary: "Compare values with the stored ones", Tags: []string{"secrets"},
+		Description: "Reports per key whether the given value is new, changed or the same as the environment's current value. Values are never returned. Audited as secret.compare.",
+	}, func(ctx context.Context, in *compareInput) (*compareOutput, error) {
+		actor, _ := actorFrom(ctx)
+		values := make(map[string]string, len(in.Body.Entries))
+		for _, entry := range in.Body.Entries {
+			values[entry.Key] = entry.Value
+		}
+		statuses, err := s.svc.CompareSecretValues(ctx, actor, in.Org, in.Project, in.Env, values, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &compareOutput{}
+		out.Body.Statuses = statuses
 		return out, nil
 	})
 

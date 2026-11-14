@@ -2,6 +2,211 @@
 
 ## Unreleased
 
+## v0.3.3 — 2026-11-14
+
+### Added
+
+- `clavis help` is now a full-screen browser in a terminal: group tabs, a
+  searchable list, a live preview with numbered examples that you can copy
+  (`c`) or edit and run (`r`, with a "type yes" check for production and
+  destructive commands), starred commands (`f`) and the ones you open most
+  first, mouse and resize support, and a header that shows where commands
+  will run and the next step (sign in, link the folder).
+- `clavis help --tour` is a guided first run (sign in, link, store, run,
+  doctor) that asks before each step and checks it worked.
+- Help menu in the web app (documentation, shortcuts, Discussions, issues)
+  with "Copy diagnostics" for bug reports.
+- Leave an organization, or delete it (owners), from Org settings → Leave or
+  delete. New endpoint `POST /api/v1/orgs/{org}/leave`; the last owner can't
+  leave.
+- The setup checklist adds "Invite a teammate" and "Connect CI" for owners
+  and admins, ticked from real data.
+- A release workflow that mirrors the GitHub action to `dumhouse/clavis-action`
+  for the Marketplace (off until the repository and token exist; see the
+  releasing guide).
+- GitLab CI include file (`integrations/gitlab/clavis.gitlab-ci.yml`) and a
+  pre-commit hook (`clavis-scan`), with guides.
+- `clavis doctor` checks the CLI install, `.clavis.yaml`, the server address
+  (and where it came from), reachability, HTTPS trust, the server and CLI
+  versions, the clock, the sign-in and project access, and prints the command
+  that fixes each problem. `--json` for scripts; exit code 1 on failures.
+- `clavis help` is rebuilt from the CLI reference: a grouped overview with a
+  "Start here" section, a page per command with examples and a docs link,
+  `--search`, and, in a terminal, a finder you type into (↑/↓, Tab, Enter).
+- `clavis upgrade` installs the latest release the way Clavis was installed:
+  it runs `brew`, `scoop`, `winget` or `go install` after you confirm, or,
+  for the install script and downloaded binaries, downloads the release,
+  checks it against `checksums.txt` (and its cosign signature when `cosign`
+  is installed) and replaces itself. Docker, Helm, packages and source
+  builds get the command to run. `clavis update` only checks.
+  `--version`, `--download-base` / `CLAVIS_DOWNLOAD_BASE` and `--yes` are
+  supported; `clavis upgrade ARCHIVE [--install]` still verifies a
+  downloaded archive.
+
+- Update notices. The server checks GitHub once a day for a newer release
+  and shows owners and admins a notice with the command that updates this
+  install; "Later" hides it for a week. The CLI prints a short note at most
+  every three days and warns when it and the server differ in minor version.
+  Both work out how Clavis was installed (Homebrew, Scoop, WinGet, Docker,
+  Helm, .deb, .rpm, .apk, `go install`, the install script, or a build from
+  source) and show the matching command. `clavis update` checks right away.
+  The check sends nothing about the install; turn it off with
+  `CLAVIS_UPDATE_CHECK=false` (server and CLI),
+  or point it at a mirror with `CLAVIS_UPDATE_CHECK_URL`. New endpoint:
+  `GET /api/v1/system/update`.
+- Date format, time format and fonts are saved to your account
+  (`PATCH /api/v1/auth/preferences` takes `date_format`, `time_format`,
+  `font` and `font_mono`, and keeps fields you leave out), so they follow you
+  to other browsers.
+- "Not logged in" errors say where the server address came from and, when
+  you are signed in to a different server, how to use it.
+- The key panel's environment tabs show each environment's version, or
+  "inherited" / "unset", with the last update in the tooltip.
+- New docs pages: Using the web app, and Updating Clavis.
+- Web unit tests (`pnpm --dir web test`) for date parsing and formatting.
+- The Clavis action works on Forgejo and Gitea Actions as well as GitHub:
+  `environment: prod` plus a machine token loads that environment into the job.
+  It installs the CLI itself (checksum verified), keeps multi-line values,
+  masks secrets, and takes `server-fingerprint` or `ca-cert` for self-signed
+  servers. This gives Forgejo, which has no deployment environments, separate
+  staging and production values under the same names. The old `export`,
+  `export-env` and `export-project` inputs still work; the `secrets-json`
+  output was removed, since it put every value into step outputs.
+- Integrations page reworked around the two ways to deliver secrets: **CI
+  access** (jobs fetch from Clavis with a machine token) and **syncs** (Clavis
+  pushes into a platform with that platform's access token, now called saved
+  credentials). A setup guide asks for the platform, recommends one way with
+  the reasons and the platform's limits (for example, Forgejo has no
+  per-environment secrets), then creates the CI tokens and writes the workflow,
+  or opens the sync form. Wider sync form with an explanation panel; it lists
+  the repositories a Forgejo, GitHub or GitLab token can reach, flags missing
+  admin rights, and warns when two syncs would overwrite each other in the same
+  repository. Syncs now report their target (`target` in the API).
+- The CI setup maps a branch to each environment (or deploy by hand), writes
+  one load step per environment, and can store the new tokens as repository
+  secrets for you (`POST …/syncs/ci-secrets`, `CLAVIS_*` names only). For
+  Forgejo it offers the action from GitHub, from a mirror on your Forgejo, or
+  plain `run:` steps without the action.
+- `clavis export --format github-env` (and so the Clavis action) reports failures as annotations with the cause and fix
+  (empty or rejected token, wrong environment, untrusted certificate,
+  unreachable server) and warns when an environment has no values.
+- Integrations opens on CI access; adding a sync goes through the guide, which
+  lists only platforms Clavis can push to.
+- Shared sets page reworked: a list of sets and the selected set, with keys
+  grouped into secrets, variables and files, inline editing, "Show values",
+  renaming (`PATCH /orgs/{org}/sets/{slug}`; the slug stays) and "Use in an
+  environment". Using a set is shown as the live link it is: nothing is copied.
+- `clavis login` remembers the server, so `clavis init` and other commands
+  in a new directory use it instead of `http://localhost:8080`.
+- Fixed: adding or signing in with a passkey failed with "can't access
+  property replace" (the WebAuthn options were passed one level too deep).
+  On an IP address, where browsers refuse passkeys, the app now says so. On a
+  self-signed server it explains that passkeys need the certificate trusted on
+  this computer, and a refused passkey says that instead of a generic error.
+- Organizations can be created and renamed (name and slug) from the
+  organization menu in the sidebar.
+- The hint bar and the shortcuts sheet (`?`) show the Clavis version.
+- Fixed: importing the same .env again showed secrets as changed when they
+  weren't (the secret list carries no secret values, so every secret looked
+  different), and wrote a new version of every key. A new endpoint,
+  `POST …/environments/{env}/secrets:compare`, compares values on the server
+  and returns only new / changed / same per key; it needs permission to read
+  values and is audited as `secret.compare`. The import now skips unchanged
+  keys and keeps the kind and folder of existing keys.
+- The import dialog is full-height: paste or load a file on the left, map keys
+  on the right with filters (new, changed, unchanged), masked values with
+  "Show values", a checkbox per key, and folder and kind for all checked keys
+  at once. Folders are picked from the environment's existing folders or typed
+  as new ones; new keys get a suggested kind (variable for `*_HOST`, `*_PORT`,
+  `NODE_ENV`, `VITE_*`…, file for multi-line values).
+- The secret generator shows the value as soon as it opens and explains how
+  each type is made. "JWT signing key" is labelled as the HMAC key that signs
+  tokens (32/48/64 bytes for HS256/384/512). Key pairs show the private and the
+  public key, save the private key as a file and can save the public key as
+  `…_PUBLIC_KEY`. RSA can be 2048, 3072 or 4096 bits. New types: AES-256 key,
+  numeric code, and a letters-and-digits token.
+- Compare shows every environment side by side instead of two, can hide
+  environments, and can include identical keys. Any value can be copied to
+  another environment from its cell.
+- The secrets table fits the page (columns share the width; "Wide values"
+  still scrolls), rows stay one line high, each key shows whether it is a
+  secret, variable or file, and the toolbar filters by kind or groups the
+  table into sections.
+- Add secret has cards for Secret, Variable and File, loads or drops a file
+  into the value, can generate the value, and has an Advanced section: folder,
+  expiry date, comment, tags, provider URL, runbook notes and the change
+  message (shown in the key's History).
+- History can preview any earlier version before restoring it
+  (`GET …/secrets/{key}/versions/{version}`, audited as a reveal; production
+  asks for a reason).
+- "Edit value" in the key panel loads the current value into the editor
+  (audited as a reveal; production asks for a reason), so a typo can be fixed
+  without retyping it. "Replace with a new value…" still starts empty.
+- Date fields (Expires on) follow the date format setting instead of the
+  browser's language, accept typed dates, and keep a calendar picker.
+- A Generate icon next to Add secret, and Generate buttons in Replace value
+  and in the table's inline edit.
+- The filter also searches tags, comments, folders, owner groups and variable
+  values, and several words must all match. The secrets header counts all
+  keys, and folder counts are distinct keys.
+- Group by kind is now the default.
+- "Reveal all" shows every value in the table at once; production asks for a
+  reason. The list endpoint takes an optional `reason`, recorded in the audit.
+- Settings → Appearance: date format (31.12.2026, 31/12/2026, 12/31/2026,
+  2026-12-31), 24- or 12-hour time, and the interface and code fonts (Geist,
+  Manrope, Inter, IBM Plex Sans, JetBrains Mono, IBM Plex Mono or system
+  fonts). Fonts are bundled and load only when chosen. Saved in this browser.
+- Builds outside a release tag are stamped `0.3.2+dev.<commit>[.dirty]`
+  (latest release, commit, uncommitted changes) by `scripts/version.sh`, used
+  by `make build`. `GET /api/v1/version` adds `built`. The web UI shows a
+  development build as `0.3.2 dev 14.11.26 14:23*` (commit in the tooltip)
+  and a release as `v0.3.3`.
+- Fixed: with Wide values on, hovering a row widened the other environments'
+  cells (their copy/edit buttons took space) and pushed the last
+  environment out of view. The buttons now float over the cell.
+- Fixed: dialogs focused their close button instead of the first field, so
+  typing right away went nowhere and Enter closed the dialog.
+- Fixed: keys from shared sets showed as "106751 days old" in Health; they
+  now carry the set's timestamps and are not reported per environment.
+- The CI setup lists the repositories a saved platform token can see. Shared
+  set files can be loaded from disk, and a set can be used in all of a
+  project's environments at once.
+- Saved sync credentials are now called platform tokens in the app (still
+  `connections` in the API and CLI). Forms ask for the server URL before the
+  token, so the "Create a token" link points at your own server.
+- `clavis export --format github-env` appends values to `$GITHUB_ENV` with
+  masking and multi-line support.
+
+### Changed
+
+- `clavis tokens` is the main name for `clavis connections` (the web app calls
+  them platform tokens). The old name keeps working.
+- Shorter, clearer command names: `clavis sets use` (was `sets import`),
+  `clavis access ls` (was `access requests`) and `clavis lease setup` (was
+  `lease config-create`). The old names keep working.
+- `clavis link` is now another name for `clavis init` (it ran the same code),
+  and `clavis agents revoke` is `clavis agents disallow`, so it isn't
+  confused with `clavis identities revoke`. The old names keep working.
+- The CLI's update notes are turned off with `CLAVIS_UPDATE_CHECK=false`, the
+  same variable as the server.
+- Setting only `CLAVIS_DB_DSN` now selects Postgres; before, the server stayed
+  on SQLite and ignored it unless `CLAVIS_DB_DRIVER=postgres` was set too.
+- Sidebar: Secrets (projects, shared sets, integrations, health), Access
+  (members, agents, who has access, access requests, audit log) and Settings.
+- CI snippets pin the Clavis action to this server's release (a development
+  build uses the release it comes after) instead of a fixed tag.
+- `/shared-sets` redirects to Shared sets instead of a "coming soon" page, and
+  in-app doc snippets show this server's address.
+- The setup checklist only needs the first three steps. "Invite a teammate"
+  and "Connect CI" are marked optional, never block it, and the whole card
+  can be dismissed for good.
+- Fixed: an agent or machine reading secrets logged `record reveal event
+  failed` (a database foreign-key error) on every read. Reveal history is for
+  people, so machines are skipped; their reads stay in the audit log.
+- The setup checklist ticks "Connect the CLI" once you sign in with
+  `clavis login`, and hides when every step is done. The sessions list names
+  CLI sessions "Clavis CLI".
+
 ## v0.3.2 — 2026-11-13
 
 ### Added

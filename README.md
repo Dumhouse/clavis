@@ -56,7 +56,7 @@ file with HTTPS (self-signed, or Let's Encrypt even for a LAN-only server) and a
 ready setup link.
 
 The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
-`dumhouse/clavis:0.2.5` for production.
+`dumhouse/clavis:0.3.3` for production.
 
 **Install the CLI** (it is the same binary as the server):
 
@@ -78,7 +78,7 @@ All methods, including `go install`, are listed in the [CLI docs](https://dumhou
 
 ```sh
 clavis login
-clavis link --project web-app --env development
+clavis init --project web-app --env development
 clavis run pnpm dev            # output is masked against injected values
 ```
 
@@ -355,11 +355,20 @@ releases before relying on it for critical systems. See the [roadmap](ROADMAP.md
 
 ## Development
 
+For working on Clavis itself. The `Makefile` is at the root of this
+repository, so run these from a clone (you need Go, Node.js and pnpm; see
+[CONTRIBUTING.md](CONTRIBUTING.md)):
+
 ```sh
-make dev                    # server on :8080 + Vite hot reload on :5173
-make build && ./bin/clavis server
-make docs-dev               # website on :5174
+git clone https://github.com/dumhouse/clavis.git && cd clavis
+make dev                    # open http://localhost:8080 (the web UI reloads as you edit)
+make build                  # builds ./bin/clavis with the web UI embedded
+./bin/clavis server         # runs that build on :8080
+make docs-dev               # this documentation website on :5174
 ```
+
+You don't need any of this to use Clavis: install it with Docker or a
+package as shown above.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain, tests, and commit
 conventions. The website is built from [`docs/`](docs/.vitepress/README.md) with

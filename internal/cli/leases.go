@@ -105,9 +105,10 @@ func newLeaseConfigCreateCommand(opts *Options) *cobra.Command {
 	var port, defaultTTL, maxTTL int
 	var awsRegion, awsAccessKey, awsSecretKey, awsRoleARN, awsExternalID, awsSessionName string
 	cmd := &cobra.Command{
-		Use:   "config-create",
-		Short: "Create a PostgreSQL or AWS STS dynamic secret config",
-		Args:  cobra.NoArgs,
+		Use:     "setup",
+		Aliases: []string{"config-create"}, // the old name
+		Short:   "Set up a PostgreSQL or AWS STS credential source",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := opts.output()
 			resolved, err := opts.resolveContext(false)

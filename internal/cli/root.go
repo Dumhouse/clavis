@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -64,7 +65,6 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newLogoutCommand(opts))
 	root.AddCommand(newWhoamiCommand(opts))
 	root.AddCommand(newInitCommand(opts))
-	root.AddCommand(newLinkCommand(opts))
 	root.AddCommand(newUnlinkCommand(opts))
 	root.AddCommand(newSecretsCommand(opts))
 	root.AddCommand(newEnvCommand(opts))
@@ -80,6 +80,8 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newLeaseCommand(opts))
 	root.AddCommand(newHealthCommand(opts))
 	root.AddCommand(newUpgradeCommand(opts))
+	root.AddCommand(newUpdateCommand(opts))
+	root.AddCommand(newDoctorCommand(opts))
 	root.AddCommand(newRotationCommand(opts))
 	root.AddCommand(newSchemaCommand(opts))
 	root.AddCommand(newCodegenCommand(opts))
@@ -94,15 +96,26 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newAccessCommand(opts))
 	root.AddCommand(newTrustCommand(opts))
 	applyReferenceExamples(root)
+	installHelp(root, opts)
 	return root
 }
 
 // Execute runs the CLI and returns a stable exit code.
 func Execute() int {
-	root := NewRootCommand()
+	opts := &Options{}
+	root := NewRootCommandWithOptions(opts)
 	root.SetOut(os.Stdout)
 	root.SetErr(os.Stderr)
-	if err := root.Execute(); err != nil {
+	err := root.Execute()
+	if cmd, _, findErr := root.Find(os.Args[1:]); findErr == nil && cmd != root {
+		// The top-level command name decides whether a note may be printed.
+		top := cmd
+		for top.Parent() != nil && top.Parent() != root {
+			top = top.Parent()
+		}
+		maybeNotifyUpdate(context.Background(), opts, top.Name())
+	}
+	if err != nil {
 		var exit *ExitError
 		if errors.As(err, &exit) && exit.Silent {
 			return exit.Code

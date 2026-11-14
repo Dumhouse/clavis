@@ -1,136 +1,116 @@
-name: Clavis
-description: Sign in to Clavis with GitHub Actions OIDC and optionally export secrets
-author: Clavis
+name: Clavis secrets
+description: Load secrets from a Clavis environment into the job. Works on GitHub, Forgejo and Gitea Actions.
+author: Dumhouse
+
+branding:
+  icon: lock
+  color: green
 
 inputs:
   server:
-    description: Clavis server URL
+    description: Clavis server URL, for example https://clavis.example.com
     required: true
+  token:
+    description: Machine token (store it as a CI secret). Leave empty to sign in with GitHub OIDC instead.
+    required: false
+    default: ""
+  environment:
+    description: Environment to load, for example staging or production. Empty means only sign in.
+    required: false
+    default: ""
+  project:
+    description: Project slug. Defaults to the one in the committed .clavis.yaml.
+    required: false
+    default: ""
   org:
-    description: Organization slug
-    required: true
+    description: Organization slug. Defaults to .clavis.yaml or the token's organization; required for OIDC.
+    required: false
+    default: ""
+  server-fingerprint:
+    description: SHA-256 of a self-signed server certificate (clavis admin tls-info prints it)
+    required: false
+    default: ""
+  ca-cert:
+    description: Your own CA, as a file path or PEM text
+    required: false
+    default: ""
+  version:
+    description: CLI version to install, like 0.3.2, or latest
+    required: false
+    default: latest
+  install:
+    description: auto (install when clavis is not on PATH), true, or false
+    required: false
+    default: auto
+  download-base:
+    description: Where releases are downloaded from (a mirror, for runners without GitHub access)
+    required: false
+    default: https://github.com/dumhouse/clavis/releases
   identity:
-    description: Workload identity name configured with GitHub OIDC trust
-    required: true
+    description: Workload identity for GitHub OIDC sign-in
+    required: false
+    default: ""
   audience:
     description: OIDC audience requested from GitHub
     required: false
     default: clavis
-  token:
-    description: Optional static Clavis token (skips OIDC)
-    required: false
-    default: ""
+  # Older names, still accepted.
   export:
-    description: Export secrets into GITHUB_ENV (requires the clavis CLI)
+    description: Deprecated; set environment instead
     required: false
     default: "false"
   export-env:
-    description: Environment slug used for export
+    description: Deprecated; use environment
     required: false
     default: ""
   export-project:
-    description: Project slug used for export
+    description: Deprecated; use project
     required: false
     default: ""
 
 outputs:
   token:
-    description: Short-lived Clavis token
+    description: The Clavis token for later steps (masked)
     value: ${{ steps.auth.outputs.token }}
   expires-at:
-    description: Token expiry timestamp
+    description: Expiry of an OIDC token; empty for machine tokens
     value: ${{ steps.auth.outputs.expires-at }}
-  secrets-json:
-    description: Exported secrets as JSON when export is enabled
-    value: ${{ steps.export.outputs.secrets-json }}
 
 runs:
   using: composite
   steps:
+    - id: install
+      shell: bash
+      env:
+        CLAVIS_VERSION: ${{ inputs.version }}
+        CLAVIS_INSTALL: ${{ inputs.install }}
+        CLAVIS_DOWNLOAD_BASE: ${{ inputs.download-base }}
+      run: bash "${{ github.action_path }}/install.sh"
+
     - id: auth
       shell: bash
       env:
         INPUT_SERVER: ${{ inputs.server }}
+        INPUT_TOKEN: ${{ inputs.token }}
         INPUT_ORG: ${{ inputs.org }}
+        INPUT_PROJECT: ${{ inputs.project || inputs.export-project }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment || inputs.export-env }}
         INPUT_IDENTITY: ${{ inputs.identity }}
         INPUT_AUDIENCE: ${{ inputs.audience }}
-        INPUT_TOKEN: ${{ inputs.token }}
-      run: |
-        set -euo pipefail
-        server="${INPUT_SERVER%/}"
-        token="${INPUT_TOKEN}"
-        expires=""
-
-        if [ -z "$token" ]; then
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "::error::GitHub OIDC is unavailable. Add 'permissions: id-token: write' to the job."
-            exit 1
-          fi
-          oidc_response="$(curl -sS \
-            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${INPUT_AUDIENCE}")"
-          oidc_token="$(printf '%s' "$oidc_response" | jq -r '.value // empty')"
-          if [ -z "$oidc_token" ]; then
-            echo "::error::GitHub did not return an OIDC token."
-            printf '%s\n' "$oidc_response" >&2
-            exit 1
-          fi
-          payload="$(jq -nc --arg org "$INPUT_ORG" --arg identity "$INPUT_IDENTITY" --arg token "$oidc_token" \
-            '{org: $org, identity: $identity, token: $token}')"
-          exchange="$(curl -sS -X POST "${server}/api/v1/auth/oidc" \
-            -H 'Content-Type: application/json' \
-            -d "$payload")"
-          token="$(printf '%s' "$exchange" | jq -r '.token // empty')"
-          expires="$(printf '%s' "$exchange" | jq -r '.expires_at // empty')"
-          if [ -z "$token" ]; then
-            echo "::error::Clavis rejected the OIDC exchange."
-            printf '%s\n' "$exchange" >&2
-            exit 1
-          fi
-        fi
-
-        echo "::add-mask::$token"
-        {
-          echo "CLAVIS_SERVER=$server"
-          echo "CLAVIS_ORG=$INPUT_ORG"
-          echo "CLAVIS_TOKEN=$token"
-        } >> "$GITHUB_ENV"
-        {
-          echo "token=$token"
-          echo "expires-at=$expires"
-        } >> "$GITHUB_OUTPUT"
+        INPUT_SERVER_FINGERPRINT: ${{ inputs.server-fingerprint }}
+        INPUT_CA_CERT: ${{ inputs.ca-cert }}
+      run: bash "${{ github.action_path }}/auth.sh"
 
     - id: export
-      if: ${{ inputs.export == 'true' }}
+      if: ${{ inputs.environment != '' || inputs.export == 'true' }}
       shell: bash
       env:
+        CLAVIS_BIN: ${{ steps.install.outputs.bin }}
         CLAVIS_SERVER: ${{ inputs.server }}
-        CLAVIS_ORG: ${{ inputs.org }}
-        CLAVIS_PROJECT: ${{ inputs.export-project }}
-        CLAVIS_ENV: ${{ inputs.export-env }}
         CLAVIS_TOKEN: ${{ steps.auth.outputs.token }}
-      run: |
-        set -euo pipefail
-        if ! command -v clavis >/dev/null 2>&1; then
-          echo "::error::The clavis CLI is not installed on this runner."
-          exit 1
-        fi
-        if ! command -v jq >/dev/null 2>&1; then
-          echo "::error::jq is required for export."
-          exit 1
-        fi
-        json="$(clavis export --format json)"
-        while IFS= read -r line; do
-          value="${line#*=}"
-          if [[ "$value" == *$'\n'* ]]; then
-            echo "::warning::Skipping multiline secret ${line%%=*}; use clavis run instead."
-            continue
-          fi
-          echo "::add-mask::$value"
-          printf '%s\n' "$line" >> "$GITHUB_ENV"
-        done < <(printf '%s' "$json" | jq -r 'to_entries[] | "\(.key)=\(.value)"')
-        {
-          echo 'secrets-json<<CLAVIS_SECRETS_EOF'
-          printf '%s\n' "$json"
-          echo 'CLAVIS_SECRETS_EOF'
-        } >> "$GITHUB_OUTPUT"
+        INPUT_ORG: ${{ inputs.org }}
+        INPUT_PROJECT: ${{ inputs.project || inputs.export-project }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment || inputs.export-env }}
+        CLAVIS_SERVER_FINGERPRINT: ${{ inputs.server-fingerprint }}
+        INPUT_CA_CERT: ${{ inputs.ca-cert }}
+      run: bash "${{ github.action_path }}/export.sh"

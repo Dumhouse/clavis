@@ -3,6 +3,8 @@
 Edition-specific glue lives here:
 
 - `github-action/` — inject secrets into GitHub Actions runs via OIDC.
+- `gitlab/` — an include file for GitLab CI (`.clavis`, `.clavis-env`).
+- `../.pre-commit-hooks.yaml` — the `clavis-scan` hook for pre-commit.
 - `terraform-provider/` — manage projects, environments, and secrets as code.
 - `vscode/` — view key names and request changes without revealing values.
 

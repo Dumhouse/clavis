@@ -13,7 +13,7 @@ groups:
   - id: get-started
     title: "Get started"
     description: "Sign in, link a folder to a project, and check who you are."
-    commands: [login, logout, whoami, init, link, unlink, trust]
+    commands: [login, logout, whoami, init, unlink, trust, doctor]
   - id: run
     title: "Run and export"
     description: "Give secrets to your app: run it with them, open a shell, write files, generate typed config, or share one value."
@@ -45,7 +45,7 @@ groups:
   - id: automation
     title: "Rotation, leases and syncs"
     description: "Rotate secrets on a schedule, issue short-lived credentials, and push values to other platforms."
-    commands: [rotation, lease, syncs, connections]
+    commands: [rotation, lease, syncs, tokens]
   - id: agents
     title: "AI agents"
     description: "Let coding agents use secrets through MCP without seeing their values."
@@ -53,7 +53,7 @@ groups:
   - id: server
     title: "Server and administration"
     description: "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades."
-    commands: [server, setup-token, admin, health, upgrade, version]
+    commands: [server, setup-token, admin, health, update, upgrade, version]
 
 commands:
   # Get started
@@ -106,6 +106,9 @@ commands:
       `.env`, and detects how to start your app (`package.json` scripts,
       `bin/rails`, `manage.py`, `artisan`, `go.mod`, `Cargo.toml`, Maven,
       Gradle, Docker Compose) so a plain `clavis run` works right away.
+
+      Run it again to point the folder at another project or environment.
+      `clavis link` is the same command.
     examples:
       - title: "Interactive"
         run: "clavis init"
@@ -113,19 +116,34 @@ commands:
         run: "clavis init --org acme --project web-app --env dev"
       - title: "Create the project too"
         run: "clavis init --project-name \"Web app\""
-    related: [link, unlink, run]
+      - title: "Switch this folder to staging"
+        run: "clavis init --project web-app --env staging"
+    related: [unlink, run]
 
-  link:
-    description: "Point this folder at another project or environment by updating `.clavis.yaml`."
+  doctor:
+    description: |-
+      Check this computer's Clavis setup from top to bottom and say how to fix
+      each problem: the CLI version and how it was installed, `.clavis.yaml`,
+      the server address and where it came from, whether the server answers,
+      its certificate, its version compared with the CLI, the clock, your
+      sign-in, and access to the project and environment.
+
+      Checks stop at the first thing that blocks the rest, so the first `✗`
+      is the one to fix. It changes nothing and never prints secret values.
+      The exit code is 1 when a check fails, so CI can run it too.
     examples:
-      - run: "clavis link --project web-app --env staging"
-    related: [init, unlink]
+      - run: "clavis doctor"
+      - title: "For another server"
+        run: "clavis doctor --server https://clavis.example.com"
+      - title: "For scripts and bug reports"
+        run: "clavis doctor --json"
+    related: [whoami, trust add, update]
 
   unlink:
     description: "Delete `.clavis.yaml` from this folder. Nothing changes on the server."
     examples:
       - run: "clavis unlink"
-    related: [init, link]
+    related: [init]
 
   trust:
     description: |-
@@ -266,7 +284,16 @@ commands:
         run: "eval \"$(clavis export --format shell)\""
       - title: "Only non-secret variables (needs no read-values permission)"
         run: "clavis export --variables-only"
-    notes: "Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`. Prefer `clavis run` where you can: it writes nothing to disk."
+      - title: "Into a CI job (GitHub, Forgejo, Gitea Actions)"
+        run: "clavis export --env prod --format github-env"
+    notes: |-
+      Formats: `dotenv`, `docker`, `json`, `yaml`, `shell`, `k8s`, `github-env`.
+      Prefer `clavis run` where you can: it writes nothing to disk.
+
+      `github-env` appends every key to the job's `$GITHUB_ENV` file, so later
+      steps see them as environment variables, and masks secret values in the
+      job log. Multi-line values are kept. The Clavis action runs this for you;
+      see [Forgejo and Gitea Actions](https://dumhouse.github.io/clavis/guides/forgejo-actions-secrets).
     related: [run, import]
 
   codegen:
@@ -595,10 +622,15 @@ commands:
 
   "env freezes":
     description: "List upcoming and active freeze windows."
+    examples:
+      - run: "clavis env freezes"
+      - run: "clavis env freezes --env production"
     related: [env freeze]
 
   "env unfreeze":
     description: "Delete a freeze window. Break-glass access also lifts an active freeze."
+    examples:
+      - run: "clavis env unfreeze 7f3a9c"
     related: [env freeze]
 
   promote:
@@ -727,19 +759,19 @@ commands:
       - run: |-
           clavis access request --env prod --role Developer --duration 1h \
             --reason "Debugging checkout latency"
-    related: [access requests, access approve]
+    related: [access ls, access approve]
 
-  "access requests":
-    description: "List access requests. Members see their own; admins see everyone's."
+  "access ls":
+    description: "List access requests. Members see their own; admins see everyone's. (Formerly `access requests`, which still works.)"
     examples:
-      - run: "clavis access requests"
-      - run: "clavis access requests --status approved"
+      - run: "clavis access ls"
+      - run: "clavis access ls --status approved"
 
   "access approve":
     description: "Approve a request. The last required approval creates the time-limited grant. You can't approve your own request."
     examples:
       - run: "clavis access approve 4f2a9c"
-    related: [access reject, access requests]
+    related: [access reject, access ls]
 
   "access reject":
     description: "Reject a request."
@@ -783,10 +815,12 @@ commands:
     examples:
       - run: "clavis sets create shared-api"
       - run: "clavis sets set shared-api STRIPE_KEY"
-      - run: "clavis sets import shared-api --env staging"
+      - run: "clavis sets use shared-api --env staging"
 
   "sets ls":
     description: "List the organization's shared sets."
+    examples:
+      - run: "clavis sets ls"
   "sets create":
     description: "Create a shared set."
     examples:
@@ -803,10 +837,10 @@ commands:
     description: "Remove a key from a set."
     examples:
       - run: "clavis sets rm shared-api OLD_KEY"
-  "sets import":
-    description: "Use a set in an environment."
+  "sets use":
+    description: "Use a set in an environment: its keys appear there, live. Nothing is copied. (Formerly `sets import`, which still works.)"
     examples:
-      - run: "clavis sets import shared-api --env staging"
+      - run: "clavis sets use shared-api --env staging"
   "sets detach":
     description: "Stop using a set in an environment."
     examples:
@@ -840,6 +874,8 @@ commands:
       (`create`, `rollback` and `revoke` calls, HMAC-signed).
   "rotation ls":
     description: "List policies with their interval, next run and last status."
+    examples:
+      - run: "clavis rotation ls"
   "rotation status":
     description: "Show which secrets are rotated automatically, which aren't, and which haven't changed for a long time."
     examples:
@@ -851,12 +887,20 @@ commands:
       - run: "clavis rotation run 9b1e7d"
   "rotation runs":
     description: "Show a policy's run history with each phase and error."
+    examples:
+      - run: "clavis rotation runs 9b1e7d"
   "rotation enable":
     description: "Resume a paused schedule."
+    examples:
+      - run: "clavis rotation enable 9b1e7d"
   "rotation disable":
     description: "Pause a schedule without deleting it."
+    examples:
+      - run: "clavis rotation disable 9b1e7d"
   "rotation rm":
     description: "Delete a policy. The secret itself stays."
+    examples:
+      - run: "clavis rotation rm 9b1e7d"
 
   lease:
     description: |-
@@ -866,22 +910,24 @@ commands:
       - run: "clavis lease run 4a1c… -- psql"
     related: [rotation]
 
-  "lease config-create":
-    description: "Describe how to issue credentials: a Postgres server and the role to grant, or an AWS role to assume."
+  "lease setup":
+    description: "Set up a credential source: a Postgres server and the role to grant, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)"
     examples:
       - title: "Postgres"
         run: |-
-          clavis lease config-create --host db.internal --database app \
+          clavis lease setup --host db.internal --database app \
             --username clavis_admin --password "$PGPASSWORD" \
             --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400
       - title: "AWS STS"
         run: |-
-          clavis lease config-create --engine aws --aws-region eu-central-1 \
+          clavis lease setup --engine aws --aws-region eu-central-1 \
             --aws-access-key "$AWS_ACCESS_KEY_ID" --aws-secret-key "$AWS_SECRET_ACCESS_KEY" \
             --aws-role-arn arn:aws:iam::123456789012:role/deploy
     notes: "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease."
   "lease configs":
-    description: "List dynamic secret configs."
+    description: "List credential sources set up with `lease setup`."
+    examples:
+      - run: "clavis lease configs"
   "lease create":
     description: "Issue credentials. The password is shown once."
     examples:
@@ -896,10 +942,16 @@ commands:
       - run: "clavis lease run 4a1c… --ttl 900 -- ./migrate.sh"
   "lease ls":
     description: "List a config's leases and their status."
+    examples:
+      - run: "clavis lease ls 4a1c…"
   "lease renew":
     description: "Extend a lease, up to the config's maximum TTL."
+    examples:
+      - run: "clavis lease renew 8d2e… --ttl 3600"
   "lease revoke":
     description: "Revoke a lease now: the generated database role is dropped."
+    examples:
+      - run: "clavis lease revoke 8d2e…"
 
   syncs:
     description: |-
@@ -957,6 +1009,9 @@ commands:
     related: [syncs run, syncs drift]
   "syncs ls":
     description: "List the linked project's syncs."
+    examples:
+      - run: "clavis syncs ls"
+      - run: "clavis syncs ls --json"
   "syncs run":
     description: "Run a sync now. `--dry-run` previews the keys that would change; `--yes` skips the confirmation."
     examples:
@@ -968,32 +1023,45 @@ commands:
       - run: "clavis syncs drift 123e4567"
   "syncs logs":
     description: "Show recent runs with status, key count and errors."
+    examples:
+      - run: "clavis syncs logs 123e4567"
   "syncs behavior":
     description: "Change a sync's options, such as deleting remote keys that no longer exist in Clavis."
     examples:
       - run: "clavis syncs behavior 123e4567 --delete-missing"
 
-  connections:
+  tokens:
     description: |-
       A connection stores one provider credential for the whole organization:
       a Forgejo or GitHub token, AWS keys, a service account. Syncs created
       with `--connection` reuse it, so you paste a token once and rotating it
       updates every sync that uses it. Credentials are never shown again.
     examples:
-      - run: "clavis connections create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
+      - run: "clavis tokens create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
     related: [syncs create, syncs use-connection]
-  "connections ls":
+  "tokens ls":
     description: "List connections and the syncs that use them. Credentials are never shown."
-  "connections create":
+    examples:
+      - run: "clavis tokens ls"
+      - run: "clavis tokens ls --provider forgejo"
+  "tokens create":
     description: "Save a provider credential for the organization. Pass `--token -` to read it from stdin."
-  "connections rotate":
+    examples:
+      - run: "clavis tokens create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
+      - run: "clavis tokens create \"GitHub org\" --provider github --token \"$GITHUB_TOKEN\""
+  "tokens rotate":
     description: "Replace a connection's credential, or rename it or change its URL. Every sync that uses it picks up the new value."
-  "connections test":
+    examples:
+      - run: "clavis tokens rotate 123e4567 --token -"
+      - run: "clavis tokens rotate 123e4567 --name \"Forgejo (main)\""
+  "tokens test":
     description: "Check that the provider accepts the credential. For Forgejo it also checks Actions access in every repository or organization the connection's syncs push to; `--repo` or `--org` adds one more destination."
     examples:
-      - run: "clavis connections test 123e4567 --repo team/web"
-  "connections rm":
+      - run: "clavis tokens test 123e4567 --repo team/web"
+  "tokens rm":
     description: "Delete a connection that no sync uses. The token itself stays valid at the provider."
+    examples:
+      - run: "clavis tokens rm 123e4567"
   "syncs use-connection":
     description: "Point an existing sync at a saved connection, or turn the sync's own credential into a new connection that other syncs can reuse."
     examples:
@@ -1021,11 +1089,11 @@ commands:
     examples:
       - run: "clavis agents allow coding-agent \"npm test\""
       - run: "clavis agents allow coding-agent \"go test ./...\" \"pnpm dev\""
-  "agents revoke":
+  "agents disallow":
     description: "Remove patterns, or `--clear` to go back to deny-all."
     examples:
-      - run: "clavis agents revoke coding-agent \"pnpm dev\""
-      - run: "clavis agents revoke coding-agent --clear"
+      - run: "clavis agents disallow coding-agent \"pnpm dev\""
+      - run: "clavis agents disallow coding-agent --clear"
 
   mcp:
     description: |-
@@ -1200,17 +1268,44 @@ commands:
       - run: "clavis health --json"
     related: [rotation status]
 
+  update:
+    description: |-
+      Check GitHub for a newer release and show how to install it, based on
+      how this copy was installed (Homebrew, Scoop, WinGet, Docker, Helm, a
+      package, the install script or a source build). `clavis update` only
+      checks; `clavis upgrade` installs.
+
+      The CLI also checks once a day by itself and prints a one-line notice
+      at most every three days. `CLAVIS_UPDATE_CHECK=false` turns that off; it
+      is off in CI.
+    examples:
+      - run: "clavis update"
+    related: [upgrade, version]
+
   upgrade:
     description: |-
-      Verify a downloaded release archive with cosign before installing it.
-      Needs `cosign` on your `PATH` and the release's `.sigstore.json` bundle
-      next to the archive.
+      Install the latest release, the way this copy was installed:
+
+      - **Homebrew, Scoop, WinGet, `go install`**: runs the package manager's
+        upgrade after you confirm.
+      - **Install script or downloaded binary**: downloads the release for
+        your system, checks it against the release's `checksums.txt` (and its
+        cosign signature when `cosign` is installed), and replaces itself.
+      - **Docker, Helm, .deb, .rpm, .apk, source builds**: prints the command,
+        since those are upgraded outside the CLI.
+
+      `clavis update` only checks; `clavis upgrade` installs. With `ARCHIVE`,
+      it verifies a release you downloaded yourself with cosign, and
+      `--install` puts it in place.
     examples:
-      - title: "Verify only"
-        run: "clavis upgrade clavis_linux_amd64.tar.gz"
-      - title: "Verify and replace the current binary"
-        run: "clavis upgrade clavis_linux_amd64.tar.gz --install"
-    related: [version]
+      - run: "clavis upgrade"
+      - title: "Without the question, for scripts"
+        run: "clavis upgrade --yes"
+      - title: "A specific version from a mirror"
+        run: "clavis upgrade --version 0.3.3 --download-base https://mirror.example.com/clavis"
+      - title: "Verify a downloaded archive, then install it"
+        run: "clavis upgrade clavis_0.3.3_linux_amd64.tar.gz --install"
+    related: [update, version]
 
   version:
     description: "Print the version, commit and build date."

@@ -134,7 +134,7 @@ export const guides: DocGuide[] = [
         body: 'The allowlist starts deny-all. Patterns support * and ?; a bare * is rejected. An agent cannot change its own allowlist, and every denied or allowed command is audited.',
         snippets: [
           { code: 'clavis agents allow coding-agent "go test ./..." "npm test" "pnpm dev"' },
-          { code: 'clavis agents revoke coding-agent --clear' },
+          { code: 'clavis agents disallow coding-agent --clear' },
         ],
       },
       {
@@ -272,7 +272,7 @@ export const guides: DocGuide[] = [
         body: 'Dynamic configs create real database users or AWS credentials with a TTL. lease run revokes the credential automatically when the command exits.',
         snippets: [
           {
-            code: 'clavis lease config-create --host db.internal --database app --username admin --password "$PGPASS"',
+            code: 'clavis lease setup --host db.internal --database app --username admin --password "$PGPASS"',
           },
           { code: 'clavis lease run CONFIG_ID -- psql "$DATABASE_URL"' },
           { code: 'clavis lease renew LEASE_ID\nclavis lease revoke LEASE_ID' },

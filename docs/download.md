@@ -19,3 +19,8 @@ Pick your operating system and CPU. The CLI and the server are the same binary.
 
 More methods are listed in the [CLI docs](./cli#install-the-cli). To check a
 download, see [Supply chain](./supply-chain).
+
+## Updating
+
+Clavis tells you when a new release is out and which command updates your
+install. See [Updating Clavis](./updating), or run `clavis update`.

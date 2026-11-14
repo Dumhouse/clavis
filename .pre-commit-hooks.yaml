@@ -1,0 +1,17 @@
+# Hooks for https://pre-commit.com. Add to .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/dumhouse/clavis
+#       rev: v0.3.3        # a release tag
+#       hooks:
+#         - id: clavis-scan
+#
+# Needs the clavis CLI on PATH: https://dumhouse.github.io/clavis/download
+- id: clavis-scan
+  name: clavis scan (leaked secrets)
+  description: Block commits that contain Clavis tokens or secret values.
+  entry: clavis scan --staged
+  language: system
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

@@ -1,0 +1,40 @@
+# Clavis for GitLab CI: include this file, then extend `.clavis` in a job.
+#
+#   include:
+#     - remote: https://raw.githubusercontent.com/dumhouse/clavis/main/integrations/gitlab/clavis.gitlab-ci.yml
+#
+#   deploy-staging:
+#     extends: .clavis
+#     variables:
+#       CLAVIS_ENV: staging
+#       CLAVIS_TOKEN: $CLAVIS_TOKEN_STAGING   # a masked CI/CD variable
+#     script:
+#       - clavis run ./deploy.sh
+#
+# Set CLAVIS_SERVER (and CLAVIS_SERVER_FINGERPRINT for a self-signed server)
+# as CI/CD variables or per job. Pin CLAVIS_VERSION to a release for
+# reproducible pipelines. Docs: https://dumhouse.github.io/clavis/guides/gitlab-ci-secrets
+
+.clavis:
+  variables:
+    CLAVIS_VERSION: latest
+  before_script:
+    - |
+      if ! command -v clavis >/dev/null 2>&1; then
+        if ! command -v curl >/dev/null 2>&1; then
+          apt-get update -qq && apt-get install -yqq curl ca-certificates
+        fi
+        mkdir -p "$CI_PROJECT_DIR/.clavis-bin"
+        curl -fsSL "https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh" \
+          | CLAVIS_INSTALL_DIR="$CI_PROJECT_DIR/.clavis-bin" CLAVIS_VERSION="$CLAVIS_VERSION" bash
+        export PATH="$CI_PROJECT_DIR/.clavis-bin:$PATH"
+      fi
+      clavis version
+
+# Load the environment as variables for the rest of the job, instead of
+# wrapping one command in `clavis run`. Values are masked in the job log.
+.clavis-env:
+  extends: .clavis
+  before_script:
+    - !reference [.clavis, before_script]
+    - eval "$(clavis export --format shell)"

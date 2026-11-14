@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { Select } from '@/components/ui/field'
+import { formatDate as formatDay } from '@/lib/format'
 
 const permissionOptions = [
   ['secrets:read-names', 'Read key names'],
@@ -203,9 +204,8 @@ export function PersonalTokens() {
               <p className="font-mono text-xs text-text">{item.prefix}</p>
               <p className="truncate text-2xs text-dim">
                 {item.permissions.join(', ')} · expires{' '}
-                {item.expires_at ? new Date(item.expires_at).toLocaleDateString() : 'never'} · last
-                used{' '}
-                {item.last_used_at ? new Date(item.last_used_at).toLocaleDateString() : 'never'}
+                {item.expires_at ? formatDay(item.expires_at) : 'never'} · last used{' '}
+                {item.last_used_at ? formatDay(item.last_used_at) : 'never'}
               </p>
             </div>
             <Button

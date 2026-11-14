@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { apiErrorMessage } from '@/lib/api-error'
 import { useCurrentOrg } from '@/lib/org'
 import { confirmAction } from '@/components/ui/dialogs'
+import { formatDate as formatDay } from '@/lib/format'
 
 type ScimToken = components['schemas']['ScimTokenBody']
 
@@ -148,8 +149,8 @@ export function ScimSettings() {
             <div className="min-w-0 flex-1">
               <p className="font-mono text-xs">{item.prefix}…</p>
               <p className="text-2xs text-dim">
-                Created {new Date(item.created_at).toLocaleDateString()} · last used{' '}
-                {item.last_used_at ? new Date(item.last_used_at).toLocaleDateString() : 'never'}
+                Created {formatDay(item.created_at)} · last used{' '}
+                {item.last_used_at ? formatDay(item.last_used_at) : 'never'}
               </p>
             </div>
             <Button

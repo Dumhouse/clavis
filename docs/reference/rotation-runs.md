@@ -21,6 +21,12 @@ clavis rotation runs POLICY_ID
 
 Show a policy's run history with each phase and error.
 
+## Examples
+
+```sh
+clavis rotation runs 9b1e7d
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

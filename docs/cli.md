@@ -1,6 +1,6 @@
 # CLI
 
-Single Go binary `clavis` (same binary as the server). See [Install the CLI](#install-the-cli) for every method. One binary is both the CLI and the server, so the version never drifts between them.
+Single Go binary `clavis` (same binary as the server). See [Install the CLI](#install-the-cli) for every method. The CLI and the server are the same binary, but each install is upgraded on its own; the CLI warns when it and your server differ in minor version (see [Updating Clavis](./updating)).
 
 ## Install the CLI
 
@@ -14,7 +14,7 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
 | Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis` (see the [install wizard](./install)) or `ghcr.io/dumhouse/clavis` | Available |
 
-winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. Hosted apt and rpm repositories are published to Cloudsmith from each release.
+winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. There are no hosted apt or rpm repositories yet; install the `.deb`, `.rpm` or `.apk` from the release.
 
 ## UX rules
 
@@ -24,6 +24,22 @@ winget is set up in the release pipeline and goes live once Microsoft accepts th
 - **Non-interactive mode** in CI: authenticates with `CLAVIS_TOKEN` (a machine or agent token) instead of the browser flow; a workload OIDC token can be exchanged for a short-lived token at `POST /api/v1/auth/oidc` (see [ci.md](ci.md)).
 - **Production safety:** when the target env is `production`, the CLI shows a colored banner; writes and destructive commands require typing the project name (or `--yes` plus a non-TTY, for CI). Orgs can block CLI writes to production entirely.
 - **Stable exit codes:** 0 ok, 1 general error, 2 usage, 3 auth, 4 permission, 5 not found, 6 validation failed (`check`), 7 leak found (`scan`).
+
+## Finding your way
+
+- `clavis help` opens a full-screen browser in your terminal. Type to search
+  (`sec set`, `rotate`, `token`), switch groups with ←/→, press Enter to open
+  a command, then `1`–`9` to pick an example, `c` to copy it, `r` to edit and
+  run it (production and destructive commands ask you to type `yes`), and `f`
+  to star the command. The header shows the project and environment commands
+  will use, and the next step when you aren't signed in or linked yet. Mouse
+  clicks and the wheel work. Outside a terminal it prints every command by
+  group.
+- `clavis help --tour` walks you through the first run: sign in, link the folder, store a value, run with it, and `clavis doctor`. It asks before each step and checks that it worked.
+- `clavis help COMMAND` and `clavis COMMAND --help` show one command, from the
+  same text as the [CLI reference](./reference/).
+- `clavis help -s WORD` lists every command that mentions a word.
+- `clavis doctor` checks the setup and says how to fix what's wrong.
 
 ## Commands
 

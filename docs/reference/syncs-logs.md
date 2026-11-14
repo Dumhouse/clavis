@@ -21,6 +21,12 @@ clavis syncs logs ID
 
 Show recent runs with status, key count and errors.
 
+## Examples
+
+```sh
+clavis syncs logs 123e4567
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

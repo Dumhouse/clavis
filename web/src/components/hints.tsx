@@ -1,6 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { Check, ChevronRight, Copy, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { api } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import {
   defaultTipRotationMs,
@@ -9,7 +11,66 @@ import {
   hintsFor,
   type CliHint,
 } from '@/lib/hints'
+import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+
+/**
+ * The server's version. The web UI is embedded in the same binary, so this is
+ * also the UI's version.
+ */
+function useServerVersion() {
+  const { data } = useQuery({
+    queryKey: ['version'],
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/version')
+      return result.data ?? null
+    },
+    staleTime: Infinity,
+  })
+  if (!data) return null
+  const commit = data.commit && data.commit !== 'unknown' ? data.commit.slice(0, 7) : ''
+  const built = data.built ? formatDateTime(data.built) : ''
+  // Development builds (scripts/version.sh): 0.3.2+dev.752e7e5[.dirty].
+  const dev = /^(\d[^+]*)\+dev\.([0-9a-f]+)(\.dirty)?$/.exec(data.version)
+  if (dev) {
+    const [, base = '', devCommit = '', dirty] = dev
+    // Short on purpose (0.3.2 dev 14.11.26 14:23*); the commit is in the title.
+    const when = data.built ? formatDateTime(data.built).replace(/(\d{2})(\d{2})\b/, '$2') : ''
+    return {
+      label: `${base} dev${when ? ` ${when}` : ` ${devCommit}`}${dirty ? '*' : ''}`,
+      title: [
+        `Development build after v${base}`,
+        `commit ${devCommit}${dirty ? ' with uncommitted changes (*)' : ''}`,
+        built ? `built ${built}` : '',
+        `API ${data.api_version}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    }
+  }
+  // Releases are semver (0.4.0 → v0.4.0).
+  const version = /^\d/.test(data.version) ? `v${data.version}` : data.version
+  return {
+    label: version,
+    title: [
+      `Clavis ${version}${commit ? ` (${commit})` : ''}`,
+      built ? `built ${built}` : '',
+      `API ${data.api_version}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  }
+}
+
+export function VersionLabel({ className }: { className?: string }) {
+  const version = useServerVersion()
+  if (!version) return null
+  return (
+    <span className={cn('shrink-0 font-mono text-2xs text-dim', className)} title={version.title}>
+      {version.label}
+    </span>
+  )
+}
 
 function hintsEnabled(): boolean {
   return localStorage.getItem(hintsEnabledKey) !== 'false'
@@ -116,6 +177,7 @@ export function HintBar({ pathname, onShowSheet }: { pathname: string; onShowShe
       >
         <X className="size-3" />
       </button>
+      <VersionLabel className="border-l border-border pl-3" />
     </div>
   )
 }
@@ -160,6 +222,7 @@ export function ShortcutsSheet({ pathname, onClose }: { pathname: string; onClos
               {page.title} · everything here has a CLI equivalent.
             </p>
           </div>
+          <VersionLabel className="ml-auto mt-1.5" />
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="size-4" />
           </Button>

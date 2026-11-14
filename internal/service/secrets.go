@@ -233,6 +233,12 @@ func (s *Service) authorizeSecretAccess(actor authz.Actor, org *store.Org, proje
 // ListSecrets returns live items in an environment. reveal requires
 // secrets:read-values and is audited once for the batch.
 func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug string, reveal bool, channel string, meta AuditMeta) ([]Secret, string, error) {
+	return s.listSecrets(ctx, actor, orgSlug, projectSlug, envSlug, reveal, true, channel, meta)
+}
+
+// listSecrets lists an environment's effective keys. recordReveal is false
+// only for callers that use the values internally and audit on their own.
+func (s *Service) listSecrets(ctx context.Context, actor authz.Actor, orgSlug, projectSlug, envSlug string, reveal, recordReveal bool, channel string, meta AuditMeta) ([]Secret, string, error) {
 	if channel == "" {
 		channel = "ui"
 	}
@@ -375,7 +381,7 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 		value := sharedSets[key]
 		view := Secret{
 			Key: key, Kind: value.Kind, SourceEnvironment: value.SetSlug,
-			Inherited: true,
+			Inherited: true, Version: value.Version, UpdatedAt: value.UpdatedAt,
 		}
 		if value.Kind == "variable" || reveal {
 			view.Value = value.Value
@@ -384,18 +390,18 @@ func (s *Service) ListSecrets(ctx context.Context, actor authz.Actor, orgSlug, p
 		out = append(out, view)
 	}
 	applySharedSetReferences(out, sharedSets)
-	if reveal {
+	if reveal && recordReveal {
 		for _, entry := range resolvedItems {
 			if entry.item.Kind == "variable" {
 				continue
 			}
-			if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, entry.item.ID, channel, entry.item.Version); err != nil {
+			if err := s.recordReveal(ctx, actor, entry.item.ID, channel, entry.item.Version); err != nil {
 				s.Logger.Error("record reveal event failed", "item_id", entry.item.ID, "error", err)
 			}
 		}
 		if err := s.record(ctx, toAuditActor(actor), org.ID, "secret.list_reveal",
 			audit.Resource{Type: "environment", ID: env.ID, Name: env.Slug, ProjectID: project.ID, EnvID: env.ID},
-			audit.Details{Environment: env.Slug, Count: len(out), Channel: channel}, meta); err != nil {
+			audit.Details{Environment: env.Slug, Count: len(out), Channel: channel, Reason: meta.Reason}, meta); err != nil {
 			s.Logger.Error("audit secret.list_reveal failed", "env_id", env.ID, "error", err)
 		}
 	}
@@ -531,7 +537,7 @@ func (s *Service) GetSecret(ctx context.Context, actor authz.Actor, orgSlug, pro
 		}
 		view.Value = expandSetValue(string(value), sharedSets)
 		view.Revealed = true
-		if err := s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, item.ID, channel, item.Version); err != nil {
+		if err := s.recordReveal(ctx, actor, item.ID, channel, item.Version); err != nil {
 			s.Logger.Error("record reveal event failed", "item_id", item.ID, "error", err)
 		}
 		if err := s.record(ctx, toAuditActor(actor), org.ID, "secret.reveal",
@@ -1030,4 +1036,15 @@ func (s *Service) overrideForKey(ctx context.Context, env *store.Environment, us
 		return nil, false, err
 	}
 	return item, true, nil
+}
+
+// recordReveal remembers which secret versions a person has seen, for the
+// offboarding review. Machines and agents are not people (the table points at
+// users), and every read they make is in the audit log already, so theirs
+// are skipped.
+func (s *Service) recordReveal(ctx context.Context, actor authz.Actor, itemID, channel string, version int) error {
+	if actor.Kind != authz.SubjectUser {
+		return nil
+	}
+	return s.Store.InsertRevealEvent(ctx, uuid.NewString(), actor.ID, itemID, channel, version)
 }

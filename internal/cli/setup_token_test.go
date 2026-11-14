@@ -11,7 +11,6 @@ import (
 func TestSetupTokenCommand(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("CLAVIS_DATA_DIR", dir)
-	t.Setenv("CLAVIS_DATABASE_PATH", "")
 
 	cmd := newSetupTokenCommand(&Options{})
 	var out bytes.Buffer

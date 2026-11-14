@@ -199,6 +199,23 @@ func (s *Server) registerMemberRoutes() error {
 		return &emptyOutput{}, nil
 	})
 
+	if err := s.registry.Declare(http.MethodPost, "/api/v1/orgs/{org}/leave", authz.OrgRead, "leave an organization you belong to"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "leave-org", Method: http.MethodPost, Path: "/api/v1/orgs/{org}/leave",
+		Summary: "Leave an organization", Tags: []string{"members"}, DefaultStatus: http.StatusNoContent,
+	}, func(ctx context.Context, in *orgPath) (*emptyOutput, error) {
+		if err := s.requireReauth(ctx, in.Reauth); err != nil {
+			return nil, err
+		}
+		actor, _ := actorFrom(ctx)
+		if err := s.svc.LeaveOrg(ctx, actor, in.Org, metaFrom(ctx)); err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &emptyOutput{}, nil
+	})
+
 	if err := s.registry.DeclarePublic(http.MethodGet, "/api/v1/invites/{token}", "the invite token is the capability for the join page"); err != nil {
 		return err
 	}

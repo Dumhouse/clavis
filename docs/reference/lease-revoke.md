@@ -21,6 +21,12 @@ clavis lease revoke LEASE_ID
 
 Revoke a lease now: the generated database role is dropped.
 
+## Examples
+
+```sh
+clavis lease revoke 8d2e…
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

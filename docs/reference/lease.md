@@ -25,13 +25,13 @@ Postgres role or AWS STS credentials per use, which expire on their own.
 ## Commands
 
 <div class="cli-cards cli-cards-list">
-<a class="cli-card" href="./lease-config-create"><span class="cli-card-name"><code>clavis lease config-create</code></span><span class="cli-card-text">Create a PostgreSQL or AWS STS dynamic secret config</span></a>
 <a class="cli-card" href="./lease-configs"><span class="cli-card-name"><code>clavis lease configs</code></span><span class="cli-card-text">List dynamic secret configs</span></a>
 <a class="cli-card" href="./lease-create"><span class="cli-card-name"><code>clavis lease create</code></span><span class="cli-card-text">Create dynamic credentials</span></a>
 <a class="cli-card" href="./lease-ls"><span class="cli-card-name"><code>clavis lease ls</code></span><span class="cli-card-text">List leases for a config</span></a>
 <a class="cli-card" href="./lease-renew"><span class="cli-card-name"><code>clavis lease renew</code></span><span class="cli-card-text">Renew a lease</span></a>
 <a class="cli-card" href="./lease-revoke"><span class="cli-card-name"><code>clavis lease revoke</code></span><span class="cli-card-text">Revoke a lease and drop its credentials</span></a>
 <a class="cli-card" href="./lease-run"><span class="cli-card-name"><code>clavis lease run</code></span><span class="cli-card-text">Run a command with dynamic credentials and auto-revoke</span></a>
+<a class="cli-card" href="./lease-setup"><span class="cli-card-name"><code>clavis lease setup</code></span><span class="cli-card-text">Set up a PostgreSQL or AWS STS credential source</span></a>
 </div>
 
 ## Examples

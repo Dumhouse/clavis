@@ -21,6 +21,12 @@ clavis rotation rm POLICY_ID
 
 Delete a policy. The secret itself stays.
 
+## Examples
+
+```sh
+clavis rotation rm 9b1e7d
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

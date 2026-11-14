@@ -103,10 +103,17 @@ test('setup → project → secret → reveal → audit', async ({ page }) => {
   await expect(page.getByText('secret.reveal').first()).toBeVisible()
 
   // CLI: device login approved in the browser, then read and run with the secret.
+  // A throwaway home: `clavis login` remembers the server in the user's
+  // config folder, which must not end up pointing at this test server.
+  const cliHome = mkdtempSync(join(tmpdir(), 'clavis-cli-'))
   const cliEnv = {
     ...process.env,
+    HOME: cliHome,
+    XDG_CONFIG_HOME: join(cliHome, '.config'),
+    XDG_CACHE_HOME: join(cliHome, '.cache'),
+    CLAVIS_UPDATE_CHECK: 'false',
     CLAVIS_SERVER: serverURL,
-    CLAVIS_CREDENTIAL_FILE: join(mkdtempSync(join(tmpdir(), 'clavis-cli-')), 'credentials.json'),
+    CLAVIS_CREDENTIAL_FILE: join(cliHome, 'credentials.json'),
   }
   const login = spawn(binary, ['login', '--no-browser'], { env: cliEnv })
   let output = ''
@@ -185,6 +192,8 @@ test('schema editor defines a pattern and validates the grid inline', async ({ p
   await page.getByRole('button', { name: /^Add to / }).click()
   await expect(page.getByText('Added API_TOKEN to dev.')).toBeVisible()
 
+  // Cell actions appear on hover.
+  await page.getByRole('button', { name: 'Reveal API_TOKEN in dev' }).hover()
   await page.getByRole('button', { name: 'Edit API_TOKEN in dev' }).click()
   await page.getByLabel('New value for API_TOKEN in dev').fill('not-a-stripe-key')
   await expect(page.getByText(/Does not match the required pattern/i)).toBeVisible()
@@ -275,7 +284,7 @@ test('keyboard shortcuts from the hint bar work on every page that advertises th
   // Project secrets: N add, P paste, / filter.
   await openProject(page)
   await page.keyboard.press('n')
-  await expect(page.getByRole('heading', { name: 'Add secret' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Add a key' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.keyboard.press('p')
   await expect(page.getByRole('dialog')).toBeVisible()
@@ -316,4 +325,36 @@ test('keyboard shortcuts from the hint bar work on every page that advertises th
   await page.locator('body').click({ position: { x: 1, y: 1 } })
   await page.keyboard.press('?')
   await expect(page.getByRole('heading', { name: 'Shortcuts & commands' })).toBeVisible()
+})
+
+test('help menu, finished checklist and leave-or-delete are in place', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await signIn(page)
+
+  // The checklist is gone: project created and CLI connected are all it needs.
+  await expect(page.getByRole('heading', { name: 'Finish setting up Clavis' })).toHaveCount(0)
+
+  // Help menu: links and diagnostics for a bug report.
+  await page.getByRole('button', { name: 'Help' }).click()
+  await expect(page.getByRole('menuitem', { name: /Documentation/ })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: /Report a problem/ })).toBeVisible()
+  await page.getByRole('menuitem', { name: /Copy diagnostics/ }).click()
+  await expect(page.getByText('Diagnostics copied')).toBeVisible()
+  const copied = await page.evaluate<string>('navigator.clipboard.readText()')
+  expect(copied).toContain('Clavis ')
+  expect(copied).toContain('Browser: ')
+  expect(copied).not.toContain('clv_')
+
+  // Org settings: leave and delete, with delete guarded by typing the name.
+  await page.getByRole('link', { name: 'Org settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Leave or delete' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Leave organization' })).toBeVisible()
+  await page.getByRole('button', { name: 'Delete organization' }).click()
+  await page.getByLabel(/Type e2e-org to confirm/).fill('wrong-name')
+  await page.getByRole('button', { name: 'Delete organization' }).last().click()
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible()
 })

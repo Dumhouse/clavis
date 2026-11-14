@@ -23,11 +23,12 @@ const notBuiltPage = `<!doctype html>
 </main></body></html>`
 
 // spaHandler serves the embedded SPA with history fallback. In dev mode it
-// proxies to the Vite dev server for hot reload (M0-29).
+// proxies to the Vite dev server for hot reload (M0-29), unless
+// CLAVIS_WEB_DEV_URL is "off" (the e2e and screenshot harness uses that so it
+// never shows whatever else runs on :5173).
 func spaHandler(cfg *config.Config, dist fs.FS) http.Handler {
 	var devProxy http.Handler
-	if cfg.Server.Dev {
-		target := os.Getenv("CLAVIS_WEB_DEV_URL")
+	if target := os.Getenv("CLAVIS_WEB_DEV_URL"); cfg.Server.Dev && target != "off" {
 		if target == "" {
 			target = "http://127.0.0.1:5173"
 		}

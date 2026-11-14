@@ -120,6 +120,11 @@ func (o *Output) Errorf(format string, args ...any) {
 	_, _ = fmt.Fprintf(o.Err, "%s %s\n", o.style("✗", "f87171"), fmt.Sprintf(format, args...))
 }
 
+// Hint writes a dim line to stderr, for advice that isn't part of the output.
+func (o *Output) Hint(format string, args ...any) {
+	_, _ = fmt.Fprintf(o.Err, "  %s\n", o.style(fmt.Sprintf(format, args...), "6b7280"))
+}
+
 // Warn writes an amber line.
 func (o *Output) Warn(format string, args ...any) {
 	_, _ = fmt.Fprintf(o.Err, "%s %s\n", o.style("!", "f59e0b"), fmt.Sprintf(format, args...))

@@ -21,6 +21,12 @@ clavis env unfreeze FREEZE_ID
 
 Delete a freeze window. Break-glass access also lifts an active freeze.
 
+## Examples
+
+```sh
+clavis env unfreeze 7f3a9c
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

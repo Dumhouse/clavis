@@ -27,6 +27,7 @@ import { confirmAction } from '@/components/ui/dialogs'
 import { Cmd, PageIntro } from '@/components/page-intro'
 import { Input, Select } from '@/components/ui/field'
 import { InfoHint } from '@/components/ui/info-hint'
+import { formatDate as formatDay } from '@/lib/format'
 
 type Identity = components['schemas']['IdentityBody']
 type Project = components['schemas']['ProjectBody']
@@ -755,9 +756,7 @@ function CreateIdentityDialog({
 }
 
 function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatDay(value, value)
 }
 
 function AgentCommandsDialog({
@@ -817,6 +816,7 @@ function AgentCommandsDialog({
       </div>
       <textarea
         autoFocus
+        data-autofocus=""
         rows={8}
         aria-label="Command patterns"
         className="mt-4 w-full rounded-app-sm border border-border bg-bg px-3 py-2 font-mono text-sm text-text focus:border-accent-line focus:outline-none"

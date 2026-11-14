@@ -210,21 +210,30 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_SERVER_BASE_URL` | derived | Public URL used in docs and cookies |
 | `CLAVIS_DATA_DIR` | `./data` | Data directory for defaults |
 | `CLAVIS_DB_PATH` | `<data>/clavis.db` | SQLite file |
-| `CLAVIS_DB_DSN` | — | Postgres DSN when `database.driver=postgres` |
+| `CLAVIS_DB_DRIVER` | `sqlite` | `sqlite` or `postgres`. Setting `CLAVIS_DB_DSN` alone selects `postgres`. |
+| `CLAVIS_DB_DSN` | — | Postgres connection string |
 | `CLAVIS_KEY_PROVIDER` | `file` | `file` or `env` root key |
 | `CLAVIS_ROOT_KEY_FILE` | `<data>/root.key` | File provider path |
 | `CLAVIS_ROOT_KEY` | — | Base64 32-byte key for the `env` provider |
+| `CLAVIS_ROOT_KEY_ENV` | `CLAVIS_ROOT_KEY` | Name of the variable that holds the root key, if your platform injects it under another name |
 | `CLAVIS_AWS_REGION` | — | Region for `aws-kms` |
 | `CLAVIS_AWS_KMS_KEY_ID` | — | AWS KMS key ARN/ID |
 | `CLAVIS_AWS_ACCESS_KEY` | — | AWS access key for KMS |
 | `CLAVIS_AWS_SECRET_KEY` | — | AWS secret key for KMS |
+| `CLAVIS_AWS_SESSION_TOKEN` | — | AWS session token, with temporary credentials |
+| `CLAVIS_AWS_KMS_ENDPOINT` | AWS default | KMS endpoint override (VPC endpoint, LocalStack) |
 | `CLAVIS_GCP_KMS_KEY` | — | GCP KMS crypto key resource name |
 | `CLAVIS_GCP_SERVICE_ACCOUNT_FILE` | — | Service account JSON for GCP KMS |
+| `CLAVIS_GCP_KMS_ENDPOINT` | Google default | Cloud KMS endpoint override |
 | `CLAVIS_DEV` | `false` | Dev cookies at `http://localhost` and Vite proxy |
 | `CLAVIS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `CLAVIS_LOG_FORMAT` | `json` | `json` or `console` (readable, for a terminal) |
 | `CLAVIS_EMAIL_ENABLED` | `false` | Send password resets and invite emails |
 | `CLAVIS_EMAIL_HOST` | — | SMTP host |
 | `CLAVIS_EMAIL_PORT` | `587` | SMTP port |
+| `CLAVIS_EMAIL_USERNAME` | — | SMTP user name |
+| `CLAVIS_EMAIL_PASSWORD` | — | SMTP password |
+| `CLAVIS_EMAIL_TLS` | `starttls` | `starttls` (port 587), `tls` (port 465) or `none` |
 | `CLAVIS_EMAIL_FROM` | — | From address (display name allowed) |
 | `CLAVIS_BREACH_CHECK` | `false` | Check new passwords against the HIBP range API (k-anonymity) |
 | `CLAVIS_BREACH_CHECK_URL` | HIBP range API | Override the breach-check endpoint |
@@ -235,10 +244,22 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_BACKUP_KEEP` | `7` | Number of backup files to retain |
 | `CLAVIS_OUTBOUND_ALLOWLIST` | — | Comma-separated IPs/CIDRs that syncs, webhooks, SSO discovery and audit exporters may reach even though they are private (for example `192.168.100.0/24` for a Forgejo on your LAN). Private, loopback and link-local addresses are blocked by default. |
 | `CLAVIS_TRUSTED_PROXIES` | — | Comma-separated IPs/CIDRs of reverse proxies whose `X-Forwarded-For`/`X-Real-IP` are trusted. Unset: those headers are ignored and the socket peer is the client IP (rate limits, audit log). Set it when running behind a proxy. |
+| `CLAVIS_UPDATE_CHECK` | `true` | Ask GitHub once a day whether a newer release exists, and show owners and admins an update notice with the command for this install. Sends nothing about the server. Set `false` for air-gapped servers. |
+| `CLAVIS_UPDATE_CHECK_URL` | GitHub releases API | A mirror that answers like GitHub's "latest release" endpoint |
+| `CLAVIS_METRICS_PUBLIC` | `true` | Serve `/metrics` without signing in. Set `false` when the port is reachable from outside. |
+| `CLAVIS_MAX_BODY_BYTES` | `1048576` | Largest request body (1 MiB) |
+| `CLAVIS_READ_TIMEOUT` / `CLAVIS_WRITE_TIMEOUT` / `CLAVIS_IDLE_TIMEOUT` | `15s` / `30s` / `120s` | HTTP server timeouts |
+| `CLAVIS_SHUTDOWN_TIMEOUT` | `20s` | Time to finish requests on stop |
+
+HTTPS (`CLAVIS_TLS`, `CLAVIS_TLS_*`, `CLAVIS_ACME_*`) is covered in [Self-hosting](self-hosting.md), and the first-run variables (`CLAVIS_SETUP_TOKEN`, `CLAVIS_SETUP_OWNER_EMAIL`) in [Claim the instance](#_2-claim-the-instance).
 
 See [deploy/clavis.example.yaml](https://github.com/dumhouse/clavis/blob/main/deploy/clavis.example.yaml).
 
 ## Troubleshooting
+
+Start with `clavis doctor` on the computer that has the problem. It checks the
+CLI, `.clavis.yaml`, the server address, HTTPS trust, versions, the clock, your
+sign-in and project access, and prints the command that fixes each problem.
 
 - **`readyz` returns 503** — the database is unavailable or the root key could
   not be loaded. Check the server log; errors include a fix hint.

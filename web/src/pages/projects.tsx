@@ -173,7 +173,11 @@ export function ProjectsPage() {
         </Button>
       </header>
 
-      <GettingStarted projectCount={projects.data?.length ?? 0} />
+      <GettingStarted
+        projectCount={projects.data?.length ?? 0}
+        orgSlug={org?.slug}
+        canManage={org?.role === 'Owner' || org?.role === 'Admin'}
+      />
 
       {projects.isLoading && (
         <div className="flex items-center gap-2 rounded-app border border-border bg-surface px-4 py-6 text-sm text-muted">
@@ -304,14 +308,116 @@ function CollapseButton({
   )
 }
 
-function GettingStarted({ projectCount }: { projectCount: number }) {
-  const steps = [
+const cliConnectedKey = 'clavis.cliConnected'
+
+/**
+ * Whether this user has signed in with the CLI. `clavis login` creates a
+ * session with a `clavis-cli/…` user agent; once seen, it is remembered in
+ * this browser so the step stays done after that session expires.
+ */
+function useCliConnected(): boolean {
+  const remembered = (() => {
+    try {
+      return localStorage.getItem(cliConnectedKey) === '1'
+    } catch {
+      return false
+    }
+  })()
+  const sessions = useQuery({
+    queryKey: ['auth-sessions'],
+    enabled: !remembered,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/auth/sessions')
+      if (result.error) return []
+      return result.data.sessions ?? []
+    },
+  })
+  const seen = (sessions.data ?? []).some((session) => session.user_agent.startsWith('clavis-cli/'))
+  if (seen && !remembered) {
+    try {
+      localStorage.setItem(cliConnectedKey, '1')
+    } catch {
+      // Storage can be unavailable; the session check still works.
+    }
+  }
+  return remembered || seen
+}
+
+type SetupStep = {
+  label: string
+  done: boolean
+  /** Suggestions: shown, but never needed to finish the checklist. */
+  optional?: boolean
+  to?: '/members' | '/integrations'
+}
+
+function GettingStarted({
+  projectCount,
+  orgSlug,
+  canManage,
+}: {
+  projectCount: number
+  orgSlug: string | undefined
+  canManage: boolean
+}) {
+  const cliConnected = useCliConnected()
+  // Owners and admins also get the two steps that need their rights. Each is
+  // done when there is real data for it: a second member or a pending
+  // invite, and a machine identity that CI can sign in with.
+  const members = useQuery({
+    queryKey: ['setup-checklist', 'members', orgSlug],
+    enabled: Boolean(orgSlug) && canManage,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/members', {
+        params: { path: { org: orgSlug ?? '' } },
+      })
+      return result.data ?? null
+    },
+  })
+  const identities = useQuery({
+    queryKey: ['setup-checklist', 'identities', orgSlug],
+    enabled: Boolean(orgSlug) && canManage,
+    queryFn: async () => {
+      const result = await api.GET('/api/v1/orgs/{org}/identities', {
+        params: { path: { org: orgSlug ?? '' } },
+      })
+      return result.data ?? null
+    },
+  })
+  const steps: SetupStep[] = [
     { label: 'Create your organization', done: true },
     { label: 'Create a project', done: projectCount > 0 },
-    { label: 'Connect the CLI', done: false },
+    { label: 'Connect the CLI', done: cliConnected },
   ]
-  const completed = steps.filter((step) => step.done).length
+  if (canManage && members.data && identities.data) {
+    steps.push(
+      {
+        label: 'Invite a teammate',
+        done: (members.data.members?.length ?? 0) > 1 || (members.data.invites?.length ?? 0) > 0,
+        optional: true,
+        to: '/members',
+      },
+      {
+        label: 'Connect CI',
+        done: (identities.data.identities?.length ?? 0) > 0,
+        optional: true,
+        to: '/integrations',
+      },
+    )
+  }
+  // Only the first three steps count. The others are suggestions: a solo
+  // user never needs a teammate, and a hand-deployed app never needs CI.
+  const required = steps.filter((step) => !step.optional)
+  const completed = required.filter((step) => step.done).length
   const [collapsed, toggle] = useCollapsed('getting-started')
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem('clavis.setup.dismissed') === 'true'
+    } catch {
+      return false
+    }
+  })
+  if (completed === required.length || dismissed) return null
 
   return (
     <section className="rounded-app border border-border bg-surface p-4 shadow-app">
@@ -323,13 +429,13 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-semibold">Finish setting up Clavis</h2>
             <span className="text-xs text-dim">
-              {completed} of {steps.length} done
+              {completed} of {required.length} done
             </span>
           </div>
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-elev">
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-200"
-              style={{ width: `${String((completed / steps.length) * 100)}%` }}
+              style={{ width: `${String((completed / required.length) * 100)}%` }}
             />
           </div>
           <div className={cn('mt-3 flex flex-wrap gap-x-5 gap-y-2', collapsed && 'hidden')}>
@@ -344,14 +450,21 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
                 >
                   {step.done && <Check className="size-2.5" strokeWidth={3} />}
                 </span>
-                <span className={step.done ? 'text-muted line-through' : 'text-text'}>
-                  {step.label}
-                </span>
+                {step.to && !step.done ? (
+                  <Link to={step.to} className="text-text underline-offset-2 hover:underline">
+                    {step.label}
+                  </Link>
+                ) : (
+                  <span className={step.done ? 'text-muted line-through' : 'text-text'}>
+                    {step.label}
+                  </span>
+                )}
+                {step.optional && !step.done && <span className="text-2xs text-dim">optional</span>}
               </span>
             ))}
           </div>
         </div>
-        {!collapsed && (
+        {!collapsed && !cliConnected && (
           <Button
             variant="secondary"
             size="sm"
@@ -363,6 +476,22 @@ function GettingStarted({ projectCount }: { projectCount: number }) {
           </Button>
         )}
         <CollapseButton collapsed={collapsed} onToggle={toggle} label="setup checklist" />
+        <button
+          type="button"
+          aria-label="Dismiss setup checklist"
+          title="Dismiss for good"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded text-dim hover:bg-hover hover:text-text"
+          onClick={() => {
+            setDismissed(true)
+            try {
+              window.localStorage.setItem('clavis.setup.dismissed', 'true')
+            } catch {
+              // Hidden for this visit only.
+            }
+          }}
+        >
+          <X className="size-4" />
+        </button>
       </div>
     </section>
   )

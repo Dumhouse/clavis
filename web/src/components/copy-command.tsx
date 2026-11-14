@@ -71,3 +71,45 @@ export function CopyCommand({ command, className }: { command: string; className
     </div>
   )
 }
+
+/** A multi-line block (a workflow file, a script) with a copy button. */
+export function CopyBlock({
+  code,
+  label,
+  className,
+}: {
+  code: string
+  label?: string
+  className?: string
+}) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className={cn('relative min-w-0 rounded-app-sm border border-border bg-bg', className)}>
+      {label && (
+        <div className="border-b border-border-soft px-3 py-1.5 font-mono text-2xs text-dim">
+          {label}
+        </div>
+      )}
+      <button
+        type="button"
+        aria-label={copied ? 'Copied' : `Copy ${label ?? 'code'}`}
+        title={copied ? 'Copied' : 'Copy'}
+        className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-app-sm bg-bg text-muted hover:bg-hover hover:text-text"
+        onClick={() => {
+          void copyText(code).then((ok) => {
+            if (!ok) return
+            setCopied(true)
+            window.setTimeout(() => {
+              setCopied(false)
+            }, 1500)
+          })
+        }}
+      >
+        {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+      </button>
+      <pre className="whitespace-pre-wrap px-3 py-2.5 pr-10 font-mono text-xs leading-relaxed text-text [overflow-wrap:anywhere]">
+        {code}
+      </pre>
+    </div>
+  )
+}

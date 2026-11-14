@@ -49,5 +49,4 @@ These work with every command.
 
 <div class="cli-cards">
 <a class="cli-card" href="./init"><span class="cli-card-name"><code>clavis init</code></span><span class="cli-card-text">Link this directory to a project</span></a>
-<a class="cli-card" href="./link"><span class="cli-card-name"><code>clavis link</code></span><span class="cli-card-text">Change the project linked to this directory</span></a>
 </div>

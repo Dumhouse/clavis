@@ -286,7 +286,27 @@ func (s *Service) UpdateMemberRole(ctx context.Context, actor authz.Actor, orgSl
 
 // RemoveMember removes a member and revokes their sessions and scoped grants.
 func (s *Service) RemoveMember(ctx context.Context, actor authz.Actor, orgSlug, userID string, meta AuditMeta) error {
-	org, err := s.membershipOrg(ctx, actor, orgSlug)
+	return s.removeMember(ctx, actor, orgSlug, userID, true, meta)
+}
+
+// LeaveOrg removes the caller from an organization. Unlike removing someone
+// else, it keeps their sessions: they may belong to other organizations. The
+// last owner can't leave; they delete the organization or hand it over first.
+func (s *Service) LeaveOrg(ctx context.Context, actor authz.Actor, orgSlug string, meta AuditMeta) error {
+	if actor.Kind != authz.SubjectUser {
+		return ErrForbidden
+	}
+	return s.removeMember(ctx, actor, orgSlug, actor.ID, false, meta)
+}
+
+func (s *Service) removeMember(ctx context.Context, actor authz.Actor, orgSlug, userID string, endSessions bool, meta AuditMeta) error {
+	var org *store.Org
+	var err error
+	if endSessions {
+		org, err = s.membershipOrg(ctx, actor, orgSlug) // removing someone needs members.manage
+	} else {
+		org, err = s.ownOrg(ctx, actor, orgSlug) // leaving needs only being a member
+	}
 	if err != nil {
 		return err
 	}
@@ -318,8 +338,10 @@ func (s *Service) RemoveMember(ctx context.Context, actor authz.Actor, orgSlug, 
 	if err := s.Store.DeleteUserPersonalTokens(ctx, userID, org.ID); err != nil {
 		s.Logger.Error("revoke removed member personal tokens failed", "user_id", userID, "error", err)
 	}
-	if _, err := s.Store.DeleteUserSessions(ctx, userID); err != nil {
-		s.Logger.Error("revoke removed member sessions failed", "user_id", userID, "error", err)
+	if endSessions {
+		if _, err := s.Store.DeleteUserSessions(ctx, userID); err != nil {
+			s.Logger.Error("revoke removed member sessions failed", "user_id", userID, "error", err)
+		}
 	}
 	if err := s.Store.DeleteUserBindingsForOrg(ctx, org.ID, userID); err != nil {
 		s.Logger.Error("delete removed member bindings failed", "user_id", userID, "error", err)
@@ -329,6 +351,21 @@ func (s *Service) RemoveMember(ctx context.Context, actor authz.Actor, orgSlug, 
 		s.Logger.Error("audit member.remove failed", "user_id", userID, "error", err)
 	}
 	return nil
+}
+
+// ownOrg returns an org the actor can read, which is every member's right.
+func (s *Service) ownOrg(ctx context.Context, actor authz.Actor, orgSlug string) (*store.Org, error) {
+	org, err := s.Store.GetOrgBySlug(ctx, orgSlug)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if err := s.Authorize(actor, authz.OrgRead, authz.Scope{OrgID: org.ID}); err != nil {
+		return nil, err
+	}
+	return org, nil
 }
 
 func (s *Service) membershipOrg(ctx context.Context, actor authz.Actor, orgSlug string) (*store.Org, error) {

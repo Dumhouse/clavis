@@ -21,6 +21,9 @@ const child = spawn(binary, ['server'], {
     CLAVIS_SERVER_ADDR: `127.0.0.1:${port}`,
     CLAVIS_SERVER_BASE_URL: `http://127.0.0.1:${port}`,
     CLAVIS_DEV: 'true',
+    // Serve the embedded UI, not a Vite server that may be running on :5173.
+    CLAVIS_WEB_DEV_URL: 'off',
+    CLAVIS_UPDATE_CHECK: 'false',
     CLAVIS_LOG_LEVEL: 'error',
   },
   stdio: 'inherit',

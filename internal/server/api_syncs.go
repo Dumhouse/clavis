@@ -17,6 +17,7 @@ type syncBody struct {
 	ID             string     `json:"id"`
 	Environment    string     `json:"environment"`
 	Provider       string     `json:"provider"`
+	Target         string     `json:"target" doc:"Where the sync pushes, without credentials: a repository, project or path"`
 	ConnectionID   string     `json:"connection_id,omitempty" doc:"Connection whose credential this sync uses; empty for an inline credential"`
 	Status         string     `json:"status"`
 	Confirmed      bool       `json:"confirmed"`
@@ -35,6 +36,40 @@ type syncsOutput struct {
 
 type syncOutput struct {
 	Body syncBody
+}
+
+type listRepositoriesInput struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	Body    struct {
+		Provider     string `json:"provider" enum:"forgejo,github,gitlab"`
+		BaseURL      string `json:"base_url,omitempty" maxLength:"500"`
+		Token        string `json:"token,omitempty" maxLength:"1000"`
+		ConnectionID string `json:"connection_id,omitempty" maxLength:"100"`
+	}
+}
+
+type listRepositoriesOutput struct {
+	Body service.RepositoryList
+}
+
+type storeCISecretsInput struct {
+	Org     string `path:"org"`
+	Project string `path:"project"`
+	Body    struct {
+		Provider     string            `json:"provider" enum:"forgejo,github,gitlab"`
+		BaseURL      string            `json:"base_url,omitempty" maxLength:"500"`
+		Token        string            `json:"token,omitempty" maxLength:"1000"`
+		ConnectionID string            `json:"connection_id,omitempty" maxLength:"100"`
+		Repo         string            `json:"repo" minLength:"1" maxLength:"300" doc:"owner/name; for GitLab, the project path or ID"`
+		Secrets      map[string]string `json:"secrets" doc:"CLAVIS_* names and values, usually CLAVIS_TOKEN_<ENV>"`
+	}
+}
+
+type storeCISecretsOutput struct {
+	Body struct {
+		Stored []string `json:"stored"`
+	}
 }
 
 type createSyncInput struct {
@@ -199,6 +234,45 @@ func (s *Server) registerSyncRoutes() error {
 		return &syncOutput{Body: syncFromView(*view)}, nil
 	})
 
+	if err := s.registry.Declare(http.MethodPost, base+"/repositories", authz.SyncsManage, "list repositories a sync credential can reach"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "list-sync-repositories", Method: http.MethodPost, Path: base + "/repositories",
+		Summary: "List repositories a credential can reach", Tags: []string{"syncs"},
+		Description: "For the sync form: lists Forgejo/Gitea, GitHub or GitLab repositories and organizations for a platform token or a typed URL and token. Nothing is stored.",
+	}, func(ctx context.Context, in *listRepositoriesInput) (*listRepositoriesOutput, error) {
+		actor, _ := actorFrom(ctx)
+		list, err := s.svc.ListRepositories(ctx, actor, in.Org, in.Project, service.RepositoryListInput{
+			Provider: in.Body.Provider, BaseURL: in.Body.BaseURL, Token: in.Body.Token, ConnectionID: in.Body.ConnectionID,
+		})
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		return &listRepositoriesOutput{Body: *list}, nil
+	})
+
+	if err := s.registry.Declare(http.MethodPost, base+"/ci-secrets", authz.SyncsManage, "store Clavis CI tokens as repository secrets"); err != nil {
+		return err
+	}
+	huma.Register(s.api, huma.Operation{
+		OperationID: "store-ci-secrets", Method: http.MethodPost, Path: base + "/ci-secrets",
+		Summary: "Store CI tokens in a repository", Tags: []string{"syncs"},
+		Description: "Writes CLAVIS_* secrets (machine tokens for CI access) into a Forgejo/Gitea, GitHub or GitLab repository with a platform token or a typed URL and token. Clavis does not keep the values.",
+	}, func(ctx context.Context, in *storeCISecretsInput) (*storeCISecretsOutput, error) {
+		actor, _ := actorFrom(ctx)
+		stored, err := s.svc.StoreCISecrets(ctx, actor, in.Org, in.Project, service.CISecretsInput{
+			Provider: in.Body.Provider, BaseURL: in.Body.BaseURL, Token: in.Body.Token, ConnectionID: in.Body.ConnectionID,
+			Repo: in.Body.Repo, Secrets: in.Body.Secrets,
+		}, metaFrom(ctx))
+		if err != nil {
+			return nil, s.apiError(ctx, err)
+		}
+		out := &storeCISecretsOutput{}
+		out.Body.Stored = stored
+		return out, nil
+	})
+
 	if err := s.registry.Declare(http.MethodDelete, base+"/{id}", authz.SyncsManage, "delete project syncs"); err != nil {
 		return err
 	}
@@ -311,6 +385,7 @@ func syncFromView(view service.SyncView) syncBody {
 	_ = json.Unmarshal([]byte(view.Sync.Config), &cfg)
 	return syncBody{
 		ID: view.Sync.ID, Environment: view.Environment, Provider: view.Sync.Provider,
+		Target:       service.SyncTarget(view.Sync),
 		ConnectionID: view.Sync.ConnectionID, Status: view.Sync.Status, Confirmed: view.Sync.Confirmed,
 		DriftKeys: keys, DriftCheckedAt: view.Sync.DriftCheckedAt, DeleteMissing: cfg.DeleteMissing,
 		LastSyncedAt: view.Sync.LastSyncedAt, CreatedAt: view.Sync.CreatedAt,

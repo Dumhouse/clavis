@@ -80,9 +80,10 @@ func newAccessRequestCommand(opts *Options) *cobra.Command {
 func newAccessRequestsCommand(opts *Options) *cobra.Command {
 	var status string
 	cmd := &cobra.Command{
-		Use:   "requests",
-		Short: "List access requests",
-		Args:  cobra.NoArgs,
+		Use:     "ls",
+		Aliases: []string{"requests"}, // the old name
+		Short:   "List access requests",
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := opts.output()
 			resolved, err := opts.resolveContext(false)

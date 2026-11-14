@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 122 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 123 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -24,9 +24,9 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./logout"><span class="cli-card-name"><code>clavis logout</code></span><span class="cli-card-text">Sign out and delete the saved token</span></a>
 <a class="cli-card" href="./whoami"><span class="cli-card-name"><code>clavis whoami</code></span><span class="cli-card-text">Show the signed-in user and organizations</span></a>
 <a class="cli-card" href="./init"><span class="cli-card-name"><code>clavis init</code></span><span class="cli-card-text">Link this directory to a project</span></a>
-<a class="cli-card" href="./link"><span class="cli-card-name"><code>clavis link</code></span><span class="cli-card-text">Change the project linked to this directory</span></a>
 <a class="cli-card" href="./unlink"><span class="cli-card-name"><code>clavis unlink</code></span><span class="cli-card-text">Remove the .clavis.yaml in this directory</span></a>
 <a class="cli-card" href="./trust"><span class="cli-card-name"><code>clavis trust</code><span class="cli-card-meta">3 commands</span></span><span class="cli-card-text">Trust a server&#39;s self-signed certificate on this computer</span></a>
+<a class="cli-card" href="./doctor"><span class="cli-card-name"><code>clavis doctor</code></span><span class="cli-card-text">Check this computer&#39;s Clavis setup and say how to fix problems</span></a>
 </div>
 
 ## Run and export {#run}
@@ -103,7 +103,7 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./rotation"><span class="cli-card-name"><code>clavis rotation</code><span class="cli-card-meta">8 commands</span></span><span class="cli-card-text">Schedule and run secret rotation</span></a>
 <a class="cli-card" href="./lease"><span class="cli-card-name"><code>clavis lease</code><span class="cli-card-meta">7 commands</span></span><span class="cli-card-text">Create and manage dynamic secret leases</span></a>
 <a class="cli-card" href="./syncs"><span class="cli-card-name"><code>clavis syncs</code><span class="cli-card-meta">7 commands</span></span><span class="cli-card-text">Push secrets to external systems</span></a>
-<a class="cli-card" href="./connections"><span class="cli-card-name"><code>clavis connections</code><span class="cli-card-meta">5 commands</span></span><span class="cli-card-text">Manage org-wide provider credentials that syncs share</span></a>
+<a class="cli-card" href="./tokens"><span class="cli-card-name"><code>clavis tokens</code><span class="cli-card-meta">5 commands</span></span><span class="cli-card-text">Manage org-wide platform tokens that syncs share</span></a>
 </div>
 
 ## AI agents {#agents}
@@ -124,7 +124,8 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./setup-token"><span class="cli-card-name"><code>clavis setup-token</code></span><span class="cli-card-text">Print the one-time first-run setup token</span></a>
 <a class="cli-card" href="./admin"><span class="cli-card-name"><code>clavis admin</code><span class="cli-card-meta">9 commands</span></span><span class="cli-card-text">Instance administration</span></a>
 <a class="cli-card" href="./health"><span class="cli-card-name"><code>clavis health</code></span><span class="cli-card-text">Show organization health findings</span></a>
-<a class="cli-card" href="./upgrade"><span class="cli-card-name"><code>clavis upgrade</code></span><span class="cli-card-text">Verify a signed release artifact and install it</span></a>
+<a class="cli-card" href="./update"><span class="cli-card-name"><code>clavis update</code></span><span class="cli-card-text">Check for a new release and show how to upgrade</span></a>
+<a class="cli-card" href="./upgrade"><span class="cli-card-name"><code>clavis upgrade</code></span><span class="cli-card-text">Install the latest Clavis release</span></a>
 <a class="cli-card" href="./version"><span class="cli-card-name"><code>clavis version</code></span><span class="cli-card-text">Print version information</span></a>
 </div>
 

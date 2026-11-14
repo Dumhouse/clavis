@@ -21,6 +21,12 @@ clavis lease ls CONFIG_ID
 
 List a config's leases and their status.
 
+## Examples
+
+```sh
+clavis lease ls 4a1c…
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

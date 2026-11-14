@@ -21,6 +21,12 @@ clavis rotation ls
 
 List policies with their interval, next run and last status.
 
+## Examples
+
+```sh
+clavis rotation ls
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.

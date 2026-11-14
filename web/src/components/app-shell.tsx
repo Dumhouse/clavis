@@ -14,6 +14,8 @@ import {
   Layers,
   Moon,
   Palette,
+  Pencil,
+  Plus,
   RefreshCw,
   ScrollText,
   ShieldCheck,
@@ -33,34 +35,39 @@ import {
 import { useEffect, useState } from 'react'
 
 import { CommandPalette } from '@/components/command-palette'
+import { HelpMenu } from '@/components/help-menu'
 import { HintBar, ShortcutsSheet } from '@/components/hints'
+import { OrgDialog } from '@/components/org-dialog'
 import { Button } from '@/components/ui/button'
 import { Menu } from '@/components/ui/menu'
 import { Modal } from '@/components/ui/modal'
 import { useTheme } from '@/components/theme-provider'
+import { UpdateNotice } from '@/components/update-notice'
 import { useAuth } from '@/lib/auth'
 import { useCurrentOrg } from '@/lib/org'
 import { cn } from '@/lib/utils'
 
 type NavItem = { to: string; label: string; icon: LucideIcon }
 
-const workspaceNav: NavItem[] = [
+// Grouped by what people come for: their secrets, who can reach them, and
+// settings. Access requests sit with access, not with the secrets.
+const secretsNav: NavItem[] = [
   { to: '/', label: 'Projects', icon: FolderKanban },
   { to: '/sets', label: 'Shared sets', icon: Layers },
   { to: '/integrations', label: 'Integrations', icon: Cable },
   { to: '/health', label: 'Health', icon: HeartPulse },
-  { to: '/requests', label: 'Requests', icon: Inbox },
 ]
 
-const orgNav: NavItem[] = [
+const accessNav: NavItem[] = [
   { to: '/members', label: 'Members', icon: Users },
   { to: '/identities', label: 'Agents & machines', icon: Bot },
   { to: '/access', label: 'Who has access', icon: ShieldCheck },
+  { to: '/requests', label: 'Access requests', icon: Inbox },
   { to: '/audit', label: 'Audit log', icon: ScrollText },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const accountNav: NavItem[] = [
+const settingsNav: NavItem[] = [
+  { to: '/settings', label: 'Org settings', icon: Settings },
   { to: '/account', label: 'Your account', icon: UserRound },
   { to: '/docs', label: 'Docs', icon: BookOpen },
 ]
@@ -227,7 +234,7 @@ export function AppShell() {
           (item) => projectHref(item.to, projectSlug) === pathname,
         )?.label
       : undefined) ??
-    [...workspaceNav, ...orgNav, ...accountNav].find((item) => item.to === pathname)?.label ??
+    [...secretsNav, ...accessNav, ...settingsNav].find((item) => item.to === pathname)?.label ??
     'Projects'
 
   return (
@@ -362,6 +369,14 @@ export function AppShell() {
               <Palette className="size-3.5" />
               <span className="capitalize">{appearance}</span>
             </Button>
+            <HelpMenu
+              onShortcuts={() => {
+                setSheetOpen(true)
+              }}
+              onDocs={() => {
+                void navigate({ to: '/docs' })
+              }}
+            />
             <Menu
               label={`Account menu for ${initials}`}
               triggerClassName="ml-1 flex size-7 items-center justify-center rounded-full bg-elev text-xs font-semibold text-muted hover:ring-2 hover:ring-accent-line"
@@ -414,6 +429,7 @@ export function AppShell() {
               /^\/projects\/[^/]+\/?$/.test(pathname) ? 'max-w-[110rem]' : 'max-w-6xl',
             )}
           >
+            <UpdateNotice canManage={org?.role === 'Owner' || org?.role === 'Admin'} />
             <Outlet />
           </div>
         </main>
@@ -460,8 +476,22 @@ function SidebarContent({
   const { user, logout } = useAuth()
   const { org, orgs, selectOrg } = useCurrentOrg()
   const navigate = useNavigate()
+  const [orgDialog, setOrgDialog] = useState<'new' | 'rename' | null>(null)
   return (
     <>
+      {orgDialog && (
+        <OrgDialog
+          existing={orgDialog === 'rename' ? (org ?? null) : null}
+          onClose={() => {
+            setOrgDialog(null)
+          }}
+          onSaved={(saved) => {
+            setOrgDialog(null)
+            selectOrg(saved.slug)
+            void navigate({ to: '/' })
+          }}
+        />
+      )}
       <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
         <div className="logo-mark flex size-7 items-center justify-center rounded-[9px] shadow-sm">
           <KeyRound className="size-4 text-[#06241c]" strokeWidth={2.6} />
@@ -514,15 +544,37 @@ function SidebarContent({
                 <span className="text-2xs text-dim">{candidate.role}</span>
               </button>
             ))}
+            <div className="border-t border-border-soft">
+              {org?.role === 'Owner' && (
+                <button
+                  className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+                  onClick={() => {
+                    setOrgOpen(false)
+                    setOrgDialog('rename')
+                  }}
+                >
+                  <Pencil className="size-3.5" /> Rename {org.name}
+                </button>
+              )}
+              <button
+                className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-sm text-muted hover:bg-hover hover:text-text"
+                onClick={() => {
+                  setOrgOpen(false)
+                  setOrgDialog('new')
+                }}
+              >
+                <Plus className="size-3.5" /> New organization
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       <nav className="scroll-quiet flex flex-1 flex-col gap-6 overflow-y-auto pb-4 pl-3 pr-1">
         {projectSlug && <ProjectNavGroup slug={projectSlug} pathname={pathname} />}
-        <NavGroup label="Workspace" items={workspaceNav} pathname={pathname} />
-        <NavGroup label="Organization" items={orgNav} pathname={pathname} />
-        <NavGroup label="You" items={accountNav} pathname={pathname} />
+        <NavGroup label="Secrets" items={secretsNav} pathname={pathname} />
+        <NavGroup label="Access" items={accessNav} pathname={pathname} />
+        <NavGroup label="Settings" items={settingsNav} pathname={pathname} />
       </nav>
 
       <div className="border-t border-border p-3">

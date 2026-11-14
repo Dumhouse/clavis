@@ -21,6 +21,12 @@ clavis sets ls
 
 List the organization's shared sets.
 
+## Examples
+
+```sh
+clavis sets ls
+```
+
 <details class="cli-globals"><summary>Global flags</summary>
 
 These work with every command.
