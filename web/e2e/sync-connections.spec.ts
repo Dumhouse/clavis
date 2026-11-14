@@ -22,17 +22,18 @@ test('a saved connection is picked instead of pasting the token again', async ({
   await signIn(page)
   await page.getByRole('link', { name: 'Integrations', exact: true }).first().click()
   await expect(page.getByRole('heading', { name: 'Integrations', level: 1 })).toBeVisible()
-  const connections = page.getByRole('region', { name: 'Connections' })
-  await expect(connections.getByText('No connections yet.', { exact: false })).toBeVisible()
+  await page.getByRole('tab', { name: /^Platform tokens/ }).click()
+  const connections = page.getByRole('region', { name: 'Platform tokens' })
+  await expect(connections.getByText('No platform tokens yet.', { exact: false })).toBeVisible()
 
   // Save the Forgejo credential once.
-  await connections.getByRole('button', { name: 'Add connection' }).click()
-  const dialog = page.getByRole('dialog', { name: /Add a connection/ })
+  await connections.getByRole('button', { name: 'Add platform token' }).click()
+  const dialog = page.getByRole('dialog', { name: /Add a platform token/ })
   await dialog.getByLabel('Provider').selectOption('forgejo')
   await dialog.getByLabel('Name').fill('E2E Forgejo')
   await dialog.getByLabel('Forgejo URL (optional)').fill('https://git.example.test')
   await dialog.getByLabel('Access token').fill('fj-e2e-token')
-  await dialog.getByRole('button', { name: 'Save connection' }).click()
+  await dialog.getByRole('button', { name: 'Save token' }).click()
   await expect(dialog).toBeHidden()
   await expect(connections.getByText('E2E Forgejo')).toBeVisible()
   await expect(connections.getByText('Not used by any sync', { exact: false })).toBeVisible()
@@ -47,18 +48,22 @@ test('a saved connection is picked instead of pasting the token again', async ({
     .analyze()
   expect(accessibility.violations).toEqual([])
 
-  // A new sync only asks for the repository; the connection is preselected.
-  await page.getByRole('button', { name: /Forgejo Actions/ }).click()
+  // A new sync only asks for the repository; the platform token is preselected.
+  await page.getByRole('tab', { name: /^Syncs/ }).click()
+  await page.getByRole('button', { name: 'Add a sync' }).first().click()
+  await page.getByRole('button', { name: /Forgejo \/ Gitea Actions/ }).click()
+  await page.getByRole('button', { name: /Set up a sync/ }).click()
   const create = page.getByRole('dialog', { name: /Sync to Forgejo Actions/ })
   await create.getByLabel('Repository or organization').fill('team/web')
   await expect(create.getByRole('radio', { name: /E2E Forgejo/ })).toBeChecked()
-  await expect(create.getByLabel('Access token')).toHaveCount(0)
+  await expect(create.getByLabel('Access token', { exact: true })).toHaveCount(0)
   await create.getByRole('button', { name: 'Create sync' }).click()
   await expect(create).toBeHidden()
   await expect(page.getByText('Sync to Forgejo Actions created', { exact: false })).toBeVisible()
-  await expect(page.getByTitle('Uses a shared connection')).toContainText('E2E Forgejo')
+  await expect(page.getByTitle('Uses a platform token')).toContainText('E2E Forgejo')
 
-  // The connection shows where it is used and cannot be deleted while in use.
+  // The token shows where it is used and cannot be deleted while in use.
+  await page.getByRole('tab', { name: /^Platform tokens/ }).click()
   await expect(connections.getByText(/Used by 1 sync: payments-api\/dev/)).toBeVisible()
   await expect(
     connections.getByRole('button', { name: 'Delete connection E2E Forgejo' }),

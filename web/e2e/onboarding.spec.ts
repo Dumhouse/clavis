@@ -185,6 +185,8 @@ test('schema editor defines a pattern and validates the grid inline', async ({ p
   await page.getByRole('button', { name: /^Add to / }).click()
   await expect(page.getByText('Added API_TOKEN to dev.')).toBeVisible()
 
+  // Cell actions appear on hover.
+  await page.getByRole('button', { name: 'Reveal API_TOKEN in dev' }).hover()
   await page.getByRole('button', { name: 'Edit API_TOKEN in dev' }).click()
   await page.getByLabel('New value for API_TOKEN in dev').fill('not-a-stripe-key')
   await expect(page.getByText(/Does not match the required pattern/i)).toBeVisible()
@@ -275,7 +277,7 @@ test('keyboard shortcuts from the hint bar work on every page that advertises th
   // Project secrets: N add, P paste, / filter.
   await openProject(page)
   await page.keyboard.press('n')
-  await expect(page.getByRole('heading', { name: 'Add secret' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Add a key' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.keyboard.press('p')
   await expect(page.getByRole('dialog')).toBeVisible()

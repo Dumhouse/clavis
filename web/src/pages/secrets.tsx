@@ -1856,7 +1856,9 @@ function AddSecretDialog({
 
           <div>
             <div className="mb-1 flex items-center gap-1">
-              <span className="text-xs font-medium text-muted">Value</span>
+              <label htmlFor="add-key-value" className="text-xs font-medium text-muted">
+                Value
+              </label>
               {fileName && kind === 'file' && (
                 <span className="ml-1 truncate font-mono text-2xs text-dim">{fileName}</span>
               )}
@@ -1909,6 +1911,7 @@ function AddSecretDialog({
             />
             {kind === 'variable' ? (
               <Input
+                id="add-key-value"
                 required
                 mono
                 autoComplete="off"
@@ -1933,6 +1936,7 @@ function AddSecretDialog({
                 }}
               >
                 <Textarea
+                  id="add-key-value"
                   required
                   mono
                   rows={kind === 'file' ? 7 : 3}
