@@ -166,14 +166,13 @@ export const methodInfo: Record<Method, { title: string; short: string; how: str
   },
 }
 
-/** Release tag of the Clavis action that the snippets use. */
-export const actionVersion = 'v0.3.3'
-
 export type ActionSource = 'github' | 'mirror' | 'plain'
 
 export type SnippetInput = {
   ci: NonNullable<Platform['ci']>
   server: string
+  /** Release tag of the Clavis action and install script (see releaseTag). */
+  tag: string
   fingerprint?: string | undefined
   /** Environment slugs, in the order the user picked them. */
   envs: string[]
@@ -208,8 +207,10 @@ export function defaultBranch(env: string) {
 /** Where a Forgejo mirror of the Clavis repository is expected. */
 export const mirrorPath = 'mirrors/clavis'
 
-export function actionUses(input: Pick<SnippetInput, 'ci' | 'actionSource' | 'forgeOrigin'>) {
-  const path = `integrations/github-action@${actionVersion}`
+export function actionUses(
+  input: Pick<SnippetInput, 'ci' | 'actionSource' | 'forgeOrigin' | 'tag'>,
+) {
+  const path = `integrations/github-action@${input.tag}`
   if (input.ci !== 'forgejo') return `dumhouse/clavis/${path}`
   if (input.actionSource === 'mirror') {
     const origin = (input.forgeOrigin || 'https://forgejo.example.com').replace(/\/+$/, '')
@@ -358,7 +359,7 @@ function plainStep(row: Row, input: SnippetInput, condition: string) {
     `          CLAVIS_TOKEN: \${{ secrets.${row.secret} }}`,
     `        run: |`,
     `          if ! command -v clavis >/dev/null; then   # skip if the runner image has it`,
-    `            curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/${actionVersion}/scripts/install.sh \\`,
+    `            curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/${input.tag}/scripts/install.sh \\`,
     `              | CLAVIS_INSTALL_DIR="$RUNNER_TEMP/bin" bash`,
     `            export PATH="$RUNNER_TEMP/bin:$PATH"`,
     `          fi`,

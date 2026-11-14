@@ -257,6 +257,10 @@ See [deploy/clavis.example.yaml](https://github.com/dumhouse/clavis/blob/main/de
 
 ## Troubleshooting
 
+Start with `clavis doctor` on the computer that has the problem. It checks the
+CLI, `.clavis.yaml`, the server address, HTTPS trust, versions, the clock, your
+sign-in and project access, and prints the command that fixes each problem.
+
 - **`readyz` returns 503** — the database is unavailable or the root key could
   not be loaded. Check the server log; errors include a fix hint.
 - **Cookies are not stored** — non-dev mode uses `Secure` `__Host-` cookies and

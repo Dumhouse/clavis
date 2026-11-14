@@ -10,7 +10,8 @@
         "whoami",
         "init",
         "unlink",
-        "trust"
+        "trust",
+        "doctor"
       ]
     },
     {
@@ -1216,6 +1217,34 @@
       ],
       "subcommands": [],
       "related": []
+    },
+    {
+      "path": "doctor",
+      "slug": "doctor",
+      "group": "get-started",
+      "usage": "clavis doctor",
+      "summary": "Check this computer's Clavis setup and say how to fix problems",
+      "description": "Check this computer's Clavis setup from top to bottom and say how to fix\neach problem: the CLI version and how it was installed, `.clavis.yaml`,\nthe server address and where it came from, whether the server answers,\nits certificate, its version compared with the CLI, the clock, your\nsign-in, and access to the project and environment.\n\nChecks stop at the first thing that blocks the rest, so the first `✗`\nis the one to fix. It changes nothing and never prints secret values.\nThe exit code is 1 when a check fails, so CI can run it too.",
+      "examples": [
+        {
+          "run": "clavis doctor"
+        },
+        {
+          "title": "For another server",
+          "run": "clavis doctor --server https://clavis.example.com"
+        },
+        {
+          "title": "For scripts and bug reports",
+          "run": "clavis doctor --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "whoami",
+        "trust add",
+        "update"
+      ]
     },
     {
       "path": "env",

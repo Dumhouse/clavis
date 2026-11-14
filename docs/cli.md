@@ -25,6 +25,16 @@ winget is set up in the release pipeline and goes live once Microsoft accepts th
 - **Production safety:** when the target env is `production`, the CLI shows a colored banner; writes and destructive commands require typing the project name (or `--yes` plus a non-TTY, for CI). Orgs can block CLI writes to production entirely.
 - **Stable exit codes:** 0 ok, 1 general error, 2 usage, 3 auth, 4 permission, 5 not found, 6 validation failed (`check`), 7 leak found (`scan`).
 
+## Finding your way
+
+- `clavis help` opens a finder in your terminal: type a few letters
+  (`sec set`, `rotate`, `token`), move with ↑/↓ and press Enter to see usage,
+  examples and flags. Outside a terminal it prints every command by group.
+- `clavis help COMMAND` and `clavis COMMAND --help` show one command, from the
+  same text as the [CLI reference](./reference/).
+- `clavis help -s WORD` lists every command that mentions a word.
+- `clavis doctor` checks the setup and says how to fix what's wrong.
+
 ## Commands
 
 The [CLI reference](./reference/) has a page for every command with its

@@ -32,6 +32,7 @@ import {
 } from '@/lib/integration-guide'
 import { useSelfSignedFingerprint } from '@/lib/server-certificate'
 import { cn } from '@/lib/utils'
+import { useReleaseTag } from '@/lib/release'
 
 type Env = components['schemas']['EnvBody']
 
@@ -445,8 +446,10 @@ function FetchSetup({
   const pickedRepo = repo
     ? repoChoices.find((item) => item.full_name.toLowerCase() === repo.path.toLowerCase())
     : undefined
+  const tag = useReleaseTag()
   const snippet = ciSnippet({
     ci,
+    tag,
     server: window.location.origin,
     fingerprint,
     envs: chosen,

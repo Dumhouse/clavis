@@ -13,6 +13,7 @@ import { apiErrorMessage } from '@/lib/api-error'
 import { ciSnippet, platforms, secretNameFor } from '@/lib/integration-guide'
 import { useSelfSignedFingerprint } from '@/lib/server-certificate'
 import { formatDate as formatDay, formatDateTime } from '@/lib/format'
+import { useReleaseTag } from '@/lib/release'
 
 type Identity = components['schemas']['IdentityBody']
 
@@ -146,8 +147,10 @@ function SnippetDialog({ identity, onClose }: { identity: Identity; onClose: () 
   const platform = ciPlatforms.find((candidate) => candidate.id === platformId) ?? ciPlatforms[0]
   const env = identity.environment || 'staging'
   const secret = secretNameFor(env, true)
+  const tag = useReleaseTag()
   const snippet = ciSnippet({
     ci: platform?.ci ?? 'shell',
+    tag,
     server: window.location.origin,
     fingerprint,
     envs: [env],

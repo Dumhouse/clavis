@@ -1,4 +1,5 @@
 import {
+  redirect,
   createRootRoute,
   createRoute,
   createRouter,
@@ -9,7 +10,6 @@ import {
 import { AppShell } from '@/components/app-shell'
 import { ProjectsPage } from '@/pages/projects'
 import { SecretsPage } from '@/pages/secrets'
-import { SectionPage } from '@/pages/section'
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -27,8 +27,6 @@ const projectRoute = createRoute({
   path: '/projects/$project',
   component: SecretsPage,
 })
-
-const sections = ['/shared-sets'] as const
 
 const snapshotsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -144,13 +142,15 @@ const accountRoute = createRoute({
   component: lazyRouteComponent(() => import('@/pages/settings'), 'AccountSettingsPage'),
 })
 
-const sectionRoutes = sections.map((path) =>
-  createRoute({
-    getParentRoute: () => rootRoute,
-    path,
-    component: () => <SectionPage path={path} />,
-  }),
-)
+// Old address of the Shared sets page.
+const sharedSetsRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/shared-sets',
+  beforeLoad: () => {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- the router's redirect API
+    throw redirect({ to: '/sets' })
+  },
+})
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -174,7 +174,7 @@ const routeTree = rootRoute.addChildren([
   docsRoute,
   settingsRoute,
   accountRoute,
-  ...sectionRoutes,
+  sharedSetsRedirect,
 ])
 
 export const router = createRouter({

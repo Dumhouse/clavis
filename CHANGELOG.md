@@ -4,6 +4,13 @@
 
 ### Added
 
+- `clavis doctor` checks the CLI install, `.clavis.yaml`, the server address
+  (and where it came from), reachability, HTTPS trust, the server and CLI
+  versions, the clock, the sign-in and project access, and prints the command
+  that fixes each problem. `--json` for scripts; exit code 1 on failures.
+- `clavis help` is rebuilt from the CLI reference: a grouped overview with a
+  "Start here" section, a page per command with examples and a docs link,
+  `--search`, and, in a terminal, a finder you type into (↑/↓, Tab, Enter).
 - `clavis upgrade` installs the latest release the way Clavis was installed:
   it runs `brew`, `scoop`, `winget` or `go install` after you confirm, or,
   for the install script and downloaded binaries, downloads the release,
@@ -162,6 +169,10 @@
   on SQLite and ignored it unless `CLAVIS_DB_DRIVER=postgres` was set too.
 - Sidebar: Secrets (projects, shared sets, integrations, health), Access
   (members, agents, who has access, access requests, audit log) and Settings.
+- CI snippets pin the Clavis action to this server's release (a development
+  build uses the release it comes after) instead of a fixed tag.
+- `/shared-sets` redirects to Shared sets instead of a "coming soon" page, and
+  in-app doc snippets show this server's address.
 - The setup checklist ticks "Connect the CLI" once you sign in with
   `clavis login`, and hides when every step is done. The sessions list names
   CLI sessions "Clavis CLI".

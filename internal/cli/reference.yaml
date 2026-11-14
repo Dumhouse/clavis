@@ -13,7 +13,7 @@ groups:
   - id: get-started
     title: "Get started"
     description: "Sign in, link a folder to a project, and check who you are."
-    commands: [login, logout, whoami, init, unlink, trust]
+    commands: [login, logout, whoami, init, unlink, trust, doctor]
   - id: run
     title: "Run and export"
     description: "Give secrets to your app: run it with them, open a shell, write files, generate typed config, or share one value."
@@ -119,6 +119,25 @@ commands:
       - title: "Switch this folder to staging"
         run: "clavis init --project web-app --env staging"
     related: [unlink, run]
+
+  doctor:
+    description: |-
+      Check this computer's Clavis setup from top to bottom and say how to fix
+      each problem: the CLI version and how it was installed, `.clavis.yaml`,
+      the server address and where it came from, whether the server answers,
+      its certificate, its version compared with the CLI, the clock, your
+      sign-in, and access to the project and environment.
+
+      Checks stop at the first thing that blocks the rest, so the first `✗`
+      is the one to fix. It changes nothing and never prints secret values.
+      The exit code is 1 when a check fails, so CI can run it too.
+    examples:
+      - run: "clavis doctor"
+      - title: "For another server"
+        run: "clavis doctor --server https://clavis.example.com"
+      - title: "For scripts and bug reports"
+        run: "clavis doctor --json"
+    related: [whoami, trust add, update]
 
   unlink:
     description: "Delete `.clavis.yaml` from this folder. Nothing changes on the server."

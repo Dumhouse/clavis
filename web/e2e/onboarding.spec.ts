@@ -103,10 +103,17 @@ test('setup → project → secret → reveal → audit', async ({ page }) => {
   await expect(page.getByText('secret.reveal').first()).toBeVisible()
 
   // CLI: device login approved in the browser, then read and run with the secret.
+  // A throwaway home: `clavis login` remembers the server in the user's
+  // config folder, which must not end up pointing at this test server.
+  const cliHome = mkdtempSync(join(tmpdir(), 'clavis-cli-'))
   const cliEnv = {
     ...process.env,
+    HOME: cliHome,
+    XDG_CONFIG_HOME: join(cliHome, '.config'),
+    XDG_CACHE_HOME: join(cliHome, '.cache'),
+    CLAVIS_UPDATE_CHECK: 'false',
     CLAVIS_SERVER: serverURL,
-    CLAVIS_CREDENTIAL_FILE: join(mkdtempSync(join(tmpdir(), 'clavis-cli-')), 'credentials.json'),
+    CLAVIS_CREDENTIAL_FILE: join(cliHome, 'credentials.json'),
   }
   const login = spawn(binary, ['login', '--no-browser'], { env: cliEnv })
   let output = ''
