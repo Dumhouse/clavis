@@ -480,20 +480,20 @@ func (m *helpModel) mouse(msg helpMouse) {
 		return
 	}
 	inList := msg.X < m.leftWidth() && (!m.narrow() || m.mode == modeList)
-	switch {
-	case msg.Button == "wheelup":
+	switch msg.Button {
+	case "wheelup":
 		if inList {
 			m.move(-1)
 		} else {
 			m.scroll = max(m.scroll-2, 0)
 		}
-	case msg.Button == "wheeldown":
+	case "wheeldown":
 		if inList {
 			m.move(1)
 		} else {
 			m.scroll += 2
 		}
-	case msg.Button == "left":
+	case "left":
 		if msg.Y == 2 {
 			for _, hit := range m.hits {
 				if msg.X >= hit.from && msg.X < hit.to {
