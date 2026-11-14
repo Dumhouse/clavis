@@ -56,7 +56,7 @@ file with HTTPS (self-signed, or Let's Encrypt even for a LAN-only server) and a
 ready setup link.
 
 The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
-`dumhouse/clavis:0.3.2` for production.
+`dumhouse/clavis:0.3.3` for production.
 
 **Install the CLI** (it is the same binary as the server):
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.3 — 2026-11-14
+
 ### Added
 
 - `clavis help` is now a full-screen browser in a terminal: group tabs, a
