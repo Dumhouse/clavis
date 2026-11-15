@@ -53,7 +53,7 @@ func writeFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
 	for name, content := range files {
 		path := filepath.Join(dir, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
@@ -362,7 +362,7 @@ func TestEnvFileDoctorChecksInCI(t *testing.T) {
 func TestEnvSearchDirs(t *testing.T) {
 	root := t.TempDir()
 	app := filepath.Join(root, "packages", "app")
-	if err := os.MkdirAll(filepath.Join(app, "src"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(app, "src"), 0o750); err != nil {
 		t.Fatal(err)
 	}
 	outside := t.TempDir()
@@ -415,7 +415,7 @@ func TestEnvAllowed(t *testing.T) {
 func TestGitRootWalksUp(t *testing.T) {
 	dir := gitRepo(t, nil, nil)
 	sub := filepath.Join(dir, "cmd", "app")
-	if err := os.MkdirAll(sub, 0o755); err != nil {
+	if err := os.MkdirAll(sub, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	want, err := filepath.EvalSymlinks(dir) // macOS: /var is /private/var
