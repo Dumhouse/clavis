@@ -47,7 +47,7 @@ func verifyRootKey(ctx context.Context, st *store.Store, key crypto.Key) error {
 	}
 	orgKey, err := crypto.NewKeyring(key).UnwrapOrgKey(orgID, wrapped)
 	if err != nil {
-		return fmt.Errorf("server: %w (check the root key provider and its value): %v", errRootKeyMismatch, err)
+		return fmt.Errorf("server: %w (check the root key provider and its value): %w", errRootKeyMismatch, err)
 	}
 	orgKey.Zero()
 	return nil
