@@ -991,7 +991,7 @@
       "group": "get-started",
       "usage": "clavis doctor",
       "summary": "Check this computer's Clavis setup and say how to fix problems",
-      "description": "Check this computer's Clavis setup from top to bottom and say how to fix\neach problem: the CLI version and how it was installed, `.clavis.yaml`,\nthe server address and where it came from, whether the server answers,\nits certificate, its version compared with the CLI, the clock, your\nsign-in, and access to the project and environment.\n\nChecks stop at the first thing that blocks the rest, so the first `✗`\nis the one to fix. It changes nothing and never prints secret values.\nThe exit code is 1 when a check fails, so CI can run it too.",
+      "description": "Check this computer's Clavis setup from top to bottom and say how to fix\neach problem: the CLI version and how it was installed, `.clavis.yaml`,\nthe server address and where it came from, whether the server answers,\nits certificate, its version compared with the CLI, the clock, your\nsign-in, and access to the project and environment. It also checks that\n`clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and\nin a git repository whether a pre-commit hook stops secrets from being\ncommitted.\n\nChecks stop at the first thing that blocks the rest, so the first `✗`\nis the one to fix. It changes nothing and never prints secret values.\nThe exit code is 1 when a check fails, so CI can run it too.",
       "examples": [
         {
           "run": "clavis doctor"
@@ -2492,8 +2492,16 @@
       "group": "run",
       "usage": "clavis run [flags] [COMMAND [ARGS...]]",
       "summary": "Run a command with secrets injected and output masked",
-      "description": "Start your app with the environment's secrets as environment variables.\nClavis starts the command itself, so you keep one terminal; anything the\ncommand prints is masked, so secret values don't end up in logs.\n\nClavis flags go **before** the command. Everything from the first word of\nthe command on belongs to your command, so `--` is optional:\n`clavis run rails s -p 3001` passes `-p 3001` to Rails.\n\nWithout a command, `clavis run` starts the `run:` command saved in\n[`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it\nrecognizes the project.",
+      "description": "Start your app with the environment's secrets as environment variables.\nClavis starts the command itself, so you keep one terminal; anything the\ncommand prints is masked, so secret values don't end up in logs.\n\nClavis flags go **before** the command. Everything from the first word of\nthe command on belongs to your command, so `--` is optional:\n`clavis run rails s -p 3001` passes `-p 3001` to Rails.\n\nWithout a command, `clavis run` starts the `run:` command saved in\n[`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it\nrecognizes the project.\n\nIn a terminal, interactive programs such as `rails c`, `irb` or `psql`\nwork normally: the command runs on a pseudo-terminal, so it draws its\nprompt, colors and line editing, and its output is still masked. In\nscripts and CI the command's output is piped instead. Use `--no-pty`\nto force pipes in a terminal.",
       "examples": [
+        {
+          "title": "A Rails console with secrets",
+          "run": "clavis run rails c"
+        },
+        {
+          "title": "Read real values in a console, on your own screen",
+          "run": "clavis run --no-mask rails c"
+        },
         {
           "title": "Run the command saved in .clavis.yaml",
           "run": "clavis run"
@@ -2527,7 +2535,7 @@
           "run": "clavis run -- -my-tool --flag"
         }
       ],
-      "notes": "- **Masking** replaces injected values in the command's output. It\n  protects logs and screen shares; it is not a security boundary. Turn\n  it off with `--no-mask` when you debug output.\n- **`--watch`** listens for changes and restarts the command with fresh\n  values whenever this environment's secrets change.\n- **`--mount`** writes `file` secrets to a `0700` temporary directory as\n  `0600` files, puts each file's path in the variable, and removes the\n  directory when the command exits.\n- **Offline:** with `cache: true` in `.clavis.yaml`, the last values are\n  used for up to 24 hours when the server is unreachable. See\n  [offline cache](./offline-cache).\n- `clavis run` exits with your command's exit code.",
+      "notes": "- **Masking** replaces injected values in the command's output with\n  `••••••`, in a console too: `ENV['API_KEY']` prints `\"••••••\"`, though\n  your code still gets the real value. It protects logs and screen\n  shares; it is not a security boundary. Put `--no-mask` before the\n  command to see real values, for example to debug in `rails c`. Only do\n  that on your own screen: values print in clear text, so keep it out of\n  screen shares, recordings and pasted output. To read a single value,\n  `clavis secrets get KEY` is enough. More in\n  [Consoles and masking](../guides/consoles-and-masking).\n- **`--watch`** listens for changes and restarts the command with fresh\n  values whenever this environment's secrets change.\n- **`--mount`** writes `file` secrets to a `0700` temporary directory as\n  `0600` files, puts each file's path in the variable, and removes the\n  directory when the command exits.\n- **Offline:** with `cache: true` in `.clavis.yaml`, the last values are\n  used for up to 24 hours when the server is unreachable. See\n  [offline cache](./offline-cache).\n- `clavis run` exits with your command's exit code.",
       "flags": [
         {
           "name": "mount",
@@ -2536,6 +2544,10 @@
         {
           "name": "no-mask",
           "usage": "disable output masking (dangerous)"
+        },
+        {
+          "name": "no-pty",
+          "usage": "in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)"
         },
         {
           "name": "watch",

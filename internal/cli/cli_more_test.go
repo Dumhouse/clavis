@@ -505,3 +505,56 @@ func TestExportCIEnv(t *testing.T) {
 		t.Fatal("want an error outside a CI job")
 	}
 }
+
+// A prompt with no newline must appear at once: a console waits for input
+// after printing it, so anything held back looks like a freeze.
+func TestMaskWriterShowsPromptWithoutWaiting(t *testing.T) {
+	secret := "clv_test_0123456789abcdefghijklmnopqrstuvwxyz"
+	var out bytes.Buffer
+	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	if _, err := w.Write([]byte("irb(main):001:0> ")); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "irb(main):001:0> " {
+		t.Fatalf("prompt held back: %q", got)
+	}
+
+	// A secret split across writes is still caught, and nothing leaks while
+	// it is incomplete.
+	out.Reset()
+	w = &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("key=clv_test_0123456789abc"))
+	if strings.Contains(out.String(), "clv_test") {
+		t.Fatalf("partial secret leaked: %q", out.String())
+	}
+	_, _ = w.Write([]byte("defghijklmnopqrstuvwxyz done\n"))
+	_ = w.Flush()
+	if got := out.String(); got != "key="+maskReplacement+" done\n" {
+		t.Fatalf("split secret: %q", got)
+	}
+
+	// Something that only looks like the start of a secret is released at
+	// the end.
+	out.Reset()
+	w = &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("clv_test_"))
+	_ = w.Flush()
+	if out.String() != "clv_test_" {
+		t.Fatalf("flush: %q", out.String())
+	}
+}
+
+func TestMaskWriterCountsHiddenValues(t *testing.T) {
+	secret := "clv_test_0123456789abcdefghijklmnopqrstuvwxyz"
+	var out bytes.Buffer
+	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("nothing here\n"))
+	if w.hits != 0 {
+		t.Fatalf("hits = %d", w.hits)
+	}
+	_, _ = w.Write([]byte("key=" + secret + "\n"))
+	_ = w.Flush()
+	if w.hits != 1 {
+		t.Fatalf("hits = %d, want 1", w.hits)
+	}
+}

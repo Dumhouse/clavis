@@ -31,7 +31,25 @@ Without a command, `clavis run` starts the `run:` command saved in
 [`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it
 recognizes the project.
 
+In a terminal, interactive programs such as `rails c`, `irb` or `psql`
+work normally: the command runs on a pseudo-terminal, so it draws its
+prompt, colors and line editing, and its output is still masked. In
+scripts and CI the command's output is piped instead. Use `--no-pty`
+to force pipes in a terminal.
+
 ## Examples
+
+<p class="cli-example-title">A Rails console with secrets</p>
+
+```sh
+clavis run rails c
+```
+
+<p class="cli-example-title">Read real values in a console, on your own screen</p>
+
+```sh
+clavis run --no-mask rails c
+```
 
 <p class="cli-example-title">Run the command saved in .clavis.yaml</p>
 
@@ -86,14 +104,21 @@ clavis run -- -my-tool --flag
 <dl class="cli-flags">
 <div class="cli-flag" id="flag-mount"><dt><code>--mount</code></dt><dd>write file secrets to a private temp directory and expose their paths as env vars</dd></div>
 <div class="cli-flag" id="flag-no-mask"><dt><code>--no-mask</code></dt><dd>disable output masking (dangerous)</dd></div>
+<div class="cli-flag" id="flag-no-pty"><dt><code>--no-pty</code></dt><dd>in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)</dd></div>
 <div class="cli-flag" id="flag-watch"><dt><code>--watch</code></dt><dd>restart the command when the environment&#39;s secrets change</dd></div>
 </dl>
 
 ## Details
 
-- **Masking** replaces injected values in the command's output. It
-  protects logs and screen shares; it is not a security boundary. Turn
-  it off with `--no-mask` when you debug output.
+- **Masking** replaces injected values in the command's output with
+  `••••••`, in a console too: `ENV['API_KEY']` prints `"••••••"`, though
+  your code still gets the real value. It protects logs and screen
+  shares; it is not a security boundary. Put `--no-mask` before the
+  command to see real values, for example to debug in `rails c`. Only do
+  that on your own screen: values print in clear text, so keep it out of
+  screen shares, recordings and pasted output. To read a single value,
+  `clavis secrets get KEY` is enough. More in
+  [Consoles and masking](../guides/consoles-and-masking).
 - **`--watch`** listens for changes and restarts the command with fresh
   values whenever this environment's secrets change.
 - **`--mount`** writes `file` secrets to a `0700` temporary directory as

@@ -23,7 +23,10 @@ Check this computer's Clavis setup from top to bottom and say how to fix
 each problem: the CLI version and how it was installed, `.clavis.yaml`,
 the server address and where it came from, whether the server answers,
 its certificate, its version compared with the CLI, the clock, your
-sign-in, and access to the project and environment.
+sign-in, and access to the project and environment. It also checks that
+`clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and
+in a git repository whether a pre-commit hook stops secrets from being
+committed.
 
 Checks stop at the first thing that blocks the rest, so the first `✗`
 is the one to fix. It changes nothing and never prints secret values.

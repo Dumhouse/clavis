@@ -117,11 +117,10 @@ ambiguous.
 
 ## apt and rpm repositories
 
-Releases already attach `.deb`, `.rpm` and `.apk` files. For
-`apt install clavis` to work they must also live in a hosted, signed
-repository. Running one yourself means GPG keys and a web server. A hosted
-service is simpler; this project plans to use **Cloudsmith**, which offers
-open-source hosting and signs packages for you.
+Releases attach `.deb`, `.rpm` and `.apk` files and also upload the `.deb` and
+`.rpm` to a hosted, signed repository on **Cloudsmith**
+(<https://cloudsmith.io/~dumhouse/repos/clavis/packages/>), which signs packages
+for you. Users install with the setup scripts in [the CLI page](./cli).
 
 1. Contact Cloudsmith about their open-source plan for public projects and wait
    for approval.
@@ -136,7 +135,9 @@ The release workflow then uploads every `.deb` and `.rpm` with the Cloudsmith CL
 skipped. Cloudsmith shows a one-line setup command for users on the repository's
 page.
 
-Until the repository is set up, install the packages from the release page.
+The repository must be public: in Cloudsmith, open the repository's **Broadcasts**
+settings and set visibility to open source. Uploads succeed while it is private,
+but the public URLs return 404.
 
 ## Action mirror
 

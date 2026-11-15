@@ -17,12 +17,14 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 func newRunCommand(opts *Options) *cobra.Command {
 	var noMask bool
 	var mountFiles bool
 	var watch bool
+	var noPTY bool
 	cmd := &cobra.Command{
 		Use:   "run [flags] [COMMAND [ARGS...]]",
 		Short: "Run a command with secrets injected and output masked",
@@ -50,7 +52,7 @@ Rails or npm run dev for Node.js).`,
 				}
 				args = defaultArgs
 			}
-			return runWithSecrets(cmd, opts, args, !noMask, mountFiles, watch)
+			return runWithSecrets(cmd, opts, args, !noMask, mountFiles, watch, !noPTY)
 		},
 	}
 	// Stop parsing Clavis flags at the first word of the command, so
@@ -58,6 +60,7 @@ Rails or npm run dev for Node.js).`,
 	cmd.Flags().SetInterspersed(false)
 	cmd.Flags().BoolVar(&noMask, "no-mask", false, "disable output masking (dangerous)")
 	cmd.Flags().BoolVar(&mountFiles, "mount", false, "write file secrets to a private temp directory and expose their paths as env vars")
+	cmd.Flags().BoolVar(&noPTY, "no-pty", false, "in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)")
 	cmd.Flags().BoolVar(&watch, "watch", false, "restart the command when the environment's secrets change")
 	return cmd
 }
@@ -133,9 +136,9 @@ func splitCommandLine(line string) ([]string, error) {
 	return words, nil
 }
 
-func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch bool) error {
+func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool) error {
 	for {
-		restart, err := runWithSecretsOnce(cmd, opts, args, maskOutput, mountFiles, watch)
+		restart, err := runWithSecretsOnce(cmd, opts, args, maskOutput, mountFiles, watch, usePTY)
 		if err != nil || !restart {
 			return err
 		}
@@ -143,7 +146,7 @@ func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput
 	}
 }
 
-func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch bool) (bool, error) {
+func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool) (bool, error) {
 	ctx := cmd.Context()
 	resolved, err := opts.resolveContext(true)
 	if err != nil {
@@ -186,26 +189,42 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 
 	child := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // G204: running the user-supplied command is the purpose of `clavis run`
 	child.Env = env
-	child.Stdin = os.Stdin
-	stdoutPipe, err := child.StdoutPipe()
-	if err != nil {
-		return false, err
-	}
-	stderrPipe, err := child.StderrPipe()
-	if err != nil {
-		return false, err
-	}
-
 	m := newMasker(values)
+	// Interactive programs (rails c, irb, psql, a shell) only draw prompts and
+	// line editing on a terminal. When you are at one, run the command on a
+	// pseudo-terminal and mask what comes out of it; scripts and CI keep pipes.
+	onTerminal := usePTY && ptySupported && term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+	var (
+		session    *ptySession
+		stdoutPipe io.Reader
+		stderrPipe io.Reader
+	)
 	stdout := &maskWriter{dst: os.Stdout, m: m}
 	stderr := &maskWriter{dst: opts.output().Err, m: m}
 	if !maskOutput {
 		stdout = &maskWriter{dst: os.Stdout}
 		stderr = &maskWriter{dst: opts.output().Err}
 	}
-
-	if err := child.Start(); err != nil {
-		return false, fmt.Errorf("could not start %s: %w", args[0], err)
+	if onTerminal {
+		session, err = startOnPTY(child)
+		if err != nil {
+			return false, fmt.Errorf("could not start %s: %w", args[0], err)
+		}
+		defer session.Close()
+		stdoutPipe = session.Master
+	} else {
+		child.Stdin = os.Stdin
+		stdoutPipe, err = child.StdoutPipe()
+		if err != nil {
+			return false, err
+		}
+		stderrPipe, err = child.StderrPipe()
+		if err != nil {
+			return false, err
+		}
+		if err := child.Start(); err != nil {
+			return false, fmt.Errorf("could not start %s: %w", args[0], err)
+		}
 	}
 	restart := make(chan struct{}, 1)
 	watchCtx, cancelWatch := context.WithCancel(ctx)
@@ -236,21 +255,29 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			_ = child.Process.Kill()
 		}
 	}()
+	copies := 1
 	done := make(chan struct{}, 2)
 	go func() {
 		_, _ = io.Copy(stdout, stdoutPipe)
 		_ = stdout.Flush()
 		done <- struct{}{}
 	}()
-	go func() {
-		_, _ = io.Copy(stderr, stderrPipe)
-		_ = stderr.Flush()
-		done <- struct{}{}
-	}()
-	<-done
-	<-done
+	if stderrPipe != nil {
+		copies = 2
+		go func() {
+			_, _ = io.Copy(stderr, stderrPipe)
+			_ = stderr.Flush()
+			done <- struct{}{}
+		}()
+	}
+	for range copies {
+		<-done
+	}
 	waitErr := child.Wait()
 	cancelWatch()
+	if onTerminal && maskOutput && stdout.hits > 0 {
+		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To read them on your own screen: clavis run --no-mask %s\n", maskReplacement, strings.Join(args, " "))
+	}
 	select {
 	case <-restart:
 		cleanup()

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -102,6 +105,12 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 			Detail: latest + " is available", Fix: fix})
 	default:
 		add(doctorCheck{Section: "CLI", Name: "Latest release", Status: doctorOK, Detail: "up to date (" + latest + ")"})
+	}
+
+	// This computer.
+	add(consoleCheck())
+	if hook := hookCheck(); hook != nil {
+		add(*hook)
 	}
 
 	// Project configuration.
@@ -248,6 +257,55 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 			Fix:    "clavis init --env " + firstNonEmpty(firstSlug(slugs), "dev")})
 	}
 	return checks
+}
+
+// consoleCheck says whether `clavis run` can give interactive programs
+// (rails c, irb, psql) a terminal, so their prompts appear.
+func consoleCheck() doctorCheck {
+	check := doctorCheck{Section: "This computer", Name: "Consoles"}
+	if !ptySupported {
+		check.Status = doctorWarn
+		check.Detail = "clavis run cannot open a pseudo-terminal here, so consoles like rails c show no prompt"
+		check.Fix = "Run the console through a shell instead: clavis shell"
+		return check
+	}
+	master, slave, err := openPTY()
+	if err != nil {
+		check.Status = doctorWarn
+		check.Detail = "could not open a pseudo-terminal: " + err.Error()
+		check.Fix = "Use clavis run --no-pty <command>, or clavis shell"
+		return check
+	}
+	_ = master.Close()
+	_ = slave.Close()
+	check.Status = doctorOK
+	check.Detail = "clavis run can give consoles a terminal (rails c, irb, psql)"
+	return check
+}
+
+// hookCheck reports whether this git repository blocks secrets at commit
+// time. It returns nil outside a git repository, where it does not apply.
+func hookCheck() *doctorCheck {
+	raw, err := exec.Command("git", "rev-parse", "--git-dir").Output()
+	if err != nil {
+		return nil
+	}
+	check := &doctorCheck{Section: "This computer", Name: "Commit hook"}
+	hookPath := filepath.Join(strings.TrimSpace(string(raw)), "hooks", "pre-commit")
+	if data, err := os.ReadFile(hookPath); err == nil && bytes.Contains(data, []byte("clavis scan")) {
+		check.Status = doctorOK
+		check.Detail = "pre-commit hook runs clavis scan"
+		return check
+	}
+	if data, err := os.ReadFile(".pre-commit-config.yaml"); err == nil && bytes.Contains(data, []byte("clavis")) {
+		check.Status = doctorOK
+		check.Detail = "pre-commit framework runs clavis scan"
+		return check
+	}
+	check.Status = doctorWarn
+	check.Detail = "this repository does not stop secrets from being committed"
+	check.Fix = "clavis scan --install-hook"
+	return check
 }
 
 func firstSlug(slugs []string) string {

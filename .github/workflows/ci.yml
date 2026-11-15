@@ -31,6 +31,19 @@ jobs:
         with:
           version: v2.15.0
 
+  macos:
+    name: macOS terminal tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      # `clavis run` opens a pseudo-terminal differently on macOS than on
+      # Linux, so run the terminal and masking tests there too.
+      - run: go test -count=1 -run 'PTY|Mask|Doctor' ./internal/cli
+
   postgres:
     name: Go tests (Postgres)
     runs-on: ubuntu-26.04

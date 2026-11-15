@@ -8,13 +8,15 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | --- | --- | --- |
 | Install script (signed) | `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \| bash` | Available |
 | Release archive | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) | Available |
-| `.deb`, `.rpm`, `.apk` | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) and install with your package manager | Available |
+| apt (Debian, Ubuntu) | `curl -1sLf 'https://dl.cloudsmith.io/public/dumhouse/clavis/setup.deb.sh' \| sudo -E bash` then `sudo apt install clavis` | Available |
+| dnf / yum (Fedora, RHEL) | `curl -1sLf 'https://dl.cloudsmith.io/public/dumhouse/clavis/setup.rpm.sh' \| sudo -E bash` then `sudo dnf install clavis` | Available |
+| `.deb`, `.rpm`, `.apk` files | Download from [GitHub Releases](https://github.com/dumhouse/clavis/releases) and install with your package manager | Available |
 | Homebrew | `brew install dumhouse/tap/clavis` | Available |
 | Scoop | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket` then `scoop install clavis` | Available |
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
 | Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis` (see the [install wizard](./install)) or `ghcr.io/dumhouse/clavis` | Available |
 
-winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. There are no hosted apt or rpm repositories yet; install the `.deb`, `.rpm` or `.apk` from the release.
+winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. The apt and rpm repositories are hosted on [Cloudsmith](https://cloudsmith.io/~dumhouse/repos/clavis/packages/). Read the setup script before you pipe it to a shell if you prefer. Alpine (`.apk`) installs from the release file.
 
 ## UX rules
 

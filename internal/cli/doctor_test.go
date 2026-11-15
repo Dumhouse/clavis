@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -103,5 +104,41 @@ func TestDoctorReportsFixes(t *testing.T) {
 	checks = runDoctor(context.Background(), &Options{})
 	if statusOf(checks, "Reachable") != doctorFail || statusOf(checks, "Credential") != "" {
 		t.Fatalf("unreachable server should fail and stop: %+v", checks)
+	}
+}
+
+func TestDoctorConsoleAndHookChecks(t *testing.T) {
+	srv := fakeClavis(t, "0.3.2")
+	doctorEnv(t, srv.URL, "good", "dev")
+
+	// Outside a git repository the hook check does not apply.
+	checks := runDoctor(context.Background(), &Options{})
+	if got := statusOf(checks, "Commit hook"); got != "" {
+		t.Fatalf("hook check outside a repository = %q", got)
+	}
+	want := doctorOK
+	if !ptySupported {
+		want = doctorWarn
+	}
+	if got := statusOf(checks, "Consoles"); got != want {
+		t.Fatalf("Consoles = %q, want %q", got, want)
+	}
+
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	if out, err := exec.Command("git", "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	checks = runDoctor(context.Background(), &Options{})
+	if statusOf(checks, "Commit hook") != doctorWarn {
+		t.Fatalf("repository without a hook should warn: %+v", checks)
+	}
+	if err := installScanHook(); err != nil {
+		t.Fatal(err)
+	}
+	checks = runDoctor(context.Background(), &Options{})
+	if statusOf(checks, "Commit hook") != doctorOK {
+		t.Fatalf("installed hook should pass: %+v", checks)
 	}
 }

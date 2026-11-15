@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Added
+
+- Docs: a guide to consoles and masking (with and without `--no-mask`,
+  side by side) and a FAQ for the common problems.
+- `clavis run` in a terminal now prints one line at the end when it hid
+  secret values, with the `--no-mask` command to read them on your own screen.
+- `clavis doctor` checks that `clavis run` can give consoles a terminal, and,
+  in a git repository, whether a pre-commit hook stops secrets from being
+  committed.
+- Docs: the apt and rpm repositories on Cloudsmith are public. Install with
+  the setup scripts shown on the CLI page.
+- CI runs the terminal and masking tests on macOS as well as Linux.
+
+### Fixed
+
+- `clavis run` no longer looks frozen with interactive programs such as
+  `rails c`, `irb` or `psql`. Two causes: output masking held back the last
+  bytes of every write (as many as the longest secret) until more output
+  arrived, so a prompt with no newline never appeared; and the program's
+  output was a pipe, so many programs (Ruby's console among them) printed no
+  prompt at all. In a terminal, the command now runs on a pseudo-terminal
+  (Linux and macOS) with masking applied to its output, and masking holds back
+  only bytes that could still become part of a secret. Scripts and CI keep
+  pipes. `--no-pty` turns this off.
+
 ## v0.3.3 — 2026-11-14
 
 ### Added

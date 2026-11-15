@@ -126,7 +126,10 @@ commands:
       each problem: the CLI version and how it was installed, `.clavis.yaml`,
       the server address and where it came from, whether the server answers,
       its certificate, its version compared with the CLI, the clock, your
-      sign-in, and access to the project and environment.
+      sign-in, and access to the project and environment. It also checks that
+      `clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and
+      in a git repository whether a pre-commit hook stops secrets from being
+      committed.
 
       Checks stop at the first thing that blocks the rest, so the first `✗`
       is the one to fix. It changes nothing and never prints secret values.
@@ -226,7 +229,17 @@ commands:
       Without a command, `clavis run` starts the `run:` command saved in
       [`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it
       recognizes the project.
+
+      In a terminal, interactive programs such as `rails c`, `irb` or `psql`
+      work normally: the command runs on a pseudo-terminal, so it draws its
+      prompt, colors and line editing, and its output is still masked. In
+      scripts and CI the command's output is piped instead. Use `--no-pty`
+      to force pipes in a terminal.
     examples:
+      - title: "A Rails console with secrets"
+        run: "clavis run rails c"
+      - title: "Read real values in a console, on your own screen"
+        run: "clavis run --no-mask rails c"
       - title: "Run the command saved in .clavis.yaml"
         run: "clavis run"
       - title: "Node.js"
@@ -244,9 +257,15 @@ commands:
       - title: "Use -- when your command itself starts with a dash"
         run: "clavis run -- -my-tool --flag"
     notes: |-
-      - **Masking** replaces injected values in the command's output. It
-        protects logs and screen shares; it is not a security boundary. Turn
-        it off with `--no-mask` when you debug output.
+      - **Masking** replaces injected values in the command's output with
+        `••••••`, in a console too: `ENV['API_KEY']` prints `"••••••"`, though
+        your code still gets the real value. It protects logs and screen
+        shares; it is not a security boundary. Put `--no-mask` before the
+        command to see real values, for example to debug in `rails c`. Only do
+        that on your own screen: values print in clear text, so keep it out of
+        screen shares, recordings and pasted output. To read a single value,
+        `clavis secrets get KEY` is enough. More in
+        [Consoles and masking](../guides/consoles-and-masking).
       - **`--watch`** listens for changes and restarts the command with fresh
         values whenever this environment's secrets change.
       - **`--mount`** writes `file` secrets to a `0700` temporary directory as

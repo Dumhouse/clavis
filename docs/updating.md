@@ -79,8 +79,8 @@ Clavis looks at where its binary lives and what it runs in:
 | WinGet | binary under `WinGet\Packages` | `winget upgrade Dumhouse.Clavis` |
 | Docker | running in a container | `docker compose pull && docker compose up -d` |
 | Helm | running in a Kubernetes pod | `helm upgrade clavis oci://ghcr.io/dumhouse/charts/clavis --namespace clavis --reuse-values` |
-| `.deb` package | `/usr/bin/clavis` on Debian or Ubuntu | download the new `.deb` and `sudo dpkg -i` it |
-| `.rpm` package | `/usr/bin/clavis` on Fedora, RHEL or SUSE | `sudo rpm -U <release .rpm URL>` |
+| `.deb` package | `/usr/bin/clavis` on Debian or Ubuntu | `sudo apt update && sudo apt install --only-upgrade clavis` if you installed from the apt repository; otherwise download the new `.deb` and `sudo dpkg -i` it |
+| `.rpm` package | `/usr/bin/clavis` on Fedora, RHEL or SUSE | `sudo dnf upgrade clavis` if you installed from the rpm repository; otherwise `sudo rpm -U <release .rpm URL>` |
 | `.apk` package | `/usr/bin/clavis` on Alpine | download the new `.apk` and `sudo apk add` it |
 | `go install` | binary in `$GOBIN` with a module version | `go install github.com/dumhouse/clavis/cmd/clavis@latest` |
 | Built from source | a development version (`0.3.2+dev.<commit>`) | `git pull && make build` |
