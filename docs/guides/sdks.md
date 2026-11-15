@@ -20,11 +20,15 @@ Set `CLAVIS_SERVER`, `CLAVIS_TOKEN`, `CLAVIS_ORG`, `CLAVIS_PROJECT` and
 
 ## Node.js (18 or later)
 
-Copy [`sdk/node/clavis.mjs`](https://github.com/Dumhouse/clavis/blob/main/sdk/node/clavis.mjs)
-into your project:
+```sh
+npm install @dumhouse/clavis-client
+```
+
+Or copy [`sdk/node/clavis.mjs`](https://github.com/Dumhouse/clavis/blob/main/sdk/node/clavis.mjs)
+into your project and import `./clavis.mjs` instead.
 
 ```js
-import { loadSecrets } from './clavis.mjs'
+import { loadSecrets } from '@dumhouse/clavis-client'
 
 await loadSecrets() // fills process.env; values already set win
 ```
@@ -34,8 +38,12 @@ await loadSecrets() // fills process.env; values already set win
 
 ## Python (3.8 or later)
 
-Copy [`sdk/python/clavis_client.py`](https://github.com/Dumhouse/clavis/blob/main/sdk/python/clavis_client.py)
-into your project:
+```sh
+pip install clavis-client
+```
+
+Or copy [`sdk/python/clavis_client.py`](https://github.com/Dumhouse/clavis/blob/main/sdk/python/clavis_client.py)
+into your project; the import is the same.
 
 ```python
 import clavis_client

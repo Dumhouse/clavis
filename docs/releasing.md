@@ -19,6 +19,7 @@ and publishes it to each channel below.
 | winget | A pull request to `microsoft/winget-pkgs` | `WINGET_TOKEN` and a `Dumhouse/winget-pkgs` fork |
 | apt and rpm repositories | Hosted `.deb` and `.rpm` on Cloudsmith | `CLOUDSMITH_API_KEY` |
 | Helm chart | OCI chart at `ghcr.io/dumhouse/charts` | Nothing extra (separate workflow) |
+| npm, PyPI, Dev Container Feature | The SDKs and the feature | See [below](#sdks-and-the-devcontainer-feature) (separate workflow) |
 
 Channels whose secret is missing are skipped, so a release never fails because
 a token has not been set up yet.
@@ -154,6 +155,35 @@ up:
 The source stays in this repository, so changes to the action are reviewed
 with the server they depend on. Run the workflow by hand with a tag to
 publish an earlier release.
+
+## SDKs and the devcontainer feature
+
+The workflow `publish-packages.yml` runs when a release is published and has
+one job per channel. Each job is skipped until you turn it on, and a job can
+be run by hand with a tag to publish an earlier release.
+
+| Channel | Package | Turn it on |
+| --- | --- | --- |
+| npm | `@dumhouse/clavis-client` (from `sdk/node`) | Secret `NPM_TOKEN`, variable `PUBLISH_NPM=true` |
+| PyPI | `clavis-client` (from `sdk/python`) | Trusted publisher, variable `PUBLISH_PYPI=true` |
+| Dev Container Feature | `ghcr.io/dumhouse/clavis/clavis` | Variable `PUBLISH_DEVCONTAINER_FEATURE=true` |
+
+**npm.** Create the `@dumhouse` organization on npmjs.com, then a granular
+access token that can publish to it, and store it as `NPM_TOKEN`. Packages
+are published with provenance, so npm shows which workflow built them. The
+package version is the release tag without the `v`.
+
+**PyPI.** No token is needed. On pypi.org, add a pending trusted publisher for
+the project `clavis-client`: owner `Dumhouse`, repository `clavis`, workflow
+`publish-packages.yml`, environment `pypi`. Create the `pypi` environment in
+the repository settings (you can require a reviewer on it).
+
+**Dev Container Feature.** It is published to GitHub Container Registry with
+the workflow's own token. After the first publish, make the package public in
+the organization's package settings. The feature has its own version in
+`devcontainer/features/clavis/devcontainer-feature.json`: bump it when
+`install.sh` or the options change. The CLI version it installs is chosen by
+the user with the `version` option.
 
 ## winget
 

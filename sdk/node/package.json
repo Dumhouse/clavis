@@ -1,11 +1,20 @@
 {
-  "name": "@clavis/client",
-  "version": "0.1.0",
+  "name": "@dumhouse/clavis-client",
+  "version": "0.0.0",
   "description": "A tiny Clavis client: fetch an environment's secrets at start-up.",
   "type": "module",
   "main": "clavis.mjs",
   "exports": "./clavis.mjs",
+  "files": ["clavis.mjs", "README.md"],
   "engines": { "node": ">=18" },
   "license": "Apache-2.0",
+  "homepage": "https://dumhouse.github.io/clavis/guides/sdks",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dumhouse/clavis.git",
+    "directory": "sdk/node"
+  },
+  "keywords": ["secrets", "clavis", "environment", "config"],
+  "publishConfig": { "access": "public", "provenance": true },
   "scripts": { "test": "node --test" }
 }

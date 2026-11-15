@@ -4,6 +4,11 @@
 
 ### Added
 
+- The Node.js and Python clients are packaged as `@dumhouse/clavis-client`
+  (npm) and `clavis-client` (PyPI), and the Dev Container Feature as
+  `ghcr.io/dumhouse/clavis/clavis`. A new release workflow publishes them once
+  each channel is turned on (see Releasing). CI tests and builds both clients.
+- `scripts/scan-history.sh` is removed: `clavis scan --history` replaces it.
 - Docs: a guide to consoles and masking (with and without `--no-mask`,
   side by side) and a FAQ for the common problems.
 - `clavis run` in a terminal now prints one line at the end when it hid
