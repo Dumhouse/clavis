@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Web ---------------------------------------------------------------
-FROM node:24-alpine AS web
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS web
 WORKDIR /src/web
 ENV CI=true
 RUN corepack enable
@@ -12,7 +12,7 @@ COPY web/ ./
 RUN pnpm build
 
 # ---- Server ------------------------------------------------------------
-FROM golang:1.27 AS build
+FROM golang:1.27@sha256:ec47ea3725fea0cc88f6de94919aef19f40f12fc1ec0e2d1b3426dbf15ecca04 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -o /out/clavis ./cmd/clavis
 
 # ---- Runtime -----------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 COPY --from=build /out/clavis /usr/local/bin/clavis
 USER nonroot:nonroot
 # Create /data owned by nonroot (WORKDIR after USER does that under BuildKit;

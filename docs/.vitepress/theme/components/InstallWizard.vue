@@ -144,12 +144,27 @@ const compose = computed(() => {
     '      - clavis-backups:/backups',
   ]
   if (tls.value === 'file') lines.push('      - ./certs:/certs:ro')
+  lines.push(
+    '    # Clavis writes only to its volumes, so the rest can be locked down.',
+    '    read_only: true',
+    '    tmpfs:',
+    '      - /tmp',
+    '    cap_drop:',
+    '      - ALL',
+    '    security_opt:',
+    '      - no-new-privileges:true',
+    '    pids_limit: 256',
+    '    stop_grace_period: 30s',
+  )
   lines.push('', 'volumes:', '  clavis-data:', '  clavis-backups:', '')
   return lines.join('\n')
 })
 
 const dockerRun = computed(() => {
-  const parts = ['docker run -d --name clavis --restart unless-stopped']
+  const parts = [
+    'docker run -d --name clavis --restart unless-stopped',
+    '--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --pids-limit 256',
+  ]
   for (const p of ports.value) parts.push(`-p ${p}`)
   parts.push('-v clavis-data:/data')
   if (tls.value === 'file') parts.push('-v "$PWD/certs:/certs:ro"')

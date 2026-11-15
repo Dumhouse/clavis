@@ -5,10 +5,11 @@
 #   ./update.sh 0.3.5
 #
 # Run it next to compose.yaml and .env. It:
-#   1. stops Clavis and copies the data volume to ./backups (a consistent copy),
+#   1. stops Clavis and copies the data volume to ./backups (a consistent copy,
+#      without the root key),
 #   2. sets CLAVIS_VERSION in .env and pulls the image,
 #   3. starts it and waits for the image's health check,
-#   4. on failure, restores the old version and starts that again.
+#   4. on failure, restores the old version and its data and starts that again.
 set -eu
 
 cd "$(dirname "$0")"
@@ -49,20 +50,29 @@ if ! docker compose pull --policy "$policy"; then
 fi
 
 # A stopped database is the only way to copy SQLite safely. This is a short stop.
-volume=$(docker volume ls -q --filter label=com.docker.compose.volume=clavis-data | head -n 1)
-[ -n "$volume" ] || die "could not find the clavis-data volume"
+# Find the data volume through this project's container, so another Clavis
+# project on the same machine (the demo, say) is never touched.
+helper=alpine:3
+cid=$(docker compose ps -aq clavis | head -n 1)
+[ -n "$cid" ] || die "no clavis container in this project; start it once with docker compose up -d"
+volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$cid")
+[ -n "$volume" ] || die "could not find the volume mounted at /data"
 mkdir -p backups
 chmod 700 backups
 stamp=$(date +%Y%m%d-%H%M%S)
 file="clavis-data-$old-$stamp.tgz"
 docker compose stop
-if ! docker run --rm -v "$volume":/data:ro -v "$PWD/backups":/backups alpine \
-  tar czf "/backups/$file" -C /data .; then
+# The root key stays out of the copy: a file holding both the database and the
+# key that decrypts it is the one thing an attacker needs. It stays in the
+# volume, and a restore below keeps it there.
+if ! docker run --rm -v "$volume":/data:ro -v "$PWD/backups":/backups "$helper" \
+  tar czf "/backups/$file" --exclude './root.key*' -C /data .; then
   set_version "$old"
   docker compose up -d --wait || true
   die "backup failed; restarted $old and changed nothing"
 fi
-echo "Backup: backups/$file"
+chmod 600 "backups/$file"
+echo "Backup: backups/$file (without the root key)"
 
 if docker compose up -d --wait; then
   echo "Clavis $new is healthy."
@@ -73,5 +83,17 @@ fi
 echo "update: $new did not become healthy. Rolling back to $old." >&2
 docker compose logs --tail 30 clavis >&2 || true
 set_version "$old"
+# The new version may have migrated the database before it failed, and the old
+# one cannot read a newer schema, so put the data back as it was.
+docker compose stop
+if ! docker run --rm -v "$volume":/data -v "$PWD/backups":/backups:ro "$helper" sh -c '
+  set -e
+  owner=$(stat -c %u:%g /data)
+  find /data -mindepth 1 -maxdepth 1 ! -name "root.key*" -exec rm -rf {} +
+  tar xzf "/backups/$1" -C /data
+  chown -R "$owner" /data
+' restore "$file"; then
+  die "could not restore the data; it is in backups/$file. $old was not started"
+fi
 docker compose up -d --wait || die "rollback to $old also failed; data backup is backups/$file"
-die "rolled back to $old; $new was not applied"
+die "rolled back to $old with the data from before the update; $new was not applied"

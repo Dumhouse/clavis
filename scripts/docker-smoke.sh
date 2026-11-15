@@ -37,24 +37,56 @@ mkdir -p "$work/deploy"
 cp "$root/deploy/compose.yaml" "$root/deploy/.env.example" "$root/deploy/update.sh" "$work/deploy/"
 cd "$work/deploy"
 cp .env.example .env
-sed -i 's/^CLAVIS_VERSION=.*/CLAVIS_VERSION=one/' .env
-sed -i 's/^CLAVIS_TLS=.*/CLAVIS_TLS=self-signed/' .env
-sed -i 's#^CLAVIS_SERVER_BASE_URL=.*#CLAVIS_SERVER_BASE_URL=https://localhost:18443#' .env
-sed -i 's/^CLAVIS_HTTP_PORT=.*/CLAVIS_HTTP_PORT=18080/; s/^CLAVIS_HTTPS_PORT=.*/CLAVIS_HTTPS_PORT=18443/' .env
+# sed -i differs between GNU and BSD, so edit through a temporary file.
+edit_env() { sed "$1" .env >.env.tmp && mv .env.tmp .env; }
+edit_env 's/^CLAVIS_VERSION=.*/CLAVIS_VERSION=one/'
+edit_env 's/^CLAVIS_TLS=.*/CLAVIS_TLS=self-signed/'
+edit_env 's#^CLAVIS_SERVER_BASE_URL=.*#CLAVIS_SERVER_BASE_URL=https://localhost:18443#'
+edit_env 's/^CLAVIS_HTTP_PORT=.*/CLAVIS_HTTP_PORT=18080/; s/^CLAVIS_HTTPS_PORT=.*/CLAVIS_HTTPS_PORT=18443/'
 export COMPOSE_PROJECT_NAME=clavis_smoke
+# The root key in the data volume, to prove updates and rollbacks keep it.
+root_key_sum() {
+  docker run --rm -v clavis_smoke_clavis-data:/data:ro alpine:3 sha256sum /data/root.key | cut -d' ' -f1
+}
 
 echo "== start: the image becomes healthy (read-only filesystem, TLS on)"
 docker compose up -d --wait --wait-timeout 90 || { docker compose logs clavis; fail "never became healthy"; }
 [ "$(docker inspect -f '{{.State.Health.Status}}' clavis_smoke-clavis-1)" = healthy ] || fail "not healthy"
 docker compose exec -T clavis clavis healthcheck || fail "healthcheck command failed"
+key=$(root_key_sum)
+[ -n "$key" ] || fail "no root key in the data volume"
 
 echo "== update.sh to a good version"
 ./update.sh two
-ls backups/clavis-data-one-*.tgz >/dev/null || fail "no backup written"
+backup=$(ls backups/clavis-data-one-*.tgz) || fail "no backup written"
+tar tzf "$backup" | grep -q 'clavis.db' || fail "backup has no database"
+if tar tzf "$backup" | grep -q 'root.key'; then fail "backup contains the root key"; fi
+[ "$(root_key_sum)" = "$key" ] || fail "root key changed during the update"
 grep -q '^CLAVIS_VERSION=two$' .env || fail "version not updated"
 
 echo "== update.sh to a broken version rolls back"
 if ./update.sh broken; then fail "a broken version was reported as a success"; fi
 grep -q '^CLAVIS_VERSION=two$' .env || fail "version not rolled back"
 docker compose up -d --wait --wait-timeout 90 || fail "old version not running after rollback"
+[ "$(root_key_sum)" = "$key" ] || fail "root key changed during the rollback"
+
+echo "== a missing root key stops the server instead of replacing the key"
+# The guard protects a database that holds data, so run first-run setup.
+token=$(docker compose exec -T clavis clavis setup-token | tr -d '\r\n ')
+[ -n "$token" ] || fail "no setup token"
+curl -fsk -X POST "https://localhost:18443/api/v1/setup" -H 'Content-Type: application/json' \
+  -d "{\"token\":\"$token\",\"email\":\"smoke@example.com\",\"name\":\"Smoke\",\"password\":\"correct-horse-battery\",\"org_slug\":\"acme\",\"org_name\":\"Acme\",\"project_slug\":\"web\",\"project_name\":\"Web\"}" >/dev/null \
+  || fail "first-run setup failed"
+docker compose stop
+vol_sh() { docker run --rm -v clavis_smoke_clavis-data:/data alpine:3 sh -c "$1"; }
+vol_sh 'mv /data/root.key /data/root.key.aside'
+if docker compose up -d --wait --wait-timeout 30 >/dev/null 2>&1; then
+  fail "started with a missing root key"
+fi
+docker compose logs clavis 2>&1 | grep -q 'root key .* is missing' || fail "no clear missing-key error in the logs"
+[ -z "$(vol_sh 'ls /data/root.key 2>/dev/null')" ] || fail "a new root key was created"
+docker compose down >/dev/null 2>&1 || true
+vol_sh 'mv /data/root.key.aside /data/root.key'
+docker compose up -d --wait --wait-timeout 90 || fail "did not start again with the original key"
+[ "$(root_key_sum)" = "$key" ] || fail "root key changed after the missing-key test"
 echo "docker-smoke: ok"

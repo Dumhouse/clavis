@@ -36,6 +36,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # A ceiling for runaway processes; the server itself uses a few dozen.
+    pids_limit: 256
 
 volumes:
   clavis-data:

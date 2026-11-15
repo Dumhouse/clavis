@@ -117,7 +117,9 @@ cd deploy
 
 It stops Clavis, copies the data volume to `deploy/backups/`, sets
 `CLAVIS_VERSION`, pulls the image and starts it. If the new version does not
-become healthy, it puts the old version back and tells you. Clavis is down for
+become healthy, it puts the old version and the data from before the update
+back, and tells you. The copy leaves out the root key, which stays in the
+volume: back that up separately (see below). Clavis is down for
 the few seconds the copy and the start take. Read the
 [changelog](https://github.com/Dumhouse/clavis/blob/main/CHANGELOG.md) first.
 
@@ -125,8 +127,9 @@ Without the script, the same steps by hand:
 
 ```sh
 docker compose stop
-docker run --rm -v clavis_clavis-data:/data:ro -v "$PWD/backups":/backups alpine \
-  tar czf /backups/clavis-data-before-update.tgz -C /data .
+# --volumes-from finds this project's data volume, whatever the project is called.
+docker run --rm --volumes-from "$(docker compose ps -aq clavis)" -v "$PWD/backups":/out alpine:3 \
+  tar czf /out/clavis-data-before-update.tgz --exclude './root.key*' -C /data .
 # set CLAVIS_VERSION in .env, then:
 docker compose pull && docker compose up -d --wait
 ```
@@ -152,6 +155,25 @@ docker exec clavis clavis setup-token
 
 Back up the root key file (`/data/root.key` by default) separately from
 database backups.
+
+To keep the key out of the data volume altogether, set it in `.env`:
+
+```sh
+# New install
+echo "CLAVIS_KEY_PROVIDER=env" >> .env
+echo "CLAVIS_ROOT_KEY=$(openssl rand -base64 32)" >> .env
+
+# Existing install: move the current key, then remove the file once Clavis
+# has started with it
+echo "CLAVIS_KEY_PROVIDER=env" >> .env
+echo "CLAVIS_ROOT_KEY=$(docker run --rm --volumes-from "$(docker compose ps -q clavis)" alpine:3 cat /data/root.key)" >> .env
+docker compose up -d --wait
+```
+
+Clavis checks the key against the existing data when it starts. It refuses to
+start with a key that does not match, and it will not create a new
+`root.key` for a database that already has data, since a new key cannot
+decrypt anything stored under the old one.
 
 ### Plain HTTP on a network address
 

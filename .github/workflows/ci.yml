@@ -261,6 +261,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - run: ./scripts/check-dockerfiles.sh
       - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
       - run: ./scripts/docker-smoke.sh bin/clavis
 

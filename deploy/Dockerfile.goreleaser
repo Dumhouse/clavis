@@ -1,6 +1,6 @@
 # GoReleaser builds the binary per platform and places it under $TARGETPLATFORM
 # in this build context (dockers_v2).
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/clavis /usr/local/bin/clavis
 USER nonroot:nonroot
