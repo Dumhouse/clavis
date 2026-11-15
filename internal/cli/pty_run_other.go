@@ -1,4 +1,4 @@
-//go:build !linux && !darwin
+//go:build !linux && !darwin && !windows
 
 package cli
 
@@ -15,3 +15,11 @@ func startOnPTY(*exec.Cmd) (*ptySession, error) {
 }
 
 func (s *ptySession) Close() {}
+
+func (s *ptySession) Wait() error {
+	return errors.New("pseudo-terminals are not supported on this system")
+}
+
+func (s *ptySession) Kill() {}
+
+func ptyAvailable() error { return errors.New("pseudo-terminals are not supported on this system") }

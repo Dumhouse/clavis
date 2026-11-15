@@ -231,6 +231,17 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			return false, fmt.Errorf("could not start %s: %w", args[0], err)
 		}
 	}
+	// On a pseudo-terminal the session owns the process (on Windows it is not
+	// an exec.Cmd process at all), so wait for it and stop it through the session.
+	killChild := func() {
+		if child.Process != nil {
+			_ = child.Process.Kill()
+		}
+	}
+	waitChild := child.Wait
+	if session != nil {
+		killChild, waitChild = session.Kill, session.Wait
+	}
 	restart := make(chan struct{}, 1)
 	watchCtx, cancelWatch := context.WithCancel(ctx)
 	defer cancelWatch()
@@ -241,9 +252,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 				case restart <- struct{}{}:
 				default:
 				}
-				if child.Process != nil {
-					_ = child.Process.Kill()
-				}
+				killChild()
 			}
 		}()
 	}
@@ -256,9 +265,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			return
 		}
 		cleanup()
-		if child.Process != nil {
-			_ = child.Process.Kill()
-		}
+		killChild()
 	}()
 	copies := 1
 	done := make(chan struct{}, 2)
@@ -278,10 +285,10 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 	for range copies {
 		<-done
 	}
-	waitErr := child.Wait()
+	waitErr := waitChild()
 	cancelWatch()
 	if onTerminal && maskOutput && stdout.hits > 0 {
-		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, strings.Join(args, " "))
+		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, shellJoin(args))
 	}
 	select {
 	case <-restart:
@@ -429,4 +436,30 @@ func prepareSecretEnv(secrets []secretJSON, mount bool) ([]string, []string, fun
 		entries = append(entries, secret.Key+"="+path)
 	}
 	return entries, values, cleanup, nil
+}
+
+// shellJoin rebuilds a command line the user can paste back, quoting only the
+// words that need it.
+func shellJoin(args []string) string {
+	words := make([]string, len(args))
+	for i, arg := range args {
+		if arg != "" && strings.IndexFunc(arg, needsShellQuote) < 0 {
+			words[i] = arg
+		} else {
+			words[i] = shellQuote(arg)
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+// needsShellQuote reports whether r is outside the characters a shell word
+// can hold without quotes.
+func needsShellQuote(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		return false
+	case strings.ContainsRune("-_./:=,@+", r):
+		return false
+	}
+	return true
 }

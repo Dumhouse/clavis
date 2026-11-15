@@ -1,0 +1,99 @@
+name: Publish SDKs and devcontainer feature
+
+# Publishes, on each release, the things that live outside GoReleaser:
+#   - sdk/node   -> npm  @dumhouse/clavis-client
+#   - sdk/python -> PyPI clavis-client
+#   - devcontainer/features/clavis -> ghcr.io/dumhouse/clavis/clavis
+#
+# Each job is inert until you turn it on (docs/releasing.md, "SDKs and the
+# devcontainer feature"):
+#   npm:          secret NPM_TOKEN, variable PUBLISH_NPM=true
+#   PyPI:         a trusted publisher on pypi.org for this workflow and the
+#                 "pypi" environment, variable PUBLISH_PYPI=true
+#   devcontainer: variable PUBLISH_DEVCONTAINER_FEATURE=true
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (for example v0.3.4)
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+
+jobs:
+  npm:
+    if: ${{ vars.PUBLISH_NPM == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Test
+        working-directory: sdk/node
+        run: npm test
+      - name: Publish
+        working-directory: sdk/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$NODE_AUTH_TOKEN" || { echo "NPM_TOKEN is not set"; exit 1; }
+          npm version --no-git-tag-version "${TAG#v}"
+          npm publish
+
+  pypi:
+    if: ${{ vars.PUBLISH_PYPI == 'true' }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Test and build
+        working-directory: sdk/python
+        run: |
+          set -euo pipefail
+          python -m unittest -v test_clavis_client
+          sed -i "s/^version = .*/version = \"${TAG#v}\"/" pyproject.toml
+          python -m pip install --upgrade build
+          python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdk/python/dist
+
+  devcontainer-feature:
+    if: ${{ vars.PUBLISH_DEVCONTAINER_FEATURE == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: devcontainers/action@v1
+        with:
+          publish-features: "true"
+          base-path-to-features: devcontainer/features
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -298,15 +298,12 @@ func consoleCheck() doctorCheck {
 		check.Fix = "Run the console through a shell instead: clavis shell"
 		return check
 	}
-	master, slave, err := openPTY()
-	if err != nil {
+	if err := ptyAvailable(); err != nil {
 		check.Status = doctorWarn
 		check.Detail = "could not open a pseudo-terminal: " + err.Error()
 		check.Fix = "Use clavis run --no-pty <command>, or clavis shell"
 		return check
 	}
-	_ = master.Close()
-	_ = slave.Close()
 	check.Status = doctorOK
 	check.Detail = "clavis run can give consoles a terminal (rails c, irb, psql)"
 	return check

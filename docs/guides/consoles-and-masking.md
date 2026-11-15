@@ -82,6 +82,13 @@ program that deliberately changes a value (reverses it, splits it, hashes it)
 can still show it. Treat anything the command prints as something that may
 contain secrets, and don't run commands you don't trust.
 
+## On Windows
+
+On Windows 10 version 1809 and later, `clavis run` uses a pseudo console
+(ConPTY), so consoles such as `irb` or `psql` draw their prompts too. Run
+`clavis doctor`: its **Consoles** line says whether your system supports it.
+If a console still looks frozen, use `--no-pty`, or `clavis shell`.
+
 ## In scripts and CI
 
 When the output isn't a terminal (a pipe, a file, a CI job), the command's

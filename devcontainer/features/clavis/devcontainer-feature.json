@@ -1,0 +1,15 @@
+{
+  "id": "clavis",
+  "version": "1.0.0",
+  "name": "Clavis CLI",
+  "description": "Installs the Clavis CLI (secrets for humans, machines and AI agents).",
+  "documentationURL": "https://dumhouse.github.io/clavis/cli",
+  "options": {
+    "version": {
+      "type": "string",
+      "default": "latest",
+      "description": "Release to install, for example 0.3.3, or latest."
+    }
+  },
+  "installsAfter": ["ghcr.io/devcontainers/features/common-utils"]
+}

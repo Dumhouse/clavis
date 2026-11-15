@@ -35,6 +35,7 @@ that change keys or restore data need the server to be stopped.
 <a class="cli-card" href="./admin-shamir"><span class="cli-card-name"><code>clavis admin shamir</code><span class="cli-card-meta">1 commands</span></span><span class="cli-card-text">Split the root key into Shamir shares</span></a>
 <a class="cli-card" href="./admin-tls-info"><span class="cli-card-name"><code>clavis admin tls-info</code></span><span class="cli-card-text">Show the server&#39;s HTTPS certificate and its fingerprint</span></a>
 <a class="cli-card" href="./admin-unseal"><span class="cli-card-name"><code>clavis admin unseal</code></span><span class="cli-card-text">Reconstruct the root key from Shamir shares</span></a>
+<a class="cli-card" href="./admin-verify-backup"><span class="cli-card-name"><code>clavis admin verify-backup</code></span><span class="cli-card-text">Check that a backup can be decrypted and read, without touching the live database</span></a>
 </div>
 
 ## Examples

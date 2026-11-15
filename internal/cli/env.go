@@ -3,9 +3,12 @@ package cli
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 type environmentJSON struct {
@@ -33,6 +36,8 @@ func newEnvCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newEnvListCommand(opts))
 	cmd.AddCommand(newEnvCreateCommand(opts))
 	cmd.AddCommand(newEnvDiffCommand(opts))
+	cmd.AddCommand(newEnvSimilarCommand(opts))
+	cmd.AddCommand(newEnvRemoveCommand(opts))
 	cmd.AddCommand(newEnvBranchCommand(opts))
 	cmd.AddCommand(newEnvFreezeCommand(opts))
 	cmd.AddCommand(newEnvFreezesCommand(opts))
@@ -176,7 +181,7 @@ func newEnvDiffCommand(opts *Options) *cobra.Command {
 				return out.PrintJSON(rows)
 			}
 			out.Table([]string{"KEY", "STATUS"}, rows)
-			out.Info("Values are compared server-side; they are not printed.")
+			out.Info("Values are fetched (audited) and compared on this computer; they are never printed.")
 			return nil
 		},
 	}
@@ -198,4 +203,73 @@ func fetchSecrets(cmd *cobra.Command, c apiClient, r *resolvedContext, env strin
 		out[secret.Key] = secret.Value
 	}
 	return out, nil
+}
+
+func newEnvRemoveCommand(opts *Options) *cobra.Command {
+	var yes bool
+	cmd := &cobra.Command{
+		Use:     "rm SLUG",
+		Aliases: []string{"delete"},
+		Short:   "Delete an environment and the secrets in it",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := opts.output()
+			resolved, err := opts.resolveContext(false)
+			if err != nil {
+				return err
+			}
+			if resolved.Org == "" || resolved.Project == "" {
+				return fmt.Errorf("no project context: run `clavis init` or pass --org and --project")
+			}
+			c, err := resolved.newClient()
+			if err != nil {
+				return err
+			}
+			slug := args[0]
+			var detail projectDetail
+			if err := c.Get(cmd.Context(), projectBase(resolved), &detail); err != nil {
+				return err
+			}
+			var target *environmentJSON
+			for i := range detail.Environments {
+				if detail.Environments[i].Slug == slug {
+					target = &detail.Environments[i]
+				}
+			}
+			if target == nil {
+				return fmt.Errorf("environment %q not found in %s/%s", slug, resolved.Org, resolved.Project)
+			}
+			if len(detail.Environments) <= 1 {
+				return fmt.Errorf("a project must keep at least one environment")
+			}
+			scoped := *resolved
+			scoped.Env = slug
+			var list secretsListResponse
+			count := 0
+			if err := c.Get(cmd.Context(), secretsBase(&scoped), &list); err == nil {
+				count = len(list.Secrets)
+			}
+			out.Warn("This deletes %s (%s) from %s/%s together with its %d secret(s), their history and its overrides. It cannot be undone.",
+				slug, target.Type, resolved.Org, resolved.Project, count)
+			if !yes {
+				if !term.IsTerminal(int(os.Stdin.Fd())) {
+					return fmt.Errorf("refusing to delete in a non-interactive session; pass --yes to confirm")
+				}
+				line, err := promptLine(fmt.Sprintf("Type %q to confirm: ", slug))
+				if err != nil {
+					return err
+				}
+				if strings.TrimSpace(line) != slug {
+					return fmt.Errorf("confirmation did not match; nothing deleted")
+				}
+			}
+			if err := c.Delete(cmd.Context(), projectBase(resolved)+"/environments/"+url.PathEscape(slug)); err != nil {
+				return err
+			}
+			out.Success("Deleted environment %s.", slug)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "skip the confirmation (required without a terminal)")
+	return cmd
 }
