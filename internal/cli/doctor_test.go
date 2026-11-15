@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -104,4 +106,52 @@ func TestDoctorReportsFixes(t *testing.T) {
 	if statusOf(checks, "Reachable") != doctorFail || statusOf(checks, "Credential") != "" {
 		t.Fatalf("unreachable server should fail and stop: %+v", checks)
 	}
+}
+
+// doctor runs from a folder inside the repository and still finds the .env
+// beside its root.
+func TestDoctorReportsEnvFilesGitWouldCommit(t *testing.T) {
+	dir := gitRepo(t, map[string]string{".env": "KEY=1\n", ".env.local": "K=2\n", ".gitignore": "node_modules/\n"})
+	sub := filepath.Join(dir, "cmd")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+
+	srv := fakeClavis(t, "0.3.2")
+	doctorEnv(t, srv.URL, "good", "dev")
+	t.Chdir(sub) // doctorEnv changes the working directory
+
+	checks := runDoctor(context.Background(), &Options{})
+	check := findCheck(checks, ".env files")
+	if check == nil || check.Status != doctorWarn {
+		t.Fatalf(".env files = %+v, want a warning", check)
+	}
+	if !strings.Contains(check.Detail, ".env") || !strings.Contains(check.Detail, ".env.local") {
+		t.Fatalf("detail does not name both files: %q", check.Detail)
+	}
+	if strings.Contains(check.Detail, dir) {
+		t.Fatalf("detail leaks the machine's path: %q", check.Detail)
+	}
+	if !strings.Contains(check.Fix, "git rm --cached") {
+		t.Fatalf("fix = %q, want the git rm step for an already-tracked file", check.Fix)
+	}
+
+	// Ignored files produce no line at all.
+	ignored := gitRepo(t, map[string]string{".env": "KEY=1\n", ".gitignore": ".env*\n"})
+	t.Chdir(ignored)
+	doctorEnv(t, srv.URL, "good", "dev")
+	t.Chdir(ignored)
+	if check := findCheck(runDoctor(context.Background(), &Options{}), ".env files"); check != nil {
+		t.Fatalf(".env files = %+v, want no line for an ignored file", check)
+	}
+}
+
+func findCheck(checks []doctorCheck, name string) *doctorCheck {
+	for i := range checks {
+		if checks[i].Name == name {
+			return &checks[i]
+		}
+	}
+	return nil
 }

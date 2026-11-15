@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- `clavis doctor` warns when a `.env` file in the repository root is not
+  ignored by git, naming the files and the `git rm --cached` step for ones
+  already tracked. It asks `git check-ignore`, so nested and negated rules are
+  honoured, and it never reads the files' contents.
+
 ## v0.3.3 — 2026-11-14
 
 ### Added
