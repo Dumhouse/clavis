@@ -509,7 +509,8 @@ func TestExportCIEnv(t *testing.T) {
 // A prompt with no newline must appear at once: a console waits for input
 // after printing it, so anything held back looks like a freeze.
 func TestMaskWriterShowsPromptWithoutWaiting(t *testing.T) {
-	secret := "clv_test_0123456789abcdefghijklmnopqrstuvwxyz"
+	// A long, low-entropy fake so secret scanners do not flag the test.
+	secret := "clv_test_" + strings.Repeat("ab", 18)
 	var out bytes.Buffer
 	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
 	if _, err := w.Write([]byte("irb(main):001:0> ")); err != nil {
@@ -523,11 +524,11 @@ func TestMaskWriterShowsPromptWithoutWaiting(t *testing.T) {
 	// it is incomplete.
 	out.Reset()
 	w = &maskWriter{dst: &out, m: newMasker([]string{secret})}
-	_, _ = w.Write([]byte("key=clv_test_0123456789abc"))
+	_, _ = w.Write([]byte("key=" + secret[:15]))
 	if strings.Contains(out.String(), "clv_test") {
 		t.Fatalf("partial secret leaked: %q", out.String())
 	}
-	_, _ = w.Write([]byte("defghijklmnopqrstuvwxyz done\n"))
+	_, _ = w.Write([]byte(secret[15:] + " done\n"))
 	_ = w.Flush()
 	if got := out.String(); got != "key="+maskReplacement+" done\n" {
 		t.Fatalf("split secret: %q", got)
@@ -545,7 +546,8 @@ func TestMaskWriterShowsPromptWithoutWaiting(t *testing.T) {
 }
 
 func TestMaskWriterCountsHiddenValues(t *testing.T) {
-	secret := "clv_test_0123456789abcdefghijklmnopqrstuvwxyz"
+	// A long, low-entropy fake so secret scanners do not flag the test.
+	secret := "clv_test_" + strings.Repeat("ab", 18)
 	var out bytes.Buffer
 	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
 	_, _ = w.Write([]byte("nothing here\n"))
