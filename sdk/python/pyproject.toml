@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,11 +9,10 @@ version = "0.0.0"
 description = "A tiny Clavis client: fetch an environment's secrets at start-up."
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 keywords = ["secrets", "clavis", "environment", "config"]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
 ]
 
