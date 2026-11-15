@@ -4,8 +4,9 @@ Complete this before changing the GitHub repository from private to public.
 
 ## Repository and history
 
-- [ ] Run `./scripts/scan-history.sh` and review every reported path. The
-      current hits are UI/test placeholders; confirm none are live credentials.
+- [ ] Run `clavis scan --history` and review every reported commit and path.
+      Hits in tests, fixtures and mockups are placeholders; confirm none are
+      live credentials.
 - [ ] Run `git log --all --full-history -- '*.env' '*.pem' '*.key' '*.db'` and
       confirm no key material was ever committed.
 - [ ] Confirm `.gitignore` covers data directories, databases, keys, `.env`,

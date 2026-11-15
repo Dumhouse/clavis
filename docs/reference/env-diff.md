@@ -19,9 +19,10 @@ clavis env diff SOURCE TARGET
 
 </div>
 
-Compare two environments by key name: which keys exist in only one of
-them. Values are not compared or shown. Use [`clavis promote`](./promote)
-to see value differences and copy them.
+Compare two environments: which keys exist in only one of them and which
+have a different value. Values are fetched (the read is audited) and
+compared on your computer; they are never printed. Use
+[`clavis promote`](./promote) to copy values between environments.
 
 ## Examples
 

@@ -11,7 +11,8 @@
         "init",
         "unlink",
         "trust",
-        "doctor"
+        "doctor",
+        "prompt"
       ]
     },
     {
@@ -382,7 +383,8 @@
         "admin rotate-root-key",
         "admin shamir",
         "admin tls-info",
-        "admin unseal"
+        "admin unseal",
+        "admin verify-backup"
       ],
       "related": [
         "server"
@@ -758,6 +760,36 @@
       ]
     },
     {
+      "path": "admin verify-backup",
+      "slug": "admin-verify-backup",
+      "parent": "admin",
+      "group": "server",
+      "usage": "clavis admin verify-backup FILE [flags]",
+      "summary": "Check that a backup can be decrypted and read, without touching the live database",
+      "description": "Check that a backup file can be decrypted with this server's root key\nand read. For SQLite it opens a temporary copy, runs SQLite's integrity\ncheck and counts organizations, projects, environments and secrets, so\nan empty, truncated or damaged backup is caught. For Postgres it checks\nthat the dump is complete. The live database and the backup file are not\nchanged.\n\nRun it after each backup, or on a schedule, so you find out that a\nbackup is unusable before you need it.",
+      "examples": [
+        {
+          "run": "clavis admin verify-backup clavis-backup.enc"
+        },
+        {
+          "title": "In a script",
+          "run": "clavis admin verify-backup clavis-backup.enc --json"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "type": "string",
+          "usage": "configuration file"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "admin backup",
+        "admin restore"
+      ]
+    },
+    {
       "path": "agents",
       "slug": "agents",
       "group": "agents",
@@ -991,7 +1023,7 @@
       "group": "get-started",
       "usage": "clavis doctor",
       "summary": "Check this computer's Clavis setup and say how to fix problems",
-      "description": "Check this computer's Clavis setup from top to bottom and say how to fix\neach problem: the CLI version and how it was installed, `.clavis.yaml`,\nthe server address and where it came from, whether the server answers,\nits certificate, its version compared with the CLI, the clock, your\nsign-in, and access to the project and environment. It also checks that\n`clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and\nin a git repository whether a pre-commit hook stops secrets from being\ncommitted.\n\nChecks stop at the first thing that blocks the rest, so the first `✗`\nis the one to fix. It changes nothing and never prints secret values.\nThe exit code is 1 when a check fails, so CI can run it too.",
+      "description": "Check this computer's Clavis setup from top to bottom and say how to fix\neach problem: the CLI version and how it was installed, `.clavis.yaml`,\nthe server address and where it came from, whether the server answers,\nits certificate, its version compared with the CLI, the clock, your\nsign-in, and access to the project and environment. It also checks that\n`clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and\nin a git repository whether a pre-commit hook stops secrets from being\ncommitted, and whether the environment's own secrets have gone 90 days\nwithout a change (names and dates only, never values). A token that\ncannot read its own profile, such as a CI token, is accepted if it can\nreach the project.\n\nChecks stop at the first thing that blocks the rest, so the first `✗`\nis the one to fix. It changes nothing and never prints secret values.\nThe exit code is 1 when a check fails, so CI can run it too.",
       "examples": [
         {
           "run": "clavis doctor"
@@ -1036,6 +1068,8 @@
         "env freeze",
         "env freezes",
         "env ls",
+        "env rm",
+        "env similar",
         "env unfreeze"
       ],
       "related": [
@@ -1106,7 +1140,7 @@
       "group": "environments",
       "usage": "clavis env diff SOURCE TARGET",
       "summary": "Compare key names between two environments",
-      "description": "Compare two environments by key name: which keys exist in only one of\nthem. Values are not compared or shown. Use [`clavis promote`](./promote)\nto see value differences and copy them.",
+      "description": "Compare two environments: which keys exist in only one of them and which\nhave a different value. Values are fetched (the read is audited) and\ncompared on your computer; they are never printed. Use\n[`clavis promote`](./promote) to copy values between environments.",
       "examples": [
         {
           "run": "clavis env diff dev prod"
@@ -1200,6 +1234,62 @@
       "flags": [],
       "subcommands": [],
       "related": []
+    },
+    {
+      "path": "env rm",
+      "slug": "env-rm",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env rm SLUG [flags]",
+      "summary": "Delete an environment and the secrets in it",
+      "description": "Delete an environment together with its secrets, their history and\npersonal overrides. It cannot be undone, and a project must keep at\nleast one environment. You type the environment's slug to confirm;\nwithout a terminal, pass `--yes`.",
+      "examples": [
+        {
+          "run": "clavis env rm qa"
+        },
+        {
+          "title": "In a script",
+          "run": "clavis env rm qa --yes"
+        }
+      ],
+      "notes": "Needs permission to manage environments. The deletion is recorded in the audit log. `delete` is an alias.",
+      "flags": [
+        {
+          "name": "yes",
+          "usage": "skip the confirmation (required without a terminal)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "env create",
+        "env ls"
+      ],
+      "aliases": [
+        "delete"
+      ]
+    },
+    {
+      "path": "env similar",
+      "slug": "env-similar",
+      "parent": "env",
+      "group": "environments",
+      "usage": "clavis env similar",
+      "summary": "Compare every pair of environments and show how alike they are",
+      "description": "Compare every pair of environments and show how alike they are: the\nshare of keys they have in common, and how many of those hold an\nidentical value. Two environments that are mostly identical may be\ncopies that should differ, for example a staging that still points at\nproduction's credentials. Values are fetched (the read is audited) and\ncompared on your computer; they are never printed.",
+      "examples": [
+        {
+          "run": "clavis env similar"
+        },
+        {
+          "run": "clavis env similar --json"
+        }
+      ],
+      "flags": [],
+      "subcommands": [],
+      "related": [
+        "secrets duplicates",
+        "env diff"
+      ]
     },
     {
       "path": "env unfreeze",
@@ -2225,6 +2315,35 @@
       ]
     },
     {
+      "path": "prompt",
+      "slug": "prompt",
+      "group": "get-started",
+      "usage": "clavis prompt [flags]",
+      "summary": "Print the linked project and environment for your shell prompt",
+      "description": "Print the linked project and environment as a short word, such as\n`web:dev`, for your shell prompt. Production environments print as\n`web:PRODUCTION!` so a risky terminal stands out. It reads only\n`.clavis.yaml`, never calls the server, and prints nothing outside a\nlinked folder, so it is fast enough to run on every prompt.\n\n`--shell bash`, `zsh` or `fish` prints the lines to add to your startup\nfile.",
+      "examples": [
+        {
+          "run": "clavis prompt"
+        },
+        {
+          "title": "Set up zsh",
+          "run": "clavis prompt --shell zsh"
+        }
+      ],
+      "flags": [
+        {
+          "name": "shell",
+          "type": "string",
+          "usage": "print the lines to add to your shell's startup file: bash, zsh or fish"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "init",
+        "doctor"
+      ]
+    },
+    {
       "path": "rotation",
       "slug": "rotation",
       "group": "automation",
@@ -2492,11 +2611,15 @@
       "group": "run",
       "usage": "clavis run [flags] [COMMAND [ARGS...]]",
       "summary": "Run a command with secrets injected and output masked",
-      "description": "Start your app with the environment's secrets as environment variables.\nClavis starts the command itself, so you keep one terminal; anything the\ncommand prints is masked, so secret values don't end up in logs.\n\nClavis flags go **before** the command. Everything from the first word of\nthe command on belongs to your command, so `--` is optional:\n`clavis run rails s -p 3001` passes `-p 3001` to Rails.\n\nWithout a command, `clavis run` starts the `run:` command saved in\n[`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it\nrecognizes the project.\n\nIn a terminal, interactive programs such as `rails c`, `irb` or `psql`\nwork normally: the command runs on a pseudo-terminal, so it draws its\nprompt, colors and line editing, and its output is still masked. In\nscripts and CI the command's output is piped instead. Use `--no-pty`\nto force pipes in a terminal.",
+      "description": "Start your app with the environment's secrets as environment variables.\nClavis starts the command itself, so you keep one terminal; anything the\ncommand prints is masked, so secret values don't end up in logs.\n\nClavis flags go **before** the command. Everything from the first word of\nthe command on belongs to your command, so `--` is optional:\n`clavis run rails s -p 3001` passes `-p 3001` to Rails.\n\nWithout a command, `clavis run` starts the `run:` command saved in\n[`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it\nrecognizes the project.\n\nIn a terminal, interactive programs such as `rails c`, `irb` or `psql`\nwork normally: the command runs on a pseudo-terminal (a ConPTY on Windows\n10 version 1809 and later), so it draws its\nprompt, colors and line editing, and its output is still masked. In\nscripts and CI the command's output is piped instead. Use `--no-pty`\nto force pipes in a terminal.",
       "examples": [
         {
           "title": "A Rails console with secrets",
           "run": "clavis run rails c"
+        },
+        {
+          "title": "Show one value in a console, keep the rest masked",
+          "run": "clavis run --reveal SIDEKIQ_WEB_PASSWORD rails c"
         },
         {
           "title": "Read real values in a console, on your own screen",
@@ -2535,7 +2658,7 @@
           "run": "clavis run -- -my-tool --flag"
         }
       ],
-      "notes": "- **Masking** replaces injected values in the command's output with\n  `••••••`, in a console too: `ENV['API_KEY']` prints `\"••••••\"`, though\n  your code still gets the real value. It protects logs and screen\n  shares; it is not a security boundary. Put `--no-mask` before the\n  command to see real values, for example to debug in `rails c`. Only do\n  that on your own screen: values print in clear text, so keep it out of\n  screen shares, recordings and pasted output. To read a single value,\n  `clavis secrets get KEY` is enough. More in\n  [Consoles and masking](../guides/consoles-and-masking).\n- **`--watch`** listens for changes and restarts the command with fresh\n  values whenever this environment's secrets change.\n- **`--mount`** writes `file` secrets to a `0700` temporary directory as\n  `0600` files, puts each file's path in the variable, and removes the\n  directory when the command exits.\n- **Offline:** with `cache: true` in `.clavis.yaml`, the last values are\n  used for up to 24 hours when the server is unreachable. See\n  [offline cache](./offline-cache).\n- `clavis run` exits with your command's exit code.",
+      "notes": "- **Masking** replaces injected values in the command's output with\n  `••••••`, in a console too: `ENV['API_KEY']` prints `\"••••••\"`, though\n  your code still gets the real value. It protects logs and screen\n  shares; it is not a security boundary. Put `--no-mask` before the\n  command to see real values, for example to debug in `rails c`. Only do\n  that on your own screen: values print in clear text, so keep it out of\n  screen shares, recordings and pasted output. To show only some keys,\n  use `--reveal KEY` (repeat it or separate keys with commas): those\n  values print in clear text and everything else stays masked. It only\n  works when the output is your own terminal. To read a single value\n  without a console, `clavis secrets get KEY` is enough. More in\n  [Consoles and masking](../guides/consoles-and-masking).\n- **`--watch`** listens for changes and restarts the command with fresh\n  values whenever this environment's secrets change.\n- **`--mount`** writes `file` secrets to a `0700` temporary directory as\n  `0600` files, puts each file's path in the variable, and removes the\n  directory when the command exits.\n- **Offline:** with `cache: true` in `.clavis.yaml`, the last values are\n  used for up to 24 hours when the server is unreachable. See\n  [offline cache](./offline-cache).\n- `clavis run` exits with your command's exit code.",
       "flags": [
         {
           "name": "mount",
@@ -2548,6 +2671,11 @@
         {
           "name": "no-pty",
           "usage": "in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)"
+        },
+        {
+          "name": "reveal",
+          "type": "strings",
+          "usage": "show these keys' values in the output while masking the rest (terminal only), e.g. --reveal SIDEKIQ_WEB_PASSWORD"
         },
         {
           "name": "watch",
@@ -2578,12 +2706,20 @@
           "run": "clavis scan --staged"
         },
         {
+          "title": "Every commit on every branch, deleted secrets included",
+          "run": "clavis scan --history"
+        },
+        {
           "title": "Add a git pre-commit hook",
           "run": "clavis scan --install-hook"
         }
       ],
-      "notes": "Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only.",
+      "notes": "Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only.\n\n`--history` reads every line that any commit on any branch ever added, so\na secret that was committed and later deleted is still found. Each finding\nnames the commit, file and line. A secret found in history is already\nexposed: rotate it, then consider rewriting history.",
       "flags": [
+        {
+          "name": "history",
+          "usage": "scan every line any commit on any branch ever added, so deleted secrets are found too"
+        },
         {
           "name": "install-hook",
           "usage": "install a pre-commit hook that runs the staged scan"
@@ -2767,6 +2903,7 @@
       ],
       "flags": [],
       "subcommands": [
+        "secrets duplicates",
         "secrets generate",
         "secrets get",
         "secrets history",
@@ -2779,6 +2916,39 @@
       "related": [
         "run",
         "import"
+      ]
+    },
+    {
+      "path": "secrets duplicates",
+      "slug": "secrets-duplicates",
+      "parent": "secrets",
+      "group": "secrets",
+      "usage": "clavis secrets duplicates [flags]",
+      "summary": "Find secrets that share a value, in one environment or across environments",
+      "description": "Find secrets that share a value. It reports two kinds: different keys\nin one environment holding the same value (one credential copied under\ntwo names), and the same key holding the same value in several\nenvironments, which is flagged when production shares a value with a\nnon-production environment, because a leak in dev would then expose\nproduction.\n\nOnly secrets of kind `secret` with at least 6 characters are compared,\nso settings such as `true` or `3000` do not show up. Values are fetched\n(the read is audited) and compared on your computer; they are never\nprinted, and neither is anything derived from them.",
+      "examples": [
+        {
+          "run": "clavis secrets duplicates"
+        },
+        {
+          "title": "Only inside one environment",
+          "run": "clavis secrets duplicates --only-env production"
+        },
+        {
+          "run": "clavis secrets duplicates --json"
+        }
+      ],
+      "flags": [
+        {
+          "name": "only-env",
+          "type": "string",
+          "usage": "look only inside this environment (skips the cross-environment check)"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "env similar",
+        "rotation"
       ]
     },
     {

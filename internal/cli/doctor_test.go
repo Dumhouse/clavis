@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dumhouse/clavis/internal/updatecheck"
 )
@@ -22,12 +23,18 @@ func fakeClavis(t *testing.T, serverVersion string) *httptest.Server {
 		switch {
 		case r.URL.Path == "/api/v1/version":
 			_ = json.NewEncoder(w).Encode(map[string]string{"version": serverVersion})
-		case r.Header.Get("Authorization") != "Bearer good":
+		case r.Header.Get("Authorization") == "Bearer limited" && r.URL.Path == "/api/v1/auth/me":
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"title":"Unauthorized","status":401}`))
+		case r.Header.Get("Authorization") != "Bearer good" && r.Header.Get("Authorization") != "Bearer limited":
 			w.Header().Set("Content-Type", "application/problem+json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"title":"Unauthorized","status":401}`))
 		case r.URL.Path == "/api/v1/auth/me":
 			_, _ = w.Write([]byte(`{"user":{"email":"ada@example.com","name":"Ada"},"orgs":[]}`))
+		case r.URL.Path == "/api/v1/orgs/acme/projects/web/environments/dev/secrets":
+			_, _ = w.Write([]byte(`{"secrets":[{"key":"OLD","updated_at":"2020-01-01T00:00:00Z"},{"key":"NEW","updated_at":"` + time.Now().Format(time.RFC3339) + `"},{"key":"INH","inherited":true,"updated_at":"2019-01-01T00:00:00Z"}]}`))
 		case r.URL.Path == "/api/v1/orgs/acme/projects/web":
 			_, _ = w.Write([]byte(`{"slug":"web","environments":[{"slug":"dev"},{"slug":"prod"}]}`))
 		default:
@@ -140,5 +147,35 @@ func TestDoctorConsoleAndHookChecks(t *testing.T) {
 	checks = runDoctor(context.Background(), &Options{})
 	if statusOf(checks, "Commit hook") != doctorOK {
 		t.Fatalf("installed hook should pass: %+v", checks)
+	}
+}
+
+func TestDoctorWarnsAboutOldSecrets(t *testing.T) {
+	srv := fakeClavis(t, "0.3.2")
+	doctorEnv(t, srv.URL, "good", "dev")
+	checks := runDoctor(context.Background(), &Options{})
+	var age doctorCheck
+	for _, check := range checks {
+		if check.Name == "Secret age" {
+			age = check
+		}
+	}
+	if age.Status != doctorWarn || !strings.Contains(age.Detail, "1 of 2 secrets") || !strings.Contains(age.Detail, "OLD") {
+		t.Fatalf("secret age check: %+v", age)
+	}
+	if strings.Contains(age.Detail, "INH") {
+		t.Fatalf("inherited secrets must not count: %+v", age)
+	}
+}
+
+func TestDoctorAcceptsALimitedToken(t *testing.T) {
+	srv := fakeClavis(t, "0.3.2")
+	doctorEnv(t, srv.URL, "limited", "dev")
+	checks := runDoctor(context.Background(), &Options{})
+	if statusOf(checks, "Credential") != doctorOK {
+		t.Fatalf("a limited token is valid: %+v", checks)
+	}
+	if statusOf(checks, "Project") != doctorOK {
+		t.Fatalf("checks should go on to the project: %+v", checks)
 	}
 }

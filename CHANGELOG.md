@@ -4,6 +4,11 @@
 
 ### Added
 
+- The Node.js and Python clients are packaged as `@dumhouse/clavis-client`
+  (npm) and `clavis-client` (PyPI), and the Dev Container Feature as
+  `ghcr.io/dumhouse/clavis/clavis`. A new release workflow publishes them once
+  each channel is turned on (see Releasing). CI tests and builds both clients.
+- `scripts/scan-history.sh` is removed: `clavis scan --history` replaces it.
 - Docs: a guide to consoles and masking (with and without `--no-mask`,
   side by side) and a FAQ for the common problems.
 - `clavis run` in a terminal now prints one line at the end when it hid
@@ -15,8 +20,58 @@
   the setup scripts shown on the CLI page.
 - CI runs the terminal and masking tests on macOS as well as Linux.
 
+- `clavis run --reveal KEY` shows the named secrets in a console and keeps the
+  rest masked (terminal only).
+- `clavis prompt` prints the project and environment for your shell prompt
+  (`--shell bash|zsh|fish` prints the setup), and production stands out.
+- Shell completions ship in the `.deb`, `.rpm` and `.apk` packages, the release
+  archives and the Homebrew cask.
+- `clavis init` recognizes `bin/dev`, `Procfile.dev` and Phoenix projects.
+- `clavis doctor` warns when an environment's secrets have not changed in 90
+  days (names and dates only).
+- Docs: guides for CircleCI, Kubernetes and hosting platforms (Vercel, Fly.io,
+  Render), and a GitHub workflow that fails a pull request on a leaked token.
+- CI runs the CLI against a real server (`scripts/cli-e2e.sh`).
+
+- `clavis secrets duplicates` finds secrets that share a value (under different
+  keys, or across environments, flagged when production is involved) and
+  `clavis env similar` shows how alike each pair of environments is. Values are
+  compared on your computer and never printed. The web Compare tab shows the
+  same findings.
+- `clavis env rm SLUG` deletes an environment (the web app already could),
+  with a typed confirmation, or `--yes` in scripts.
+- `clavis scan --history` scans every line any commit on any branch added, so
+  deleted secrets are found.
+- `clavis admin verify-backup FILE` checks that a backup decrypts, opens,
+  upgrades to this version's schema and holds data, without touching the live
+  database.
+- `clavis run` uses a Windows pseudo console (ConPTY, Windows 10 1809 and
+  later), so consoles show their prompts there too.
+- Small Node.js and Python clients (`sdk/`) that fetch an environment's
+  secrets at start-up, an Arch Linux PKGBUILD and a Dev Container Feature
+  (`packaging/`, `devcontainer/`).
+- CI runs the terminal tests on Windows as well as macOS and Linux.
+- The README shows a GIF recorded from a real server and CLI
+  (`scripts/demo/`).
+
 ### Fixed
 
+- Tables in a terminal were misaligned: column widths counted the color codes
+  of the bold header. Widths are now measured without them.
+- The masked-output hint quotes the command so it can be pasted back as is.
+- Audit events could also be lost on Postgres when appends raced on the
+  chain's sequence number; appends to one organization's chain now take a
+  lock and wait their turn.
+- Audit events could be lost on SQLite when several requests wrote at once,
+  for example the web Compare view revealing every environment in parallel:
+  the insert failed with "database is locked" instead of waiting. Write
+  transactions now take SQLite's write lock up front, so they wait their turn.
+- `clavis env diff` said values are "compared server-side" and its reference
+  said they are not compared. It fetches values (audited), compares them on
+  your computer and never prints them; both now say so.
+- `clavis doctor` no longer reports a working CI or machine token as refused.
+  Those tokens cannot read their own profile; doctor now checks them against
+  the project instead.
 - `clavis run` no longer looks frozen with interactive programs such as
   `rails c`, `irb` or `psql`. Two causes: output masking held back the last
   bytes of every write (as many as the longest secret) until more output

@@ -14,9 +14,31 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 | Homebrew | `brew install dumhouse/tap/clavis` | Available |
 | Scoop | `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket` then `scoop install clavis` | Available |
 | Go | `go install github.com/dumhouse/clavis/cmd/clavis@latest` | Available, without the embedded web UI |
+| Dev Container | Add `"ghcr.io/dumhouse/clavis/clavis:1": {}` to `features` in `devcontainer.json` | Once published |
 | Docker (server) | `docker run -d --name clavis --restart unless-stopped -p 80:8080 -v clavis-data:/data dumhouse/clavis` (see the [install wizard](./install)) or `ghcr.io/dumhouse/clavis` | Available |
 
 winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. The apt and rpm repositories are hosted on [Cloudsmith](https://cloudsmith.io/~dumhouse/repos/clavis/packages/). Read the setup script before you pipe it to a shell if you prefer. Alpine (`.apk`) installs from the release file.
+
+## Shell completions
+
+`clavis completion bash`, `zsh` and `fish` print a completion script. The
+`.deb`, `.rpm` and `.apk` packages install them for you, and the release
+archives and the Homebrew cask include them. Otherwise load one yourself:
+
+```sh
+# zsh: add to ~/.zshrc
+source <(clavis completion zsh)
+
+# bash: add to ~/.bashrc
+source <(clavis completion bash)
+
+# fish
+clavis completion fish > ~/.config/fish/completions/clavis.fish
+```
+
+To show the project and environment in your prompt (production stands out),
+run `clavis prompt --shell zsh` (or `bash`, `fish`) and add what it prints to
+your startup file.
 
 ## UX rules
 

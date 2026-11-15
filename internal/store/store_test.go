@@ -326,3 +326,34 @@ func TestListJobs(t *testing.T) {
 		t.Fatalf("done = %+v, %v", done, err)
 	}
 }
+
+// Parallel reveals (the web Compare view loads every environment at once)
+// append audit events at the same moment. None may be lost, and the chain
+// must stay intact.
+func TestAuditAppendSurvivesConcurrentWriters(t *testing.T) {
+	ctx := context.Background()
+	s := storetest.Open(t)
+	org := storetest.CreateOrg(t, s, "acme")
+	const writers = 24
+	errs := make(chan error, writers)
+	start := make(chan struct{})
+	for i := 0; i < writers; i++ {
+		go func() {
+			<-start
+			errs <- s.AppendAuditEvent(ctx, newAuditEvent(org, "secret.list_reveal"))
+		}()
+	}
+	close(start)
+	for i := 0; i < writers; i++ {
+		if err := <-errs; err != nil {
+			t.Errorf("append: %v", err)
+		}
+	}
+	if err := s.VerifyAuditChain(ctx, org); err != nil {
+		t.Fatal(err)
+	}
+	all, err := s.ListAuditEvents(ctx, org, 0, 0)
+	if err != nil || len(all) != writers {
+		t.Fatalf("events = %d, want %d (%v)", len(all), writers, err)
+	}
+}
