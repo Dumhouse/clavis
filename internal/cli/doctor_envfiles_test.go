@@ -322,7 +322,13 @@ func TestEnvFileDoctorChecksWhenGitRefuses(t *testing.T) {
 
 // A git that hangs is cut off, and doctor says so.
 func TestEnvFileDoctorChecksWhenGitHangs(t *testing.T) {
-	fakeGit(t, "exec sleep 10")
+	// fakeGit leaves only its own folder on PATH, so the script needs sleep's
+	// full path.
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep on this system")
+	}
+	fakeGit(t, "exec "+sleep+" 10")
 	restore := envGitTimeout
 	envGitTimeout = 100 * time.Millisecond
 	t.Cleanup(func() { envGitTimeout = restore })
