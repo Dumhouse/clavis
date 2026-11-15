@@ -22,11 +22,13 @@ type scanFinding struct {
 	File string `json:"file"`
 	Line int    `json:"line"`
 	Key  string `json:"key,omitempty"`
+	// Commit is set by --history: the commit that added the line.
+	Commit string `json:"commit,omitempty"`
 }
 
 func newScanCommand(opts *Options) *cobra.Command {
 	var path string
-	var staged, installHook, values bool
+	var staged, installHook, values, history bool
 	cmd := &cobra.Command{
 		Use:   "scan [PATH]",
 		Short: "Scan files for leaked Clavis tokens and secret values",
@@ -49,9 +51,16 @@ func newScanCommand(opts *Options) *cobra.Command {
 				out.Success("Installed .git/hooks/pre-commit (clavis scan --staged).")
 				return nil
 			}
-			files, err := scanFiles(path, staged)
-			if err != nil {
-				return err
+			var files []string
+			if !history {
+				var err error
+				files, err = scanFiles(path, staged)
+				if err != nil {
+					return err
+				}
+			}
+			if history && staged {
+				return fmt.Errorf("--history and --staged cannot be used together")
 			}
 			valuesByKey := map[string]string{}
 			if values {
@@ -71,6 +80,14 @@ func newScanCommand(opts *Options) *cobra.Command {
 				}
 			}
 			findings := make([]scanFinding, 0)
+			commitsRead := 0
+			if history {
+				found, commits, err := scanHistory(cmd.Context(), path, valuesByKey)
+				if err != nil {
+					return err
+				}
+				findings, commitsRead = append(findings, found...), commits
+			}
 			for _, file := range files {
 				data, err := os.ReadFile(file)
 				if err != nil || len(data) > 2<<20 || bytes.IndexByte(data, 0) >= 0 {
@@ -78,7 +95,10 @@ func newScanCommand(opts *Options) *cobra.Command {
 				}
 				findings = append(findings, scanBytes(data, file, valuesByKey)...)
 			}
-			sort.Slice(findings, func(i, j int) bool {
+			sort.SliceStable(findings, func(i, j int) bool {
+				if history {
+					return false // keep git's order: newest commit first
+				}
 				if findings[i].File != findings[j].File {
 					return findings[i].File < findings[j].File
 				}
@@ -89,7 +109,11 @@ func newScanCommand(opts *Options) *cobra.Command {
 					return err
 				}
 			} else if len(findings) == 0 {
-				out.Success("No leaked tokens or secret values found in %d files.", len(files))
+				if history {
+					out.Success("No leaked tokens or secret values found in %d commits.", commitsRead)
+				} else {
+					out.Success("No leaked tokens or secret values found in %d files.", len(files))
+				}
 			} else {
 				rows := make([][]string, 0, len(findings))
 				for _, finding := range findings {
@@ -99,7 +123,18 @@ func newScanCommand(opts *Options) *cobra.Command {
 					}
 					rows = append(rows, []string{finding.File, fmt.Sprintf("%d", finding.Line), detail})
 				}
-				out.Table([]string{"FILE", "LINE", "FINDING"}, rows)
+				headers := []string{"FILE", "LINE", "FINDING"}
+				if history {
+					headers = []string{"COMMIT", "FILE", "LINE", "FINDING"}
+					for i, finding := range findings {
+						short := finding.Commit
+						if len(short) > 10 {
+							short = short[:10]
+						}
+						rows[i] = append([]string{short}, rows[i]...)
+					}
+				}
+				out.Table(headers, rows)
 				out.Errorf("%d potential leak(s) found.", len(findings))
 			}
 			if len(findings) > 0 {
@@ -109,6 +144,7 @@ func newScanCommand(opts *Options) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&staged, "staged", false, "scan git staged files")
+	cmd.Flags().BoolVar(&history, "history", false, "scan every line any commit on any branch ever added, so deleted secrets are found too")
 	cmd.Flags().BoolVar(&installHook, "install-hook", false, "install a pre-commit hook that runs the staged scan")
 	cmd.Flags().BoolVar(&values, "values", true, "also match resolved secret values in memory (requires read-values)")
 	return cmd

@@ -62,12 +62,18 @@ func (m *masker) mask(data []byte) []byte {
 	return out
 }
 
-// maskWriter streams output while holding back enough bytes to catch values
-// split across writes.
+// maskWriter streams output and masks secrets, including ones split across
+// writes. It holds back only a trailing run of bytes that could still grow
+// into a secret (a proper prefix of one), so ordinary output such as a
+// console prompt with no newline is shown at once instead of waiting for the
+// next write.
 type maskWriter struct {
 	dst  io.Writer
 	m    *masker
 	tail []byte
+	// hits counts the values replaced so far, so a console can say once at
+	// the end that something was hidden.
+	hits int
 }
 
 func (w *maskWriter) Write(p []byte) (int, error) {
@@ -75,31 +81,42 @@ func (w *maskWriter) Write(p []byte) (int, error) {
 		return w.dst.Write(p)
 	}
 	w.tail = append(w.tail, p...)
-	limit := len(w.tail) - (w.m.maxLen - 1)
-	if limit <= 0 {
-		return len(p), nil
-	}
 	out := make([]byte, 0, len(w.tail))
 	i := 0
 	for i < len(w.tail) {
-		if i < limit {
-			if pattern := w.matchAt(w.tail, i); pattern != nil {
-				out = append(out, maskReplacement...)
-				i += len(pattern)
-				continue
-			}
+		if pattern := w.matchAt(w.tail, i); pattern != nil {
+			out = append(out, maskReplacement...)
+			w.hits++
+			i += len(pattern)
+			continue
 		}
-		if i >= limit {
+		if w.m.couldGrow(w.tail[i:]) {
 			break
 		}
 		out = append(out, w.tail[i])
 		i++
 	}
 	w.tail = append([]byte(nil), w.tail[i:]...)
-	if _, err := w.dst.Write(out); err != nil {
-		return len(p), err
+	if len(out) > 0 {
+		if _, err := w.dst.Write(out); err != nil {
+			return len(p), err
+		}
 	}
 	return len(p), nil
+}
+
+// couldGrow reports whether data is a proper prefix of any secret, so more
+// output could still complete it.
+func (m *masker) couldGrow(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+	for _, pattern := range m.byFirst[data[0]] {
+		if len(data) < len(pattern) && bytes.HasPrefix(pattern, data) {
+			return true
+		}
+	}
+	return false
 }
 
 func (w *maskWriter) matchAt(data []byte, i int) []byte {
@@ -116,6 +133,9 @@ func (w *maskWriter) Flush() error {
 		return nil
 	}
 	out := w.m.mask(w.tail)
+	if !bytes.Equal(out, w.tail) {
+		w.hits++
+	}
 	w.tail = nil
 	_, err := w.dst.Write(out)
 	return err

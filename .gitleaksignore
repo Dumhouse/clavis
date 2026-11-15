@@ -3,3 +3,6 @@
 7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:128
 7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:137
 7cc8d2c0c42af042d8ed288541b3076aada4cc75:web/scripts/capture-screenshots.mjs:stripe-access-token:145
+# A fake value in the masking test (not a real key). It was replaced by a
+# low-entropy fake in d7cfc0e, but the original commit stays in history.
+14d0aa2e145e3541de80d28358b7b51d993b4a2b:internal/cli/cli_more_test.go:generic-api-key:526

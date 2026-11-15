@@ -13,7 +13,7 @@ groups:
   - id: get-started
     title: "Get started"
     description: "Sign in, link a folder to a project, and check who you are."
-    commands: [login, logout, whoami, init, unlink, trust, doctor]
+    commands: [login, logout, whoami, init, unlink, trust, doctor, prompt]
   - id: run
     title: "Run and export"
     description: "Give secrets to your app: run it with them, open a shell, write files, generate typed config, or share one value."
@@ -126,7 +126,13 @@ commands:
       each problem: the CLI version and how it was installed, `.clavis.yaml`,
       the server address and where it came from, whether the server answers,
       its certificate, its version compared with the CLI, the clock, your
-      sign-in, and access to the project and environment.
+      sign-in, and access to the project and environment. It also checks that
+      `clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and
+      in a git repository whether a pre-commit hook stops secrets from being
+      committed, and whether the environment's own secrets have gone 90 days
+      without a change (names and dates only, never values). A token that
+      cannot read its own profile, such as a CI token, is accepted if it can
+      reach the project.
 
       In a git repository it also checks `.env` files (and `.envrc`, `*.env`)
       at the repository root, in the current folder and beside `.clavis.yaml`:
@@ -147,6 +153,22 @@ commands:
       - title: "For scripts and bug reports"
         run: "clavis doctor --json"
     related: [whoami, trust add, update]
+
+  prompt:
+    description: |-
+      Print the linked project and environment as a short word, such as
+      `web:dev`, for your shell prompt. Production environments print as
+      `web:PRODUCTION!` so a risky terminal stands out. It reads only
+      `.clavis.yaml`, never calls the server, and prints nothing outside a
+      linked folder, so it is fast enough to run on every prompt.
+
+      `--shell bash`, `zsh` or `fish` prints the lines to add to your startup
+      file.
+    examples:
+      - run: "clavis prompt"
+      - title: "Set up zsh"
+        run: "clavis prompt --shell zsh"
+    related: [init, doctor]
 
   unlink:
     description: "Delete `.clavis.yaml` from this folder. Nothing changes on the server."
@@ -235,7 +257,20 @@ commands:
       Without a command, `clavis run` starts the `run:` command saved in
       [`.clavis.yaml`](./clavis-yaml). `clavis init` fills it in when it
       recognizes the project.
+
+      In a terminal, interactive programs such as `rails c`, `irb` or `psql`
+      work normally: the command runs on a pseudo-terminal (a ConPTY on Windows
+      10 version 1809 and later), so it draws its
+      prompt, colors and line editing, and its output is still masked. In
+      scripts and CI the command's output is piped instead. Use `--no-pty`
+      to force pipes in a terminal.
     examples:
+      - title: "A Rails console with secrets"
+        run: "clavis run rails c"
+      - title: "Show one value in a console, keep the rest masked"
+        run: "clavis run --reveal SIDEKIQ_WEB_PASSWORD rails c"
+      - title: "Read real values in a console, on your own screen"
+        run: "clavis run --no-mask rails c"
       - title: "Run the command saved in .clavis.yaml"
         run: "clavis run"
       - title: "Node.js"
@@ -253,9 +288,18 @@ commands:
       - title: "Use -- when your command itself starts with a dash"
         run: "clavis run -- -my-tool --flag"
     notes: |-
-      - **Masking** replaces injected values in the command's output. It
-        protects logs and screen shares; it is not a security boundary. Turn
-        it off with `--no-mask` when you debug output.
+      - **Masking** replaces injected values in the command's output with
+        `••••••`, in a console too: `ENV['API_KEY']` prints `"••••••"`, though
+        your code still gets the real value. It protects logs and screen
+        shares; it is not a security boundary. Put `--no-mask` before the
+        command to see real values, for example to debug in `rails c`. Only do
+        that on your own screen: values print in clear text, so keep it out of
+        screen shares, recordings and pasted output. To show only some keys,
+        use `--reveal KEY` (repeat it or separate keys with commas): those
+        values print in clear text and everything else stays masked. It only
+        works when the output is your own terminal. To read a single value
+        without a console, `clavis secrets get KEY` is enough. More in
+        [Consoles and masking](../guides/consoles-and-masking).
       - **`--watch`** listens for changes and restarts the command with fresh
         values whenever this environment's secrets change.
       - **`--mount`** writes `file` secrets to a `0700` temporary directory as
@@ -415,6 +459,26 @@ commands:
       - run: "clavis secrets rm OLD_KEY --yes"
     related: [secrets set]
 
+  "secrets duplicates":
+    description: |-
+      Find secrets that share a value. It reports two kinds: different keys
+      in one environment holding the same value (one credential copied under
+      two names), and the same key holding the same value in several
+      environments, which is flagged when production shares a value with a
+      non-production environment, because a leak in dev would then expose
+      production.
+
+      Only secrets of kind `secret` with at least 6 characters are compared,
+      so settings such as `true` or `3000` do not show up. Values are fetched
+      (the read is audited) and compared on your computer; they are never
+      printed, and neither is anything derived from them.
+    examples:
+      - run: "clavis secrets duplicates"
+      - title: "Only inside one environment"
+        run: "clavis secrets duplicates --only-env production"
+      - run: "clavis secrets duplicates --json"
+    related: [env similar, rotation]
+
   "secrets override":
     description: |-
       Set a personal value that only you get, for example your own local
@@ -502,9 +566,17 @@ commands:
         run: "clavis scan"
       - title: "Only staged changes"
         run: "clavis scan --staged"
+      - title: "Every commit on every branch, deleted secrets included"
+        run: "clavis scan --history"
       - title: "Add a git pre-commit hook"
         run: "clavis scan --install-hook"
-    notes: "Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only."
+    notes: |-
+      Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only.
+
+      `--history` reads every line that any commit on any branch ever added, so
+      a secret that was committed and later deleted is still found. Each finding
+      names the commit, file and line. A secret found in history is already
+      exposed: rotate it, then consider rewriting history.
     related: [check]
 
   # Schema and validation
@@ -603,13 +675,40 @@ commands:
 
   "env diff":
     description: |-
-      Compare two environments by key name: which keys exist in only one of
-      them. Values are not compared or shown. Use [`clavis promote`](./promote)
-      to see value differences and copy them.
+      Compare two environments: which keys exist in only one of them and which
+      have a different value. Values are fetched (the read is audited) and
+      compared on your computer; they are never printed. Use
+      [`clavis promote`](./promote) to copy values between environments.
     examples:
       - run: "clavis env diff dev prod"
       - run: "clavis env diff staging production --json"
     related: [promote]
+
+  "env similar":
+    description: |-
+      Compare every pair of environments and show how alike they are: the
+      share of keys they have in common, and how many of those hold an
+      identical value. Two environments that are mostly identical may be
+      copies that should differ, for example a staging that still points at
+      production's credentials. Values are fetched (the read is audited) and
+      compared on your computer; they are never printed.
+    examples:
+      - run: "clavis env similar"
+      - run: "clavis env similar --json"
+    related: [secrets duplicates, env diff]
+
+  "env rm":
+    description: |-
+      Delete an environment together with its secrets, their history and
+      personal overrides. It cannot be undone, and a project must keep at
+      least one environment. You type the environment's slug to confirm;
+      without a terminal, pass `--yes`.
+    examples:
+      - run: "clavis env rm qa"
+      - title: "In a script"
+        run: "clavis env rm qa --yes"
+    notes: "Needs permission to manage environments. The deletion is recorded in the audit log. `delete` is an alias."
+    related: [env create, env ls]
 
   "env branch":
     description: |-
@@ -1197,6 +1296,23 @@ commands:
       - title: "Machine-readable"
         run: "clavis admin tls-info --json"
     related: [trust, server]
+
+  "admin verify-backup":
+    description: |-
+      Check that a backup file can be decrypted with this server's root key
+      and read. For SQLite it opens a temporary copy, runs SQLite's integrity
+      check and counts organizations, projects, environments and secrets, so
+      an empty, truncated or damaged backup is caught. For Postgres it checks
+      that the dump is complete. The live database and the backup file are not
+      changed.
+
+      Run it after each backup, or on a schedule, so you find out that a
+      backup is unusable before you need it.
+    examples:
+      - run: "clavis admin verify-backup clavis-backup.enc"
+      - title: "In a script"
+        run: "clavis admin verify-backup clavis-backup.enc --json"
+    related: [admin backup, admin restore]
 
   "admin backup":
     description: |-

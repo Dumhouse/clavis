@@ -42,6 +42,10 @@ their values.
   <img src="docs/assets/terminal-demo.svg" alt="Terminal session: clavis login, link, run with masked secrets, check, and an agent allowlist" width="760" />
 </p>
 
+<p align="center">
+  <img src="docs/assets/readme/cli-demo.gif" alt="Recorded terminal session: clavis run masks a secret and offers --reveal, --reveal shows one key, clavis secrets duplicates and clavis env similar find repeated values, and clavis doctor checks the setup" width="760" />
+</p>
+
 ## Quick start
 
 ```sh

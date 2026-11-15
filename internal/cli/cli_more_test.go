@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -503,5 +504,103 @@ func TestExportCIEnv(t *testing.T) {
 	t.Setenv("GITHUB_ENV", "")
 	if err := exportCIEnv(out, "", values, kinds); err == nil {
 		t.Fatal("want an error outside a CI job")
+	}
+}
+
+// A prompt with no newline must appear at once: a console waits for input
+// after printing it, so anything held back looks like a freeze.
+func TestMaskWriterShowsPromptWithoutWaiting(t *testing.T) {
+	// A long, low-entropy fake so secret scanners do not flag the test.
+	secret := "clv_test_" + strings.Repeat("ab", 18)
+	var out bytes.Buffer
+	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	if _, err := w.Write([]byte("irb(main):001:0> ")); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); got != "irb(main):001:0> " {
+		t.Fatalf("prompt held back: %q", got)
+	}
+
+	// A secret split across writes is still caught, and nothing leaks while
+	// it is incomplete.
+	out.Reset()
+	w = &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("key=" + secret[:15]))
+	if strings.Contains(out.String(), "clv_test") {
+		t.Fatalf("partial secret leaked: %q", out.String())
+	}
+	_, _ = w.Write([]byte(secret[15:] + " done\n"))
+	_ = w.Flush()
+	if got := out.String(); got != "key="+maskReplacement+" done\n" {
+		t.Fatalf("split secret: %q", got)
+	}
+
+	// Something that only looks like the start of a secret is released at
+	// the end.
+	out.Reset()
+	w = &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("clv_test_"))
+	_ = w.Flush()
+	if out.String() != "clv_test_" {
+		t.Fatalf("flush: %q", out.String())
+	}
+}
+
+func TestMaskWriterCountsHiddenValues(t *testing.T) {
+	// A long, low-entropy fake so secret scanners do not flag the test.
+	secret := "clv_test_" + strings.Repeat("ab", 18)
+	var out bytes.Buffer
+	w := &maskWriter{dst: &out, m: newMasker([]string{secret})}
+	_, _ = w.Write([]byte("nothing here\n"))
+	if w.hits != 0 {
+		t.Fatalf("hits = %d", w.hits)
+	}
+	_, _ = w.Write([]byte("key=" + secret + "\n"))
+	_ = w.Flush()
+	if w.hits != 1 {
+		t.Fatalf("hits = %d, want 1", w.hits)
+	}
+}
+
+func TestMaskedValuesRespectsReveal(t *testing.T) {
+	secrets := []secretJSON{
+		{Key: "A", Value: "alpha-value"},
+		{Key: "B", Value: "bravo-value"},
+		{Key: "C", Value: "alpha-value"},
+	}
+	values := []string{"alpha-value", "bravo-value", "alpha-value"}
+	if got := maskedValues(secrets, values, nil); len(got) != 3 {
+		t.Fatalf("no reveal should change nothing: %v", got)
+	}
+	got := maskedValues(secrets, values, []string{"B"})
+	if len(got) != 2 || got[0] != "alpha-value" {
+		t.Fatalf("revealing B: %v", got)
+	}
+	// A value shared with a key that stays hidden is still masked.
+	got = maskedValues(secrets, values, []string{"A"})
+	if len(got) != 3 {
+		t.Fatalf("shared value must stay masked: %v", got)
+	}
+}
+
+func TestShellJoinQuotesOnlyWhatNeedsIt(t *testing.T) {
+	got := shellJoin([]string{"sh", "-c", `echo "a $B"`, "rails", "c", "it's", ""})
+	want := `sh -c 'echo "a $B"' rails c 'it'\''s' ''`
+	if got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+}
+
+func TestTableAlignsColoredHeaders(t *testing.T) {
+	var buf bytes.Buffer
+	out := NewTestOutput(&buf, &buf, false, true)
+	out.Table([]string{"KEY", "ENV"}, [][]string{{"STRIPE_KEY", "dev"}})
+	if !strings.Contains(buf.String(), "\x1b[") {
+		t.Skip("the renderer emitted no color codes here")
+	}
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	strip := func(s string) string { return regexp.MustCompile("\x1b\\[[0-9;]*m").ReplaceAllString(s, "") }
+	if strings.Index(strip(lines[0]), "ENV") != strings.Index(lines[1], "dev") {
+		t.Fatalf("misaligned:\n%q\n%q", strip(lines[0]), lines[1])
 	}
 }

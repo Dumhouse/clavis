@@ -23,7 +23,13 @@ Check this computer's Clavis setup from top to bottom and say how to fix
 each problem: the CLI version and how it was installed, `.clavis.yaml`,
 the server address and where it came from, whether the server answers,
 its certificate, its version compared with the CLI, the clock, your
-sign-in, and access to the project and environment.
+sign-in, and access to the project and environment. It also checks that
+`clavis run` can give consoles (`rails c`, `irb`, `psql`) a terminal, and
+in a git repository whether a pre-commit hook stops secrets from being
+committed, and whether the environment's own secrets have gone 90 days
+without a change (names and dates only, never values). A token that
+cannot read its own profile, such as a CI token, is accepted if it can
+reach the project.
 
 In a git repository it also checks `.env` files (and `.envrc`, `*.env`)
 at the repository root, in the current folder and beside `.clavis.yaml`:
