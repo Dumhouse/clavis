@@ -121,18 +121,12 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 		add(doctorCheck{Section: "Project", Name: "Environment variables", Status: doctorOK,
 			Detail: strings.Join(names, ", ") + " (these override .clavis.yaml)"})
 	}
-	if root := gitRoot("."); root != "" {
-		if files := envFilesNotIgnored(root); len(files) > 0 {
-			names := strings.Join(files, ", ")
-			whether := "is"
-
-			if len(files) > 1 {
-				whether = "are"
-			}
-			add(doctorCheck{Section: "Project", Name: ".env files", Status: doctorWarn,
-				Detail: names + " " + whether + " not ignored by git, so a commit would include " + names,
-				Fix:    "Add " + names + " to .gitignore, then run: git rm --cached " + names})
-		}
+	var committedEnvFiles []string
+	if cfg, _, err := loadProjectConfig("."); err == nil {
+		committedEnvFiles = cfg.CommittedEnvFiles
+	}
+	for _, check := range envFileDoctorChecks(ctx, resolved.ConfigPath, committedEnvFiles) {
+		add(check)
 	}
 
 	// Server.

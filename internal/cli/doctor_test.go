@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -108,42 +107,55 @@ func TestDoctorReportsFixes(t *testing.T) {
 	}
 }
 
-// doctor runs from a folder inside the repository and still finds the .env
-// beside its root.
-func TestDoctorReportsEnvFilesGitWouldCommit(t *testing.T) {
-	dir := gitRepo(t, map[string]string{".env": "KEY=1\n", ".env.local": "K=2\n", ".gitignore": "node_modules/\n"})
-	sub := filepath.Join(dir, "cmd")
-	if err := os.MkdirAll(sub, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(sub)
-
+// doctor runs inside a monorepo app: it finds the .env files at the root and
+// beside .clavis.yaml, honours committed_env_files, and only warns, so the
+// exit code is left alone.
+func TestDoctorReportsEnvFiles(t *testing.T) {
 	srv := fakeClavis(t, "0.3.2")
 	doctorEnv(t, srv.URL, "good", "dev")
-	t.Chdir(sub) // doctorEnv changes the working directory
+	dir := gitRepo(t,
+		map[string]string{
+			".env.prod":              "K=3\n",
+			"apps/web/.env":          "PORT=3000\n", // Next.js defaults, committed on purpose
+			"apps/web/.clavis.yaml":  "committed_env_files: [\".env\"]\n",
+			"apps/web/src/README.md": "x\n",
+		},
+		map[string]string{".env.local": "K=2\n", "apps/web/.env.local": "SECRET=1\n"})
+	t.Chdir(filepath.Join(dir, "apps", "web", "src"))
 
 	checks := runDoctor(context.Background(), &Options{})
-	check := findCheck(checks, ".env files")
-	if check == nil || check.Status != doctorWarn {
-		t.Fatalf(".env files = %+v, want a warning", check)
+	exposed := findCheck(checks, ".env files")
+	if exposed == nil || exposed.Status != doctorWarn ||
+		!strings.HasPrefix(exposed.Fix, "Add to the repository's .gitignore: .env.local apps/web/.env.local (") {
+		t.Fatalf(".env files = %+v, want a warning naming .env.local and apps/web/.env.local", exposed)
 	}
-	if !strings.Contains(check.Detail, ".env") || !strings.Contains(check.Detail, ".env.local") {
-		t.Fatalf("detail does not name both files: %q", check.Detail)
+	tracked := findCheck(checks, ".env in git")
+	if tracked == nil || tracked.Status != doctorWarn ||
+		!strings.HasPrefix(tracked.Fix, "From the repository root: git rm --cached .env.prod,") {
+		t.Fatalf(".env in git = %+v, want a warning naming only .env.prod (apps/web/.env is allowed)", tracked)
 	}
-	if strings.Contains(check.Detail, dir) {
-		t.Fatalf("detail leaks the machine's path: %q", check.Detail)
+	for _, check := range []*doctorCheck{exposed, tracked} {
+		if strings.Contains(check.Detail+check.Fix, dir) {
+			t.Fatalf("%s leaks the machine's path: %+v", check.Name, check)
+		}
 	}
-	if !strings.Contains(check.Fix, "git rm --cached") {
-		t.Fatalf("fix = %q, want the git rm step for an already-tracked file", check.Fix)
+	for _, check := range checks {
+		if check.Status == doctorFail {
+			t.Fatalf("an .env warning must not fail doctor: %+v", checks)
+		}
 	}
+}
 
-	// Ignored files produce no line at all.
-	ignored := gitRepo(t, map[string]string{".env": "KEY=1\n", ".gitignore": ".env*\n"})
-	t.Chdir(ignored)
+// Ignored files produce no line at all.
+func TestDoctorQuietWhenEnvFilesIgnored(t *testing.T) {
+	srv := fakeClavis(t, "0.3.2")
 	doctorEnv(t, srv.URL, "good", "dev")
-	t.Chdir(ignored)
-	if check := findCheck(runDoctor(context.Background(), &Options{}), ".env files"); check != nil {
-		t.Fatalf(".env files = %+v, want no line for an ignored file", check)
+	t.Chdir(gitRepo(t, nil, map[string]string{".env": "KEY=1\n", ".gitignore": ".env*\n"}))
+	checks := runDoctor(context.Background(), &Options{})
+	for _, name := range []string{".env files", ".env in git"} {
+		if check := findCheck(checks, name); check != nil {
+			t.Fatalf("%s = %+v, want no line for an ignored file", name, check)
+		}
 	}
 }
 

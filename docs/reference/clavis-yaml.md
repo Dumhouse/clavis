@@ -24,6 +24,8 @@ path: /                # default folder
 run: bin/rails server  # what a plain `clavis run` starts
 branch_envs: true      # use the git branch's preview environment
 cache: true            # encrypted offline cache for `clavis run`
+committed_env_files:   # .env files you commit on purpose (no secrets)
+  - .env.development
 ```
 
 | Key | Meaning |
@@ -35,6 +37,7 @@ cache: true            # encrypted offline cache for `clavis run`
 | `run` | Command started by `clavis run` with no arguments. Quotes and backslashes work as in a shell; pipes and `&&` don't (put those in a script). |
 | `branch_envs` | When `true`, use the preview environment of the current git branch if one exists. See [`clavis env branch`](./env-branch). |
 | `cache` | When `true`, keep an encrypted copy of the last values for offline use. See [offline cache](./offline-cache). |
+| `committed_env_files` | `.env` files that hold no secrets and are committed on purpose, such as the defaults Next.js or Vite read. [`clavis doctor`](./doctor) does not warn about them. A name like `.env` matches in any folder; a path like `config/*.env` matches from the repository root. |
 
 ## Which value wins
 

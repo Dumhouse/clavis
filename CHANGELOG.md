@@ -4,10 +4,22 @@
 
 ### Added
 
-- `clavis doctor` warns when a `.env` file in the repository root is not
-  ignored by git, naming the files and the `git rm --cached` step for ones
-  already tracked. It asks `git check-ignore`, so nested and negated rules are
-  honoured, and it never reads the files' contents.
+- `clavis doctor` checks the project's `.env` files with git: ones the next
+  commit could include, ones already tracked, and ones that were ever
+  committed (the keys stay in the history, so rotate them). It looks at the
+  repository root, the current folder and the folder of `.clavis.yaml`, and
+  matches `.env`, `.env.*`, `.envrc` and `*.env` in any case, skipping
+  templates such as `.env.example`. Only names are read. Untracked files are
+  not reported in CI. If git cannot answer, the line says so instead of
+  staying silent.
+- `committed_env_files` in `.clavis.yaml` lists `.env` files committed on
+  purpose (for example Next.js defaults), so doctor does not warn about them.
+
+### Changed
+
+- `clavis export -o FILE` asks git whether the file is ignored, so wildcard,
+  nested and negated `.gitignore` rules count, and it warns when the file is
+  already tracked.
 
 ## v0.3.3 — 2026-11-14
 
