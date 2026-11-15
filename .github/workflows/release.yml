@@ -121,12 +121,16 @@ jobs:
     needs: [release]
     runs-on: ubuntu-26.04
     steps:
-      - name: Container images run
+      - uses: sigstore/cosign-installer@v3
+      - name: Container images run and are signed
         run: |
           version="${GITHUB_REF_NAME#v}"
           for image in "dumhouse/clavis:${version}" "ghcr.io/dumhouse/clavis:${version}"; do
             docker pull "$image"
             docker run --rm "$image" version
+            cosign verify "$image" \
+              --certificate-identity-regexp "^https://github.com/${GITHUB_REPOSITORY}/" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null
           done
       - name: Release assets
         env:

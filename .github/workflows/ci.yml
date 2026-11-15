@@ -251,6 +251,20 @@ jobs:
       - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
       - run: ./scripts/cli-e2e.sh bin/clavis
 
+  docker:
+    name: Docker image and update script
+    needs: [go]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: ./scripts/check-dockerfiles.sh
+      - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
+      - run: ./scripts/docker-smoke.sh bin/clavis
+
   e2e:
     name: E2E (Playwright)
     needs: [go, web]

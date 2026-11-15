@@ -68,6 +68,18 @@ signs:
       - --bundle=${signature}
       - ${artifact}
 
+# Sign the multi-arch images by digest, keyless through the workflow's OIDC
+# token (id-token: write). Verify with:
+#   cosign verify ghcr.io/dumhouse/clavis@sha256:... \
+#     --certificate-identity-regexp '^https://github.com/Dumhouse/clavis/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+docker_signs:
+  - cmd: cosign
+    args:
+      - sign
+      - --yes
+      - ${artifact}@${digest}
+
 dockers_v2:
   - id: clavis
     dockerfile: deploy/Dockerfile.goreleaser

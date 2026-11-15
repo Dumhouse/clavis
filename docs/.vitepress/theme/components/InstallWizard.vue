@@ -136,16 +136,35 @@ const compose = computed(() => {
     ...ports.value.map((p) => `      - "${p}"`),
     '    environment:',
     ...env.value.map(([k, v]) => `      ${k}: "${v}"`),
+    '      # Daily encrypted backups to their own volume; the newest 7 are kept.',
+    '      CLAVIS_BACKUP_ENABLED: "true"',
+    '      CLAVIS_BACKUP_DIR: "/backups"',
     '    volumes:',
     '      - clavis-data:/data',
+    '      - clavis-backups:/backups',
   ]
   if (tls.value === 'file') lines.push('      - ./certs:/certs:ro')
-  lines.push('', 'volumes:', '  clavis-data:', '')
+  lines.push(
+    '    # Clavis writes only to its volumes, so the rest can be locked down.',
+    '    read_only: true',
+    '    tmpfs:',
+    '      - /tmp',
+    '    cap_drop:',
+    '      - ALL',
+    '    security_opt:',
+    '      - no-new-privileges:true',
+    '    pids_limit: 256',
+    '    stop_grace_period: 30s',
+  )
+  lines.push('', 'volumes:', '  clavis-data:', '  clavis-backups:', '')
   return lines.join('\n')
 })
 
 const dockerRun = computed(() => {
-  const parts = ['docker run -d --name clavis --restart unless-stopped']
+  const parts = [
+    'docker run -d --name clavis --restart unless-stopped',
+    '--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --pids-limit 256',
+  ]
   for (const p of ports.value) parts.push(`-p ${p}`)
   parts.push('-v clavis-data:/data')
   if (tls.value === 'file') parts.push('-v "$PWD/certs:/certs:ro"')
@@ -306,7 +325,11 @@ function download() {
       <pre><code>{{ compose }}</code></pre>
 
       <h3>Start it</h3>
-      <pre><code>docker compose up -d</code></pre>
+      <pre><code>docker compose up -d --wait</code></pre>
+      <p>
+        <code>--wait</code> returns once Clavis reports healthy, and fails if it does not. To update later, see
+        <a href="./self-hosting#updating-a-docker-install">Updating a Docker install</a>.
+      </p>
 
       <div class="out-head">
         <h3>Or as one docker command (no compose file)</h3>

@@ -60,6 +60,7 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 
 	root.AddCommand(newVersionCommand(opts))
 	root.AddCommand(newServerCommand(opts))
+	root.AddCommand(newHealthcheckCommand(opts))
 	root.AddCommand(newSetupTokenCommand(opts))
 	root.AddCommand(newLoginCommand(opts))
 	root.AddCommand(newLogoutCommand(opts))

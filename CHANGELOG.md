@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `clavis healthcheck` asks the server on this machine whether it is ready, and the Docker image now runs it as its
+  `HEALTHCHECK`, so `docker ps` and `docker compose up --wait` know when
+  Clavis is healthy.
+- `deploy/compose.yaml` is a production setup: pinned version in `.env`, daily
+  backups to their own volume, read-only filesystem, no extra privileges. The
+  install wizard's compose file also turns on backups and uses `--wait`.
+- `deploy/update.sh VERSION` updates a Compose install: it backs up the data
+  volume, pulls, starts, waits for healthy, and rolls back if the new version
+  does not start. A rollback also restores the data, since the new version may
+  have migrated it. The backup leaves out the root key, and the script only
+  touches the volume of its own Compose project.
+- The server checks its root key against the database at startup. It refuses
+  to start with a key that cannot open the existing org keys (a mistyped
+  `CLAVIS_ROOT_KEY`, a key from another install), and the file provider no
+  longer creates a new `root.key` for a database that already has data.
+- `.env.example` and the self-hosting guide show how to keep the root key in
+  `.env` instead of the data volume, for new and existing installs.
+- Container images are signed with cosign (keyless) on release, and the release
+  check verifies the signatures. Base images are pinned by digest and grouped
+  in Renovate updates; CI checks that the two Dockerfiles' runtime stages match.
+- The install wizard's compose file and `docker run` command now run with a
+  read-only filesystem, no capabilities and no extra privileges, like
+  `deploy/compose.yaml`. The Docker CI job also checks that a missing root key
+  stops the server instead of replacing the key.
+- `.dockerignore` keeps `.git`, `node_modules`, local data, keys and `.env`
+  files out of the image build context.
+- Docs: health check and "Updating a Docker install" in the self-hosting guide.
+
 ## v0.3.4 — 2026-11-15
 
 ### Added

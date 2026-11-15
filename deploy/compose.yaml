@@ -1,17 +1,44 @@
+# Clavis on one machine with Docker Compose.
+#
+#   cp .env.example .env     # then edit it
+#   docker compose up -d --wait
+#
+# To update, run ./update.sh VERSION. See docs/self-hosting.md.
 services:
   clavis:
-    image: ghcr.io/dumhouse/clavis:latest
+    # Pin CLAVIS_VERSION in .env so an update is something you do on purpose.
+    image: ghcr.io/dumhouse/clavis:${CLAVIS_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${CLAVIS_HTTP_PORT:-80}:8080"
+      - "${CLAVIS_HTTPS_PORT:-443}:8443"
+    env_file: .env
     environment:
-      CLAVIS_SERVER_BASE_URL: http://localhost:8080
       CLAVIS_LOG_FORMAT: json
+      # Daily encrypted backups to their own volume, newest 7 kept. Keep a copy
+      # of these (and of the root key) somewhere else too.
+      CLAVIS_BACKUP_ENABLED: "true"
+      CLAVIS_BACKUP_DIR: /backups
+      CLAVIS_BACKUP_INTERVAL: 24h
+      CLAVIS_BACKUP_KEEP: "7"
     volumes:
       - clavis-data:/data
-    restart: unless-stopped
+      - clavis-backups:/backups
+    # The image's HEALTHCHECK runs `clavis healthcheck`; `up --wait` waits for it.
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # A ceiling for runaway processes; the server itself uses a few dozen.
+    pids_limit: 256
 
 volumes:
   clavis-data:
+  clavis-backups:

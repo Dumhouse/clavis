@@ -80,6 +80,9 @@ func runServer(cmd *cobra.Command, opts *Options, configPath, role string) error
 		return queue.Run(ctx)
 	}
 
+	if err := guardMissingRootKeyFile(ctx, cfg, st); err != nil {
+		return err
+	}
 	provider, err := rootKeyProvider(cfg)
 	if err != nil {
 		return err
@@ -89,6 +92,9 @@ func runServer(cmd *cobra.Command, opts *Options, configPath, role string) error
 	rootKey, err := provider.Load(ctx)
 	if err != nil {
 		return fmt.Errorf("server: load root key: %w", err)
+	}
+	if err := verifyRootKey(ctx, st, rootKey); err != nil {
+		return err
 	}
 	if cfg.Keys.Provider == "file" {
 		logger.Warn("root key loaded from file; back it up and keep it out of the database backups",
