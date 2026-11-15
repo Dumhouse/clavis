@@ -74,6 +74,17 @@ func (s *Store) appendAuditEventOnce(ctx context.Context, ev *audit.Event) error
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Appends to one org's chain must happen one at a time: each reads the
+	// last event and links to it. On Postgres two concurrent appends read the
+	// same last event and one fails on the seq index; under load that ran out
+	// of retries and lost events. A per-org advisory lock, held until commit,
+	// queues them instead. (SQLite already serializes writers.)
+	if s.dialect == "postgres" {
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext('clavis-audit:' || ?))`, ev.OrgID); err != nil {
+			return fmt.Errorf("store: lock audit chain: %w", err)
+		}
+	}
+
 	var prev *audit.Event
 	prev, err = scanAuditEvent(tx.QueryRowContext(ctx,
 		`SELECT `+auditColumns+` FROM audit_events WHERE org_id = ? ORDER BY seq DESC LIMIT 1`, ev.OrgID))

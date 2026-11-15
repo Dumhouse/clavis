@@ -8,13 +8,21 @@
 // CLAVIS_ORG, CLAVIS_PROJECT and CLAVIS_ENV. The token needs the
 // secrets:read-values permission for the environment. Reads are audited.
 
+// Drop trailing slashes without a regular expression, which could be slow on
+// a value with many of them.
+function trimSlashes(value) {
+  let end = value.length
+  while (end > 0 && value[end - 1] === '/') end--
+  return value.slice(0, end)
+}
+
 /**
  * Fetch an environment's secrets as an object of NAME -> value.
  * File secrets and empty values are included as they are stored.
  */
 export async function fetchSecrets(options = {}) {
   const env = process.env
-  const server = (options.server ?? env.CLAVIS_SERVER ?? '').replace(/\/+$/, '')
+  const server = trimSlashes(options.server ?? env.CLAVIS_SERVER ?? '')
   const token = options.token ?? env.CLAVIS_TOKEN
   const org = options.org ?? env.CLAVIS_ORG
   const project = options.project ?? env.CLAVIS_PROJECT

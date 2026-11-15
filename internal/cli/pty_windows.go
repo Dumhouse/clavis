@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -156,7 +158,38 @@ func startOnPTY(child *exec.Cmd) (*ptySession, error) {
 		_ = windows.SetConsoleMode(stdout, outMode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
 	}
 
-	master := os.NewFile(uintptr(outRead), "conpty-out")
+	// ConPTY draws asynchronously: when the program exits, the last of its
+	// output may not have come through yet, and closing the pseudo console
+	// drops it. Relay the output and remember when it last arrived, so the
+	// console is closed only once it has gone quiet.
+	conOut := os.NewFile(uintptr(outRead), "conpty-out")
+	master, relay, err := os.Pipe()
+	if err != nil {
+		_ = conOut.Close()
+		windows.ClosePseudoConsole(pc)
+		closeHandles(inWrite)
+		_ = windows.TerminateProcess(pi.Process, 1)
+		return nil, err
+	}
+	var lastOutput atomic.Int64
+	lastOutput.Store(time.Now().UnixNano())
+	go func() {
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := conOut.Read(buf)
+			if n > 0 {
+				lastOutput.Store(time.Now().UnixNano())
+				if _, werr := relay.Write(buf[:n]); werr != nil {
+					break
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+		_ = relay.Close()
+		_ = conOut.Close()
+	}()
 	keys := os.NewFile(uintptr(inWrite), "conpty-in")
 	go func() {
 		buf := make([]byte, 4096)
@@ -172,10 +205,23 @@ func startOnPTY(child *exec.Cmd) (*ptySession, error) {
 			}
 		}
 	}()
-	// The output pipe only ends when the pseudo console closes, so close it
-	// as soon as the program exits; what it already wrote is still read.
+	// The output pipe only ends when the pseudo console closes. After the
+	// program exits, wait until no output has arrived for a moment (at most
+	// two seconds), then close it, which ends the relay and Master with EOF.
 	go func() {
 		_, _ = windows.WaitForSingleObject(pi.Process, windows.INFINITE)
+		exited := time.Now()
+		deadline := exited.Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			last := time.Unix(0, lastOutput.Load())
+			if last.Before(exited) {
+				last = exited
+			}
+			if time.Since(last) >= 200*time.Millisecond {
+				break
+			}
+			time.Sleep(25 * time.Millisecond)
+		}
 		windows.ClosePseudoConsole(pc)
 	}()
 
