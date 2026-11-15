@@ -443,14 +443,23 @@ func prepareSecretEnv(secrets []secretJSON, mount bool) ([]string, []string, fun
 func shellJoin(args []string) string {
 	words := make([]string, len(args))
 	for i, arg := range args {
-		if arg != "" && strings.IndexFunc(arg, func(r rune) bool {
-			return !(r == '-' || r == '_' || r == '.' || r == '/' || r == ':' || r == '=' || r == ',' || r == '@' || r == '+' ||
-				(r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'))
-		}) < 0 {
+		if arg != "" && strings.IndexFunc(arg, needsShellQuote) < 0 {
 			words[i] = arg
 		} else {
 			words[i] = shellQuote(arg)
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+// needsShellQuote reports whether r is outside the characters a shell word
+// can hold without quotes.
+func needsShellQuote(r rune) bool {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		return false
+	case strings.ContainsRune("-_./:=,@+", r):
+		return false
+	}
+	return true
 }

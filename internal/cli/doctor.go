@@ -215,7 +215,7 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 		// Machine, CI and personal tokens cannot read /auth/me (it answers
 		// 401 or 403), so a refusal there does not prove the token is bad.
 		// Try the project: only a refusal there means the token is rejected.
-		refused := true
+		var refused bool
 		if resolved.Org != "" && resolved.Project != "" {
 			var detail projectDetail
 			probe := c.Get(ctx, projectBase(resolved), &detail)

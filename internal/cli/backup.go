@@ -200,7 +200,7 @@ func verifySQLiteBackup(ctx context.Context, plaintext []byte) (backup.Summary, 
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 	path := filepath.Join(dir, "backup.db")
-	if err := os.WriteFile(path, plaintext, 0o600); err != nil {
+	if err := os.WriteFile(path, plaintext, 0o600); err != nil { //nolint:gosec // G703: a fixed name inside our own temporary directory
 		return backup.Summary{}, err
 	}
 	st, err := store.Open(ctx, path)

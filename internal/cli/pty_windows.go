@@ -131,6 +131,10 @@ func startOnPTY(child *exec.Cmd) (*ptySession, error) {
 	var si windows.StartupInfoEx
 	si.Cb = uint32(unsafe.Sizeof(si))
 	si.ProcThreadAttributeList = attrs.List()
+	// Without this, when our own output is a pipe (CI, an IDE), Windows hands
+	// the program our standard handles and it writes past the pseudo console.
+	// Empty standard handles make it use the pseudo console for everything.
+	si.Flags |= windows.STARTF_USESTDHANDLES
 	var pi windows.ProcessInformation
 	appName, err := windows.UTF16PtrFromString(exe)
 	if err != nil {
