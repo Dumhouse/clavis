@@ -49,6 +49,10 @@
 
 ### Fixed
 
+- Audit events could be lost on SQLite when several requests wrote at once,
+  for example the web Compare view revealing every environment in parallel:
+  the insert failed with "database is locked" instead of waiting. Write
+  transactions now take SQLite's write lock up front, so they wait their turn.
 - `clavis env diff` said values are "compared server-side" and its reference
   said they are not compared. It fetches values (audited), compares them on
   your computer and never prints them; both now say so.

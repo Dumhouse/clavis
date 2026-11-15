@@ -53,6 +53,12 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	q.Add("_pragma", "busy_timeout(5000)")
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "synchronous(NORMAL)")
+	// Every transaction here writes. A deferred one starts as a reader and
+	// fails with SQLITE_BUSY when it tries to write while another connection
+	// holds the lock, without waiting for busy_timeout; under parallel
+	// requests that dropped audit events. Taking the write lock at BEGIN
+	// makes SQLite wait its turn instead.
+	q.Set("_txlock", "immediate")
 	u.RawQuery = q.Encode()
 
 	db, err := sql.Open("sqlite", u.String())
