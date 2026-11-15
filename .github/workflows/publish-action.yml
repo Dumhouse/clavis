@@ -26,7 +26,7 @@ jobs:
     if: ${{ vars.PUBLISH_ACTION_MIRROR == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
       - name: Push to dumhouse/clavis-action

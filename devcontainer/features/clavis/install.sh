@@ -16,7 +16,7 @@ if ! command -v curl >/dev/null 2>&1; then
   fi
 fi
 
-curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/70840ba6cd99393bd25249e153d9909fa054bcf0/scripts/install.sh \
   | CLAVIS_INSTALL_DIR=/usr/local/bin CLAVIS_VERSION="$VERSION" bash
 
 clavis version
