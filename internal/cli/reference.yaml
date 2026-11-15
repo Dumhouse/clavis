@@ -53,7 +53,7 @@ groups:
   - id: server
     title: "Server and administration"
     description: "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades."
-    commands: [server, setup-token, admin, health, update, upgrade, version]
+    commands: [server, healthcheck, setup-token, admin, health, update, upgrade, version]
 
 commands:
   # Get started
@@ -1231,6 +1231,18 @@ commands:
           clavis server --role=api
           clavis server --role=worker
     related: [setup-token, health]
+
+  healthcheck:
+    description: |-
+      Ask the server running on this machine whether it is ready, and exit
+      non-zero if it is not. It reads the same settings as `clavis server`, so
+      it finds the right port, and uses HTTPS when the server has TLS on. The
+      Docker image runs it as its `HEALTHCHECK`, because the image has no shell
+      or `curl`.
+    examples:
+      - title: "From outside the container"
+        run: "docker exec clavis clavis healthcheck"
+    related: [server, health]
 
   setup-token:
     description: |-

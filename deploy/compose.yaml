@@ -1,17 +1,35 @@
+# Production-oriented compose file.
+#
+# Generate a root key once and keep it OUT of the data volume and backups:
+#   echo "CLAVIS_ROOT_KEY=$(openssl rand -base64 32)" > deploy/.env && chmod 600 deploy/.env
+# Losing this key makes every stored secret unrecoverable.
 services:
   clavis:
-    image: ghcr.io/dumhouse/clavis:latest
+    image: ghcr.io/dumhouse/clavis:${CLAVIS_VERSION:-0.3.4}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
     ports:
-      - "8080:8080"
+      # Loopback only: put a TLS reverse proxy (Caddy, Traefik) in front, or
+      # change to "8080:8080" deliberately.
+      - "127.0.0.1:8080:8080"
     environment:
-      CLAVIS_SERVER_BASE_URL: http://localhost:8080
+      CLAVIS_SERVER_BASE_URL: ${CLAVIS_SERVER_BASE_URL:-http://localhost:8080}
       CLAVIS_LOG_FORMAT: json
+      CLAVIS_KEY_PROVIDER: env
+      CLAVIS_ROOT_KEY: ${CLAVIS_ROOT_KEY:?set CLAVIS_ROOT_KEY, see the header of this file}
     volumes:
       - clavis-data:/data
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 512m
+    stop_grace_period: 30s
 
 volumes:
   clavis-data:

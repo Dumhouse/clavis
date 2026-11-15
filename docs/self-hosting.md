@@ -71,6 +71,69 @@ docker compose logs clavis | grep setup_url   # the setup link with the token
 `restart: unless-stopped` restarts Clavis after a crash, a Docker restart or a
 reboot. A deliberate `docker compose stop` is respected.
 
+### The production compose file
+
+The repository ships a ready-made setup in
+[`deploy/`](https://github.com/Dumhouse/clavis/tree/main/deploy): a
+`compose.yaml`, a `.env.example` and `update.sh`. Compared with the short file
+above it:
+
+- pins the release with `CLAVIS_VERSION` in `.env`, so an update is something
+  you do on purpose;
+- keeps secrets such as the setup token in `.env`, not in the compose file;
+- turns on daily encrypted backups to a separate volume (`clavis-backups`);
+- runs with a read-only filesystem, no extra privileges and no capabilities.
+
+```sh
+cd deploy
+cp .env.example .env && chmod 600 .env   # edit the address and version
+docker compose up -d --wait
+```
+
+### Health check
+
+The image checks itself every 30 seconds with `clavis healthcheck`, which asks
+the server's `/readyz` (database and root key) and uses HTTPS when TLS is on.
+The image has no shell or `curl`, so the binary does the request. `docker ps`
+shows `healthy` or `unhealthy`, `docker compose up --wait` waits for it, and you
+can run it yourself:
+
+```sh
+docker exec clavis clavis healthcheck
+```
+
+The health check only applies to a container that runs the server. Kubernetes
+ignores it; the Helm chart has its own probes.
+
+### Updating a Docker install
+
+With the `deploy/` files, one command does it all:
+
+```sh
+cd deploy
+./update.sh 0.3.5
+```
+
+It stops Clavis, copies the data volume to `deploy/backups/`, sets
+`CLAVIS_VERSION`, pulls the image and starts it. If the new version does not
+become healthy, it puts the old version back and tells you. Clavis is down for
+the few seconds the copy and the start take. Read the
+[changelog](https://github.com/Dumhouse/clavis/blob/main/CHANGELOG.md) first.
+
+Without the script, the same steps by hand:
+
+```sh
+docker compose stop
+docker run --rm -v clavis_clavis-data:/data:ro -v "$PWD/backups":/backups alpine \
+  tar czf /backups/clavis-data-before-update.tgz -C /data .
+# set CLAVIS_VERSION in .env, then:
+docker compose pull && docker compose up -d --wait
+```
+
+To go back, restore the old `CLAVIS_VERSION` and run `docker compose up -d --wait`
+again. A migration that has already run is not undone by an older version, so
+restore the volume copy if the old version will not start on the new data.
+
 ### First-run setup
 
 On first start the log prints a `setup_url` with the one-time token built in.
@@ -157,6 +220,10 @@ keep the root key and the backups in separate trust domains. Test a restore
 quarterly.
 
 ## Upgrades
+
+For a single Docker container or Compose file, see
+[Updating a Docker install](#updating-a-docker-install). For Kubernetes and
+multi-replica setups:
 
 1. Snapshot the database.
 2. Read the release notes and verify signatures.

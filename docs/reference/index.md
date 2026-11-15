@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 128 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 129 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -122,6 +122,7 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 
 <div class="cli-cards">
 <a class="cli-card" href="./server"><span class="cli-card-name"><code>clavis server</code></span><span class="cli-card-text">Run the Clavis server</span></a>
+<a class="cli-card" href="./healthcheck"><span class="cli-card-name"><code>clavis healthcheck</code></span><span class="cli-card-text">Check that the server on this machine is ready</span></a>
 <a class="cli-card" href="./setup-token"><span class="cli-card-name"><code>clavis setup-token</code></span><span class="cli-card-text">Print the one-time first-run setup token</span></a>
 <a class="cli-card" href="./admin"><span class="cli-card-name"><code>clavis admin</code><span class="cli-card-meta">10 commands</span></span><span class="cli-card-text">Instance administration</span></a>
 <a class="cli-card" href="./health"><span class="cli-card-name"><code>clavis health</code></span><span class="cli-card-text">Show organization health findings</span></a>

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `clavis healthcheck` asks the server on this machine whether it is ready
+  (HTTPS when TLS is on), and the Docker image now runs it as its
+  `HEALTHCHECK`, so `docker ps` and `docker compose up --wait` know when
+  Clavis is healthy.
+- `deploy/compose.yaml` is a production setup: pinned version in `.env`, daily
+  backups to their own volume, read-only filesystem, no extra privileges. The
+  install wizard's compose file also turns on backups and uses `--wait`.
+- `deploy/update.sh VERSION` updates a Compose install: it backs up the data
+  volume, pulls, starts, waits for healthy, and rolls back if the new version
+  does not start.
+- Docs: health check and "Updating a Docker install" in the self-hosting guide.
+
 ## v0.3.4 — 2026-11-15
 
 ### Added
