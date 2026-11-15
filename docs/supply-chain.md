@@ -58,8 +58,13 @@ Container images are multi-arch, distroless, non-root, and signed with cosign.
 Verify the image digest, not the mutable tag:
 
 ```sh
-cosign verify ghcr.io/dumhouse/clavis@sha256:...
+cosign verify ghcr.io/dumhouse/clavis@sha256:... \
+  --certificate-identity-regexp '^https://github.com/Dumhouse/clavis/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+Each image also carries an SBOM attestation. Base images in the Dockerfiles are
+pinned by digest and updated by Renovate.
 
 ## Dependency policy
 

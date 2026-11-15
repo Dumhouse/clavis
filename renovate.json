@@ -17,6 +17,10 @@
       "groupName": "GitHub Actions"
     },
     {
+      "matchManagers": ["dockerfile"],
+      "groupName": "Docker base images"
+    },
+    {
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
     }

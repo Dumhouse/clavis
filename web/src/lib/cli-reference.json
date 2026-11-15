@@ -107,6 +107,7 @@
       "description": "Run the server and look after it: first-run setup, password resets, backups, keys, upgrades.",
       "commands": [
         "server",
+        "healthcheck",
         "setup-token",
         "admin",
         "health",
@@ -1390,6 +1391,39 @@
       "subcommands": [],
       "related": [
         "rotation status"
+      ]
+    },
+    {
+      "path": "healthcheck",
+      "slug": "healthcheck",
+      "group": "server",
+      "usage": "clavis healthcheck [flags]",
+      "summary": "Check that the server on this machine is ready",
+      "description": "Ask the server running on this machine whether it is ready, and exit\nnon-zero if it is not. It reads the same settings as `clavis server`, so\nit finds the right port. It asks the plain HTTP port, which answers\n`/readyz` even when the server has TLS on, so no certificate is involved.\nThe Docker image runs it as its `HEALTHCHECK`, because the image has no\nshell or `curl`.",
+      "examples": [
+        {
+          "title": "From outside the container",
+          "run": "docker exec clavis clavis healthcheck"
+        }
+      ],
+      "flags": [
+        {
+          "name": "config",
+          "shorthand": "c",
+          "type": "string",
+          "usage": "path to clavis.yaml"
+        },
+        {
+          "name": "timeout",
+          "type": "duration",
+          "default": "3s",
+          "usage": "how long to wait for an answer"
+        }
+      ],
+      "subcommands": [],
+      "related": [
+        "server",
+        "health"
       ]
     },
     {

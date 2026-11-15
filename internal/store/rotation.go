@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -92,4 +94,19 @@ func (s *Store) ApplyRootKeyRotation(ctx context.Context, orgs []OrgKeyRotation,
 		return fmt.Errorf("store: commit root key rotation: %w", err)
 	}
 	return nil
+}
+
+// OldestOrgKey returns the oldest org's id and wrapped key, so a starting
+// server can check that its root key belongs to this database. ok is false when
+// there are no orgs yet.
+func (s *Store) OldestOrgKey(ctx context.Context) (orgID string, wrapped []byte, ok bool, err error) {
+	err = s.db.QueryRowContext(ctx,
+		`SELECT id, wrapped_org_key FROM orgs ORDER BY created_at LIMIT 1`).Scan(&orgID, &wrapped)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil, false, nil
+	}
+	if err != nil {
+		return "", nil, false, fmt.Errorf("store: oldest org key: %w", err)
+	}
+	return orgID, wrapped, true, nil
 }
