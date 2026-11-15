@@ -85,7 +85,7 @@ jobs:
       - name: gitleaks
         run: >-
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1
-          detect --source /repo --redact
+          detect --source /repo --redact --verbose
 
   trivy:
     name: Trivy filesystem scan
