@@ -43,7 +43,8 @@ export const MIN_DUPLICATE_LENGTH = 6
 
 function comparable(secret: DuplicateSecret): string | null {
   const value = secret.value ?? ''
-  if (secret.inherited || secret.kind !== 'secret' || value.length < MIN_DUPLICATE_LENGTH) return null
+  if (secret.inherited || secret.kind !== 'secret' || value.length < MIN_DUPLICATE_LENGTH)
+    return null
   return value
 }
 
@@ -75,10 +76,16 @@ export function findDuplicates(envs: DuplicateEnv[]): {
     for (const where of digests.values()) {
       if (where.size < 2) continue
       const slugs = [...where].sort()
-      sharedKey.push({ key, envs: slugs, withProduction: slugs.some((slug) => production.has(slug)) })
+      sharedKey.push({
+        key,
+        envs: slugs,
+        withProduction: slugs.some((slug) => production.has(slug)),
+      })
     }
   }
-  sameValue.sort((x, y) => x.env.localeCompare(y.env) || (x.keys[0] ?? '').localeCompare(y.keys[0] ?? ''))
+  sameValue.sort(
+    (x, y) => x.env.localeCompare(y.env) || (x.keys[0] ?? '').localeCompare(y.keys[0] ?? ''),
+  )
   sharedKey.sort(
     (x, y) => Number(y.withProduction) - Number(x.withProduction) || x.key.localeCompare(y.key),
   )

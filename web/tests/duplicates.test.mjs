@@ -36,13 +36,28 @@ test('finds a value shared by keys and across environments', () => {
 
 test('ranks environment pairs by identical values', () => {
   const envs = [
-    { slug: 'dev', name: 'Dev', secrets: [secret('A', '1111111'), secret('B', '2222222'), secret('C', '3333333')] },
-    { slug: 'staging', name: 'Staging', secrets: [secret('A', '1111111'), secret('B', 'different'), secret('D', '4444444')] },
+    {
+      slug: 'dev',
+      name: 'Dev',
+      secrets: [secret('A', '1111111'), secret('B', '2222222'), secret('C', '3333333')],
+    },
+    {
+      slug: 'staging',
+      name: 'Staging',
+      secrets: [secret('A', '1111111'), secret('B', 'different'), secret('D', '4444444')],
+    },
     { slug: 'prod', name: 'Prod', secrets: [secret('Z', '9999999')] },
   ]
   const pairs = similarEnvironments(envs)
   assert.equal(pairs.length, 3)
   assert.deepEqual(pairs[0], {
-    a: 'dev', b: 'staging', common: 2, same: 1, onlyA: 1, onlyB: 1, keyPercent: 50, valuePercent: 50,
+    a: 'dev',
+    b: 'staging',
+    common: 2,
+    same: 1,
+    onlyA: 1,
+    onlyB: 1,
+    keyPercent: 50,
+    valuePercent: 50,
   })
 })

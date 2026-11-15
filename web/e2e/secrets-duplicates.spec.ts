@@ -25,10 +25,15 @@ async function addSecret(page: Page, env: string, key: string, value: string) {
     headers: { 'X-CSRF-Token': csrf },
     data: { key, value, kind: 'secret' },
   })
-  expect(response.ok(), `create ${key} in ${env}: ${response.status()} ${await response.text()}`).toBeTruthy()
+  expect(
+    response.ok(),
+    `create ${key} in ${env}: ${String(response.status())} ${await response.text()}`,
+  ).toBeTruthy()
 }
 
-test('the compare view lists repeated values without showing them in the summary', async ({ page }) => {
+test('the compare view lists repeated values without showing them in the summary', async ({
+  page,
+}) => {
   await signIn(page)
   const shared = 'dup-check-value-4f9a1c'
   await addSecret(page, 'dev', 'DUP_PRIMARY', shared)
@@ -39,7 +44,9 @@ test('the compare view lists repeated values without showing them in the summary
   await expect(page.getByRole('heading', { name: 'Payments API', level: 1 })).toBeVisible()
   await page.getByRole('button', { name: 'Compare' }).click()
 
-  const summary = page.locator('details', { hasText: 'Repeated values and look-alike environments' })
+  const summary = page.locator('details', {
+    hasText: 'Repeated values and look-alike environments',
+  })
   await expect(summary).toBeVisible()
   await summary.locator('summary').click()
   await expect(summary.getByText('Same value under different keys')).toBeVisible()

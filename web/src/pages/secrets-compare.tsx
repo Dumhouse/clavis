@@ -240,8 +240,9 @@ export function CompareEnvironments({
                 </div>
               )}
               <p className="text-dim">
-                The same check from the CLI: <span className="font-mono">clavis secrets duplicates</span>
-                {' '}and <span className="font-mono">clavis env similar</span>.
+                The same check from the CLI:{' '}
+                <span className="font-mono">clavis secrets duplicates</span> and{' '}
+                <span className="font-mono">clavis env similar</span>.
               </p>
             </div>
           </details>
