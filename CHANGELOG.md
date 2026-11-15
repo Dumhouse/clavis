@@ -46,9 +46,17 @@
   secrets at start-up, an Arch Linux PKGBUILD and a Dev Container Feature
   (`packaging/`, `devcontainer/`).
 - CI runs the terminal tests on Windows as well as macOS and Linux.
+- The README shows a GIF recorded from a real server and CLI
+  (`scripts/demo/`).
 
 ### Fixed
 
+- Tables in a terminal were misaligned: column widths counted the color codes
+  of the bold header. Widths are now measured without them.
+- The masked-output hint quotes the command so it can be pasted back as is.
+- Audit events could also be lost on Postgres when appends raced on the
+  chain's sequence number; appends to one organization's chain now take a
+  lock and wait their turn.
 - Audit events could be lost on SQLite when several requests wrote at once,
   for example the web Compare view revealing every environment in parallel:
   the insert failed with "database is locked" instead of waiting. Write

@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"text/tabwriter"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
@@ -158,30 +158,48 @@ func (o *Output) EnvLabel(envType string) string {
 }
 
 // Table renders an aligned table. With Color disabled the output is plain and
-// script-friendly.
+// script-friendly. Widths are measured without color codes: tabwriter counts
+// escape bytes as text, which misaligned every column after a bold header.
 func (o *Output) Table(headers []string, rows [][]string) {
-	tw := tabwriter.NewWriter(o.Out, 0, 4, 2, ' ', 0)
-	for i, h := range headers {
-		if i > 0 {
-			_, _ = fmt.Fprint(tw, "\t")
-		}
-		if o.Color {
-			_, _ = fmt.Fprint(tw, o.renderer.NewStyle().Bold(true).Render(h))
-		} else {
-			_, _ = fmt.Fprint(tw, h)
-		}
-	}
-	_, _ = fmt.Fprintln(tw)
-	for _, row := range rows {
-		for i, cell := range row {
-			if i > 0 {
-				_, _ = fmt.Fprint(tw, "\t")
+	widths := make([]int, len(headers))
+	measure := func(cells []string) {
+		for i, cell := range cells {
+			if i >= len(widths) {
+				widths = append(widths, 0)
 			}
-			_, _ = fmt.Fprint(tw, cell)
+			if w := lipgloss.Width(cell); w > widths[i] {
+				widths[i] = w
+			}
 		}
-		_, _ = fmt.Fprintln(tw)
 	}
-	_ = tw.Flush()
+	measure(headers)
+	for _, row := range rows {
+		measure(row)
+	}
+	var b strings.Builder
+	line := func(cells []string, style func(string) string) {
+		for i, cell := range cells {
+			text := cell
+			if style != nil {
+				text = style(cell)
+			}
+			b.WriteString(text)
+			if i < len(cells)-1 {
+				b.WriteString(strings.Repeat(" ", widths[i]-lipgloss.Width(cell)+2))
+			}
+		}
+		b.WriteString("\n")
+	}
+	if o.Color {
+		bold := o.renderer.NewStyle().Bold(true)
+		line(headers, func(h string) string { return bold.Render(h) })
+	} else {
+		line(headers, nil)
+	}
+	for _, row := range rows {
+		line(row, nil)
+	}
+	_, _ = fmt.Fprint(o.Out, b.String())
 }
 
 func colorEnabled(f *os.File) bool {

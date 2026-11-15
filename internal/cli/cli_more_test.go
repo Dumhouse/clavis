@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -579,5 +580,27 @@ func TestMaskedValuesRespectsReveal(t *testing.T) {
 	got = maskedValues(secrets, values, []string{"A"})
 	if len(got) != 3 {
 		t.Fatalf("shared value must stay masked: %v", got)
+	}
+}
+
+func TestShellJoinQuotesOnlyWhatNeedsIt(t *testing.T) {
+	got := shellJoin([]string{"sh", "-c", `echo "a $B"`, "rails", "c", "it's", ""})
+	want := `sh -c 'echo "a $B"' rails c 'it'\''s' ''`
+	if got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
+	}
+}
+
+func TestTableAlignsColoredHeaders(t *testing.T) {
+	var buf bytes.Buffer
+	out := NewTestOutput(&buf, &buf, false, true)
+	out.Table([]string{"KEY", "ENV"}, [][]string{{"STRIPE_KEY", "dev"}})
+	if !strings.Contains(buf.String(), "\x1b[") {
+		t.Skip("the renderer emitted no color codes here")
+	}
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	strip := func(s string) string { return regexp.MustCompile("\x1b\\[[0-9;]*m").ReplaceAllString(s, "") }
+	if strings.Index(strip(lines[0]), "ENV") != strings.Index(lines[1], "dev") {
+		t.Fatalf("misaligned:\n%q\n%q", strip(lines[0]), lines[1])
 	}
 }

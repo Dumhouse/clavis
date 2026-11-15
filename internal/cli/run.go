@@ -288,7 +288,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 	waitErr := waitChild()
 	cancelWatch()
 	if onTerminal && maskOutput && stdout.hits > 0 {
-		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, strings.Join(args, " "))
+		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, shellJoin(args))
 	}
 	select {
 	case <-restart:
@@ -436,4 +436,21 @@ func prepareSecretEnv(secrets []secretJSON, mount bool) ([]string, []string, fun
 		entries = append(entries, secret.Key+"="+path)
 	}
 	return entries, values, cleanup, nil
+}
+
+// shellJoin rebuilds a command line the user can paste back, quoting only the
+// words that need it.
+func shellJoin(args []string) string {
+	words := make([]string, len(args))
+	for i, arg := range args {
+		if arg != "" && strings.IndexFunc(arg, func(r rune) bool {
+			return !(r == '-' || r == '_' || r == '.' || r == '/' || r == ':' || r == '=' || r == ',' || r == '@' || r == '+' ||
+				(r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'))
+		}) < 0 {
+			words[i] = arg
+		} else {
+			words[i] = shellQuote(arg)
+		}
+	}
+	return strings.Join(words, " ")
 }
