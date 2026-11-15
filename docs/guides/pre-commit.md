@@ -41,3 +41,12 @@ overwrite a hook you already have.
 
 Run `clavis scan` (without `--staged`) in a pipeline step to check the whole
 tree; the exit code is the same.
+
+## In CI
+
+A hook can be skipped (`git commit --no-verify`), so run the same scan in CI
+too. Copy
+[`integrations/github/clavis-scan.yml`](https://github.com/Dumhouse/clavis/blob/main/integrations/github/clavis-scan.yml)
+to `.github/workflows/clavis-scan.yml`. It installs the CLI and runs
+`clavis scan --values=false`, which checks token formats without signing in to
+your server, and fails the pull request when it exits with code 7.

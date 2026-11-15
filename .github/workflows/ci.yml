@@ -206,6 +206,19 @@ jobs:
       - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
       - run: ./bin/clavis version --json
 
+  cli-e2e:
+    name: CLI against a real server
+    needs: [go]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: CGO_ENABLED=0 go build -trimpath -o bin/clavis ./cmd/clavis
+      - run: ./scripts/cli-e2e.sh bin/clavis
+
   e2e:
     name: E2E (Playwright)
     needs: [go, web]

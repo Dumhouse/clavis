@@ -1,0 +1,27 @@
+# Fail a pull request when it contains a leaked Clavis token.
+# Copy to .github/workflows/clavis-scan.yml. No Clavis account is needed: the
+# scan matches token formats and never calls your server.
+# Docs: https://dumhouse.github.io/clavis/guides/pre-commit#in-ci
+name: Clavis scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Clavis
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh \
+            | CLAVIS_INSTALL_DIR="$RUNNER_TEMP/bin" CLAVIS_VERSION=0.3.3 bash
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Scan for leaked tokens
+        # Exits with code 7 when it finds something.
+        run: clavis scan --values=false

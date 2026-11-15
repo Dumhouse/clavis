@@ -43,6 +43,27 @@ word of the command on belongs to it. Use it only on your own screen: values
 print in clear text, so keep it out of screen shares, recordings, CI logs and
 anything you paste into a chat or a ticket.
 
+## Showing only some values
+
+`--reveal` unmasks the keys you name and keeps everything else hidden, which
+is safer than `--no-mask` when you only need one value:
+
+```text
+$ clavis run --reveal SIDEKIQ_WEB_PASSWORD rails c
+backend(dev):001> ENV['SIDEKIQ_WEB_PASSWORD']
+=> "correct-horse-battery-staple"
+backend(dev):002> ENV['DATABASE_URL']
+=> "••••••"
+```
+
+Repeat the flag or separate keys with commas. It only works when the output
+is your own terminal, so a script cannot send a revealed value to a file or a
+log. If two keys hold the same value and only one is revealed, that value
+stays masked.
+
+When a session hid something, `clavis run` prints one line at the end that
+tells you about `--reveal` and `--no-mask`.
+
 ## Reading one value instead
 
 You don't need to open a console to look at a single value:

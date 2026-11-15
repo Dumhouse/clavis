@@ -25,6 +25,7 @@ func newRunCommand(opts *Options) *cobra.Command {
 	var mountFiles bool
 	var watch bool
 	var noPTY bool
+	var reveal []string
 	cmd := &cobra.Command{
 		Use:   "run [flags] [COMMAND [ARGS...]]",
 		Short: "Run a command with secrets injected and output masked",
@@ -52,13 +53,17 @@ Rails or npm run dev for Node.js).`,
 				}
 				args = defaultArgs
 			}
-			return runWithSecrets(cmd, opts, args, !noMask, mountFiles, watch, !noPTY)
+			if len(reveal) > 0 && !term.IsTerminal(int(os.Stdout.Fd())) {
+				return errors.New("--reveal only works when the output is your own terminal; it would write the values to a file or pipe")
+			}
+			return runWithSecrets(cmd, opts, args, !noMask, mountFiles, watch, !noPTY, reveal)
 		},
 	}
 	// Stop parsing Clavis flags at the first word of the command, so
 	// `clavis run rails s -p 3001` passes -p to rails without "--".
 	cmd.Flags().SetInterspersed(false)
 	cmd.Flags().BoolVar(&noMask, "no-mask", false, "disable output masking (dangerous)")
+	cmd.Flags().StringSliceVar(&reveal, "reveal", nil, "show these keys' values in the output while masking the rest (terminal only), e.g. --reveal SIDEKIQ_WEB_PASSWORD")
 	cmd.Flags().BoolVar(&mountFiles, "mount", false, "write file secrets to a private temp directory and expose their paths as env vars")
 	cmd.Flags().BoolVar(&noPTY, "no-pty", false, "in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)")
 	cmd.Flags().BoolVar(&watch, "watch", false, "restart the command when the environment's secrets change")
@@ -136,9 +141,9 @@ func splitCommandLine(line string) ([]string, error) {
 	return words, nil
 }
 
-func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool) error {
+func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool, reveal []string) error {
 	for {
-		restart, err := runWithSecretsOnce(cmd, opts, args, maskOutput, mountFiles, watch, usePTY)
+		restart, err := runWithSecretsOnce(cmd, opts, args, maskOutput, mountFiles, watch, usePTY, reveal)
 		if err != nil || !restart {
 			return err
 		}
@@ -146,7 +151,7 @@ func runWithSecrets(cmd *cobra.Command, opts *Options, args []string, maskOutput
 	}
 }
 
-func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool) (bool, error) {
+func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOutput, mountFiles, watch, usePTY bool, reveal []string) (bool, error) {
 	ctx := cmd.Context()
 	resolved, err := opts.resolveContext(true)
 	if err != nil {
@@ -189,7 +194,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 
 	child := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // G204: running the user-supplied command is the purpose of `clavis run`
 	child.Env = env
-	m := newMasker(values)
+	m := newMasker(maskedValues(result.Secrets, values, reveal))
 	// Interactive programs (rails c, irb, psql, a shell) only draw prompts and
 	// line editing on a terminal. When you are at one, run the command on a
 	// pseudo-terminal and mask what comes out of it; scripts and CI keep pipes.
@@ -276,7 +281,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 	waitErr := child.Wait()
 	cancelWatch()
 	if onTerminal && maskOutput && stdout.hits > 0 {
-		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To read them on your own screen: clavis run --no-mask %s\n", maskReplacement, strings.Join(args, " "))
+		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, strings.Join(args, " "))
 	}
 	select {
 	case <-restart:
@@ -347,6 +352,38 @@ func watchForSecretChange(ctx context.Context, resolved *resolvedContext) bool {
 
 // prepareSecretEnv splits secrets into environment variables and, when mount
 // is set, private files whose paths are exposed instead of their contents.
+// maskedValues drops the values of the keys named in reveal from the values to
+// hide, unless another key that is not revealed holds the same value.
+func maskedValues(secrets []secretJSON, values, reveal []string) []string {
+	if len(reveal) == 0 {
+		return values
+	}
+	shown := make(map[string]bool, len(reveal))
+	for _, key := range reveal {
+		shown[strings.TrimSpace(key)] = true
+	}
+	keep := make(map[string]bool)
+	drop := make(map[string]bool)
+	for _, secret := range secrets {
+		if secret.Value == "" {
+			continue
+		}
+		if shown[secret.Key] {
+			drop[secret.Value] = true
+		} else {
+			keep[secret.Value] = true
+		}
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if drop[value] && !keep[value] {
+			continue
+		}
+		out = append(out, value)
+	}
+	return out
+}
+
 func prepareSecretEnv(secrets []secretJSON, mount bool) ([]string, []string, func(), error) {
 	entries := make([]string, 0, len(secrets))
 	values := make([]string, 0, len(secrets))

@@ -15,8 +15,24 @@
   the setup scripts shown on the CLI page.
 - CI runs the terminal and masking tests on macOS as well as Linux.
 
+- `clavis run --reveal KEY` shows the named secrets in a console and keeps the
+  rest masked (terminal only).
+- `clavis prompt` prints the project and environment for your shell prompt
+  (`--shell bash|zsh|fish` prints the setup), and production stands out.
+- Shell completions ship in the `.deb`, `.rpm` and `.apk` packages, the release
+  archives and the Homebrew cask.
+- `clavis init` recognizes `bin/dev`, `Procfile.dev` and Phoenix projects.
+- `clavis doctor` warns when an environment's secrets have not changed in 90
+  days (names and dates only).
+- Docs: guides for CircleCI, Kubernetes and hosting platforms (Vercel, Fly.io,
+  Render), and a GitHub workflow that fails a pull request on a leaked token.
+- CI runs the CLI against a real server (`scripts/cli-e2e.sh`).
+
 ### Fixed
 
+- `clavis doctor` no longer reports a working CI or machine token as refused.
+  Those tokens cannot read their own profile; doctor now checks them against
+  the project instead.
 - `clavis run` no longer looks frozen with interactive programs such as
   `rails c`, `irb` or `psql`. Two causes: output masking held back the last
   bytes of every write (as many as the longest secret) until more output

@@ -18,6 +18,27 @@ Single Go binary `clavis` (same binary as the server). See [Install the CLI](#in
 
 winget is set up in the release pipeline and goes live once Microsoft accepts the first submission. The apt and rpm repositories are hosted on [Cloudsmith](https://cloudsmith.io/~dumhouse/repos/clavis/packages/). Read the setup script before you pipe it to a shell if you prefer. Alpine (`.apk`) installs from the release file.
 
+## Shell completions
+
+`clavis completion bash`, `zsh` and `fish` print a completion script. The
+`.deb`, `.rpm` and `.apk` packages install them for you, and the release
+archives and the Homebrew cask include them. Otherwise load one yourself:
+
+```sh
+# zsh: add to ~/.zshrc
+source <(clavis completion zsh)
+
+# bash: add to ~/.bashrc
+source <(clavis completion bash)
+
+# fish
+clavis completion fish > ~/.config/fish/completions/clavis.fish
+```
+
+To show the project and environment in your prompt (production stands out),
+run `clavis prompt --shell zsh` (or `bash`, `fish`) and add what it prints to
+your startup file.
+
 ## UX rules
 
 - **Pretty by default, scriptable always:** colored tables and prompts on a TTY; `--json` / `--quiet` for scripts; colors disabled automatically when not a TTY or when `NO_COLOR` is set.

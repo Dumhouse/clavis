@@ -45,6 +45,12 @@ to force pipes in a terminal.
 clavis run rails c
 ```
 
+<p class="cli-example-title">Show one value in a console, keep the rest masked</p>
+
+```sh
+clavis run --reveal SIDEKIQ_WEB_PASSWORD rails c
+```
+
 <p class="cli-example-title">Read real values in a console, on your own screen</p>
 
 ```sh
@@ -105,6 +111,7 @@ clavis run -- -my-tool --flag
 <div class="cli-flag" id="flag-mount"><dt><code>--mount</code></dt><dd>write file secrets to a private temp directory and expose their paths as env vars</dd></div>
 <div class="cli-flag" id="flag-no-mask"><dt><code>--no-mask</code></dt><dd>disable output masking (dangerous)</dd></div>
 <div class="cli-flag" id="flag-no-pty"><dt><code>--no-pty</code></dt><dd>in a terminal, run the command on pipes instead of a pseudo-terminal (no prompts, colors or line editing for interactive programs)</dd></div>
+<div class="cli-flag" id="flag-reveal"><dt><code>--reveal strings</code></dt><dd>show these keys&#39; values in the output while masking the rest (terminal only), e.g. --reveal SIDEKIQ_WEB_PASSWORD</dd></div>
 <div class="cli-flag" id="flag-watch"><dt><code>--watch</code></dt><dd>restart the command when the environment&#39;s secrets change</dd></div>
 </dl>
 
@@ -116,8 +123,11 @@ clavis run -- -my-tool --flag
   shares; it is not a security boundary. Put `--no-mask` before the
   command to see real values, for example to debug in `rails c`. Only do
   that on your own screen: values print in clear text, so keep it out of
-  screen shares, recordings and pasted output. To read a single value,
-  `clavis secrets get KEY` is enough. More in
+  screen shares, recordings and pasted output. To show only some keys,
+  use `--reveal KEY` (repeat it or separate keys with commas): those
+  values print in clear text and everything else stays masked. It only
+  works when the output is your own terminal. To read a single value
+  without a console, `clavis secrets get KEY` is enough. More in
   [Consoles and masking](../guides/consoles-and-masking).
 - **`--watch`** listens for changes and restarts the command with fresh
   values whenever this environment's secrets change.

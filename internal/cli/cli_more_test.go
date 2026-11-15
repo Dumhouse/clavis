@@ -558,3 +558,24 @@ func TestMaskWriterCountsHiddenValues(t *testing.T) {
 		t.Fatalf("hits = %d, want 1", w.hits)
 	}
 }
+
+func TestMaskedValuesRespectsReveal(t *testing.T) {
+	secrets := []secretJSON{
+		{Key: "A", Value: "alpha-value"},
+		{Key: "B", Value: "bravo-value"},
+		{Key: "C", Value: "alpha-value"},
+	}
+	values := []string{"alpha-value", "bravo-value", "alpha-value"}
+	if got := maskedValues(secrets, values, nil); len(got) != 3 {
+		t.Fatalf("no reveal should change nothing: %v", got)
+	}
+	got := maskedValues(secrets, values, []string{"B"})
+	if len(got) != 2 || got[0] != "alpha-value" {
+		t.Fatalf("revealing B: %v", got)
+	}
+	// A value shared with a key that stays hidden is still masked.
+	got = maskedValues(secrets, values, []string{"A"})
+	if len(got) != 3 {
+		t.Fatalf("shared value must stay masked: %v", got)
+	}
+}

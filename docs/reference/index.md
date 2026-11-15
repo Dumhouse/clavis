@@ -7,7 +7,7 @@ description: "Every clavis command with its flags and examples."
 
 # CLI reference
 
-<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 123 commands in 11 groups.</p>
+<p class="cli-lead">Every <code>clavis</code> command, its flags, and examples you can copy. The same text is shown by <code>clavis &lt;command&gt; --help</code>. 124 commands in 11 groups.</p>
 
 <CliSearch />
 
@@ -27,6 +27,7 @@ Start with the [quickstart](../quickstart): install the CLI, `clavis login`, `cl
 <a class="cli-card" href="./unlink"><span class="cli-card-name"><code>clavis unlink</code></span><span class="cli-card-text">Remove the .clavis.yaml in this directory</span></a>
 <a class="cli-card" href="./trust"><span class="cli-card-name"><code>clavis trust</code><span class="cli-card-meta">3 commands</span></span><span class="cli-card-text">Trust a server&#39;s self-signed certificate on this computer</span></a>
 <a class="cli-card" href="./doctor"><span class="cli-card-name"><code>clavis doctor</code></span><span class="cli-card-text">Check this computer&#39;s Clavis setup and say how to fix problems</span></a>
+<a class="cli-card" href="./prompt"><span class="cli-card-name"><code>clavis prompt</code></span><span class="cli-card-text">Print the linked project and environment for your shell prompt</span></a>
 </div>
 
 ## Run and export {#run}
