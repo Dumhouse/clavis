@@ -32,6 +32,8 @@ override them.
 <a class="cli-card" href="./env-freeze"><span class="cli-card-name"><code>clavis env freeze</code></span><span class="cli-card-text">Schedule a write freeze for the linked environment</span></a>
 <a class="cli-card" href="./env-freezes"><span class="cli-card-name"><code>clavis env freezes</code></span><span class="cli-card-text">List freeze windows</span></a>
 <a class="cli-card" href="./env-ls"><span class="cli-card-name"><code>clavis env ls</code></span><span class="cli-card-text">List environments</span></a>
+<a class="cli-card" href="./env-rm"><span class="cli-card-name"><code>clavis env rm</code></span><span class="cli-card-text">Delete an environment and the secrets in it</span></a>
+<a class="cli-card" href="./env-similar"><span class="cli-card-name"><code>clavis env similar</code></span><span class="cli-card-text">Compare every pair of environments and show how alike they are</span></a>
 <a class="cli-card" href="./env-unfreeze"><span class="cli-card-name"><code>clavis env unfreeze</code></span><span class="cli-card-text">Delete a freeze window</span></a>
 </div>
 

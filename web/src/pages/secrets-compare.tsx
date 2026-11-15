@@ -7,6 +7,7 @@ import type { components } from '@/api/schema'
 import { Menu, type MenuItem } from '@/components/ui/menu'
 import { toast } from '@/components/ui/toast'
 import { apiErrorMessage } from '@/lib/api-error'
+import { findDuplicates, similarEnvironments } from '@/lib/duplicates'
 import { cn } from '@/lib/utils'
 
 type Env = components['schemas']['EnvBody']
@@ -79,6 +80,18 @@ export function CompareEnvironments({
         return { key, cells, same: values.size === 1 && !values.has(null) }
       })
   }, [byEnv, shown, filter])
+  const duplicates = useMemo(() => {
+    const loaded = shown.map((env, index) => ({
+      slug: env.slug,
+      name: env.name,
+      type: env.type,
+      secrets: queries[index]?.data ?? [],
+    }))
+    return {
+      ...findDuplicates(loaded),
+      pairs: similarEnvironments(loaded).filter((pair) => pair.common > 0),
+    }
+  }, [shown, queries])
   const visible = showSame ? rows : rows.filter((row) => !row.same)
   const differing = rows.filter((row) => !row.same).length
 
@@ -163,6 +176,76 @@ export function CompareEnvironments({
           {differing} of {rows.length} keys differ
         </span>
       </div>
+
+      {!loading &&
+        (duplicates.sameValue.length > 0 ||
+          duplicates.sharedKey.length > 0 ||
+          duplicates.pairs.length > 0) && (
+          <details className="rounded-app border border-border bg-surface px-4 py-2.5 text-xs">
+            <summary className="cursor-pointer font-medium text-text">
+              Repeated values and look-alike environments
+              <span className="ml-2 font-normal text-dim">
+                {duplicates.sameValue.length + duplicates.sharedKey.length} repeated
+              </span>
+            </summary>
+            <div className="mt-3 space-y-3 text-muted">
+              {duplicates.sameValue.length > 0 && (
+                <div>
+                  <p className="mb-1 font-semibold text-text">Same value under different keys</p>
+                  <ul className="space-y-0.5">
+                    {duplicates.sameValue.map((group) => (
+                      <li key={`${group.env}:${group.keys.join(',')}`}>
+                        <span className="text-dim">{group.env}:</span>{' '}
+                        <span className="font-mono">{group.keys.join(', ')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {duplicates.sharedKey.length > 0 && (
+                <div>
+                  <p className="mb-1 font-semibold text-text">
+                    Same key, same value in several environments
+                  </p>
+                  <ul className="space-y-0.5">
+                    {duplicates.sharedKey.map((group) => (
+                      <li key={`${group.key}:${group.envs.join(',')}`}>
+                        <span className="font-mono">{group.key}</span>
+                        <span className="text-dim"> in {group.envs.join(', ')}</span>
+                        {group.withProduction && (
+                          <span className="ml-2 text-amber-fg">shared with production</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {duplicates.pairs.length > 0 && (
+                <div>
+                  <p className="mb-1 font-semibold text-text">How alike the environments are</p>
+                  <ul className="space-y-0.5">
+                    {duplicates.pairs.map((pair) => (
+                      <li key={`${pair.a}:${pair.b}`}>
+                        <span className="font-mono">
+                          {pair.a} ↔ {pair.b}
+                        </span>
+                        <span className="text-dim">
+                          {' '}
+                          {pair.same} of {pair.common} shared keys have an identical value (
+                          {pair.valuePercent}%)
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <p className="text-dim">
+                The same check from the CLI: <span className="font-mono">clavis secrets duplicates</span>
+                {' '}and <span className="font-mono">clavis env similar</span>.
+              </p>
+            </div>
+          </details>
+        )}
 
       {failed instanceof Error && (
         <p className="rounded-app-sm bg-danger-bg px-3 py-2 text-xs text-danger">

@@ -32,7 +32,8 @@ Without a command, `clavis run` starts the `run:` command saved in
 recognizes the project.
 
 In a terminal, interactive programs such as `rails c`, `irb` or `psql`
-work normally: the command runs on a pseudo-terminal, so it draws its
+work normally: the command runs on a pseudo-terminal (a ConPTY on Windows
+10 version 1809 and later), so it draws its
 prompt, colors and line editing, and its output is still masked. In
 scripts and CI the command's output is piped instead. Use `--no-pty`
 to force pipes in a terminal.

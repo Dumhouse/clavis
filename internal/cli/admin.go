@@ -33,6 +33,7 @@ func newAdminCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newAdminTLSInfoCommand(opts))
 	cmd.AddCommand(newAdminBackupCommand(opts))
 	cmd.AddCommand(newAdminRestoreCommand(opts))
+	cmd.AddCommand(newAdminBackupVerifyCommand(opts))
 	cmd.AddCommand(newAdminShamirCommand(opts))
 	cmd.AddCommand(newAdminUnsealCommand(opts))
 	return cmd

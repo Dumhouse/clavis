@@ -5,6 +5,7 @@
 set -euo pipefail
 
 BIN="$(cd "$(dirname "${1:-bin/clavis}")" && pwd)/$(basename "${1:-bin/clavis}")"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${CLAVIS_E2E_PORT:-18321}"
 BASE="http://127.0.0.1:${PORT}"
 WORK="$(mktemp -d)"
@@ -43,6 +44,8 @@ json -X POST -H "X-CSRF-Token: $(csrf)" "$BASE/api/v1/orgs/acme/projects/web/env
 OTHER_VALUE="e2e-other-value-b81d44"
 json -X POST -H "X-CSRF-Token: $(csrf)" "$BASE/api/v1/orgs/acme/projects/web/environments/dev/secrets" \
   -d "{\"key\":\"OTHER_KEY\",\"value\":\"$OTHER_VALUE\",\"kind\":\"secret\"}" >/dev/null
+json -X POST -H "X-CSRF-Token: $(csrf)" "$BASE/api/v1/orgs/acme/projects/web/environments/dev/secrets" \
+  -d "{\"key\":\"API_KEY_COPY\",\"value\":\"$SECRET_VALUE\",\"kind\":\"secret\"}" >/dev/null
 TOKEN="$(json -X POST -H "X-CSRF-Token: $(csrf)" "$BASE/api/v1/orgs/acme/tokens" -d '{"permissions":["secrets:read-names","secrets:read-values"],"expires_in_days":1}' |
   sed -n 's/.*"token":"\([^"]*\)".*/\1/p' | head -1)"
 [ -n "$TOKEN" ] || fail "no token"
@@ -76,14 +79,40 @@ def read(fd):
     data = os.read(fd, 4096)
     out.append(data)
     return data
-status = pty.spawn([os.environ["BIN"], "run", "--reveal", "API_KEY", "sh", "-c", "echo a=$API_KEY b=$OTHER_KEY"], read)
+status = pty.spawn([os.environ["BIN"], "run", "--reveal", "OTHER_KEY", "sh", "-c", "echo a=$API_KEY b=$OTHER_KEY"], read)
 sys.stdout.write(b"".join(out).decode("utf-8", "replace"))
 PY
 )"
-case "$shown" in *"a=$SECRET_VALUE"*) ;; *) fail "--reveal did not show the key: $shown" ;; esac
-case "$shown" in *"$OTHER_VALUE"*) fail "--reveal leaked another key: $shown" ;; esac
+case "$shown" in *"b=$OTHER_VALUE"*) ;; *) fail "--reveal did not show the key: $shown" ;; esac
+case "$shown" in *"$SECRET_VALUE"*) fail "--reveal leaked another key: $shown" ;; esac
 case "$shown" in *"--reveal KEY"*) ;; *) fail "no masking hint after the session: $shown" ;; esac
 ok "--reveal and the masking hint work in a terminal"
+
+# Two keys with one value are reported, without printing the value.
+dups="$("$BIN" secrets duplicates --json)"
+case "$dups" in *API_KEY_COPY*) ;; *) fail "duplicates missed a repeated value: $dups" ;; esac
+case "$dups" in *"$SECRET_VALUE"*) fail "duplicates printed a value" ;; esac
+ok "secrets duplicates finds repeated values"
+
+# A token that was committed and later deleted is found in history.
+mkdir "$WORK/repo" && (
+  cd "$WORK/repo" && git init -q &&
+  printf 'KEY=%s\n' "$TOKEN" > leaked.env && git add . &&
+  git -c user.email=t@example.com -c user.name=t commit -qm leak &&
+  git rm -q leaked.env && git -c user.email=t@example.com -c user.name=t commit -qm remove
+)
+if (cd "$WORK/repo" && "$BIN" scan --history --values=false >/dev/null 2>&1); then fail "scan --history missed a deleted token"; fi
+(cd "$WORK/repo" && git rm -q --cached -r . >/dev/null 2>&1 || true)
+ok "scan --history finds deleted secrets"
+
+# The SDKs fetch the same secret over the API.
+got="$(PYTHONPATH="$ROOT/sdk/python" python3 -c 'import clavis_client; print(clavis_client.fetch_secrets()["API_KEY"], end="")')"
+[ "$got" = "$SECRET_VALUE" ] || fail "python SDK returned the wrong value"
+if command -v node >/dev/null 2>&1; then
+  got="$(node --input-type=module -e "import { fetchSecrets } from '$ROOT/sdk/node/clavis.mjs'; process.stdout.write((await fetchSecrets()).API_KEY)")"
+  [ "$got" = "$SECRET_VALUE" ] || fail "node SDK returned the wrong value"
+fi
+ok "Python and Node SDKs fetch secrets"
 
 "$BIN" doctor >"$WORK/doctor.txt" 2>&1 || { cat "$WORK/doctor.txt"; fail "doctor reported a problem"; }
 ok "doctor passes"

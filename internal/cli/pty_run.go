@@ -16,6 +16,7 @@ import (
 // real one: same size, keystrokes passed through, programs see a terminal.
 type ptySession struct {
 	Master  *os.File
+	child   *exec.Cmd
 	restore func()
 }
 
@@ -78,6 +79,7 @@ func startOnPTY(child *exec.Cmd) (*ptySession, error) {
 
 	return &ptySession{
 		Master: master,
+		child:  child,
 		restore: func() {
 			signal.Stop(resize)
 			close(stop)
@@ -91,3 +93,24 @@ func startOnPTY(child *exec.Cmd) (*ptySession, error) {
 
 // Close restores the real terminal and closes the pseudo-terminal.
 func (s *ptySession) Close() { s.restore() }
+
+// Wait waits for the program to exit.
+func (s *ptySession) Wait() error { return s.child.Wait() }
+
+// Kill stops the program.
+func (s *ptySession) Kill() {
+	if s.child.Process != nil {
+		_ = s.child.Process.Kill()
+	}
+}
+
+// ptyAvailable reports whether this system can open a pseudo-terminal.
+func ptyAvailable() error {
+	master, slave, err := openPTY()
+	if err != nil {
+		return err
+	}
+	_ = master.Close()
+	_ = slave.Close()
+	return nil
+}

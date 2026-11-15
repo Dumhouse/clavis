@@ -231,6 +231,17 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			return false, fmt.Errorf("could not start %s: %w", args[0], err)
 		}
 	}
+	// On a pseudo-terminal the session owns the process (on Windows it is not
+	// an exec.Cmd process at all), so wait for it and stop it through the session.
+	killChild := func() {
+		if child.Process != nil {
+			_ = child.Process.Kill()
+		}
+	}
+	waitChild := child.Wait
+	if session != nil {
+		killChild, waitChild = session.Kill, session.Wait
+	}
 	restart := make(chan struct{}, 1)
 	watchCtx, cancelWatch := context.WithCancel(ctx)
 	defer cancelWatch()
@@ -241,9 +252,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 				case restart <- struct{}{}:
 				default:
 				}
-				if child.Process != nil {
-					_ = child.Process.Kill()
-				}
+				killChild()
 			}
 		}()
 	}
@@ -256,9 +265,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 			return
 		}
 		cleanup()
-		if child.Process != nil {
-			_ = child.Process.Kill()
-		}
+		killChild()
 	}()
 	copies := 1
 	done := make(chan struct{}, 2)
@@ -278,7 +285,7 @@ func runWithSecretsOnce(cmd *cobra.Command, opts *Options, args []string, maskOu
 	for range copies {
 		<-done
 	}
-	waitErr := child.Wait()
+	waitErr := waitChild()
 	cancelWatch()
 	if onTerminal && maskOutput && stdout.hits > 0 {
 		_, _ = fmt.Fprintf(opts.output().Err, "clavis: secret values in the output were hidden as %s. To show one: clavis run --reveal KEY %[2]s (or --no-mask for all)\n", maskReplacement, strings.Join(args, " "))

@@ -133,3 +133,58 @@ func Prune(dir string, keep int) ([]string, error) {
 	}
 	return removed, nil
 }
+
+// Summary describes what a verified backup contains. It holds counts only.
+type Summary struct {
+	Format        string `json:"format"`
+	Orgs          int    `json:"orgs"`
+	Projects      int    `json:"projects"`
+	Environments  int    `json:"environments"`
+	Secrets       int    `json:"secrets"`
+	IntegrityNote string `json:"integrity,omitempty"`
+}
+
+// VerifySQLite checks a restored SQLite copy: SQLite's own integrity check,
+// then counts of the main tables, so an empty or truncated backup is caught.
+func VerifySQLite(ctx context.Context, db *sql.DB) (Summary, error) {
+	summary := Summary{Format: "sqlite"}
+	var check string
+	if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&check); err != nil {
+		return summary, fmt.Errorf("integrity check: %w", err)
+	}
+	if check != "ok" {
+		return summary, fmt.Errorf("the database copy is damaged: %s", check)
+	}
+	summary.IntegrityNote = "ok"
+	for _, table := range []struct {
+		name string
+		dest *int
+	}{
+		{"orgs", &summary.Orgs}, {"projects", &summary.Projects},
+		{"environments", &summary.Environments}, {"items", &summary.Secrets},
+	} {
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table.name).Scan(table.dest); err != nil { //nolint:gosec // G202: fixed table names
+			return summary, fmt.Errorf("read %s: %w", table.name, err)
+		}
+	}
+	if summary.Orgs == 0 {
+		return summary, fmt.Errorf("the backup contains no organizations; it is empty or from a server that was never set up")
+	}
+	return summary, nil
+}
+
+// VerifyPostgresDump checks that a decrypted pg_dump file looks complete. A
+// full restore test needs a spare Postgres server; this catches truncation.
+func VerifyPostgresDump(plaintext []byte) (Summary, error) {
+	text := string(plaintext)
+	if !strings.Contains(text, "PostgreSQL database dump") {
+		return Summary{}, fmt.Errorf("this does not look like a PostgreSQL dump")
+	}
+	if !strings.Contains(text, "CREATE TABLE") {
+		return Summary{}, fmt.Errorf("the dump has no tables")
+	}
+	if !strings.Contains(text, "PostgreSQL database dump complete") {
+		return Summary{}, fmt.Errorf("the dump is cut short (no completion marker)")
+	}
+	return Summary{Format: "postgres"}, nil
+}

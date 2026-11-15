@@ -44,6 +44,18 @@ jobs:
       # Linux, so run the terminal and masking tests there too.
       - run: go test -count=1 -run 'PTY|Mask|Doctor' ./internal/cli
 
+  windows:
+    name: Windows terminal tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      # clavis run uses a Windows pseudo console (ConPTY) for consoles.
+      - run: go test -count=1 -run 'PTY|Mask' ./internal/cli
+
   postgres:
     name: Go tests (Postgres)
     runs-on: ubuntu-26.04

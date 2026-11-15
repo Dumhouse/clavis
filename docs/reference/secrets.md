@@ -26,6 +26,7 @@ Every write creates a new version, so nothing is lost.
 ## Commands
 
 <div class="cli-cards cli-cards-list">
+<a class="cli-card" href="./secrets-duplicates"><span class="cli-card-name"><code>clavis secrets duplicates</code></span><span class="cli-card-text">Find secrets that share a value, in one environment or across environments</span></a>
 <a class="cli-card" href="./secrets-generate"><span class="cli-card-name"><code>clavis secrets generate</code></span><span class="cli-card-text">Generate a random value and store it</span></a>
 <a class="cli-card" href="./secrets-get"><span class="cli-card-name"><code>clavis secrets get</code></span><span class="cli-card-text">Print one secret value</span></a>
 <a class="cli-card" href="./secrets-history"><span class="cli-card-name"><code>clavis secrets history</code></span><span class="cli-card-text">Show version history</span></a>

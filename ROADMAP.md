@@ -15,7 +15,9 @@ task checklists in [project/tasks/](project/tasks/).
 - `clavis doctor` checks consoles, the commit hook and old secrets.
 - Signed releases (cosign), SBOMs and provenance; hosted apt and rpm repositories.
 - Guides for GitHub, GitLab, Forgejo, CircleCI, Kubernetes and hosting platforms.
-- The CLI is tested against a real server in CI, and on macOS.
+- The CLI is tested against a real server in CI, and on macOS and Windows.
+- Duplicate-value and look-alike-environment checks, `env rm`, `scan --history`, `admin verify-backup`.
+- Windows consoles (ConPTY), and Node.js and Python clients.
 
 ## Next
 

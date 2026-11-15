@@ -28,8 +28,30 @@
   Render), and a GitHub workflow that fails a pull request on a leaked token.
 - CI runs the CLI against a real server (`scripts/cli-e2e.sh`).
 
+- `clavis secrets duplicates` finds secrets that share a value (under different
+  keys, or across environments, flagged when production is involved) and
+  `clavis env similar` shows how alike each pair of environments is. Values are
+  compared on your computer and never printed. The web Compare tab shows the
+  same findings.
+- `clavis env rm SLUG` deletes an environment (the web app already could),
+  with a typed confirmation, or `--yes` in scripts.
+- `clavis scan --history` scans every line any commit on any branch added, so
+  deleted secrets are found.
+- `clavis admin verify-backup FILE` checks that a backup decrypts, opens,
+  upgrades to this version's schema and holds data, without touching the live
+  database.
+- `clavis run` uses a Windows pseudo console (ConPTY, Windows 10 1809 and
+  later), so consoles show their prompts there too.
+- Small Node.js and Python clients (`sdk/`) that fetch an environment's
+  secrets at start-up, an Arch Linux PKGBUILD and a Dev Container Feature
+  (`packaging/`, `devcontainer/`).
+- CI runs the terminal tests on Windows as well as macOS and Linux.
+
 ### Fixed
 
+- `clavis env diff` said values are "compared server-side" and its reference
+  said they are not compared. It fetches values (audited), compares them on
+  your computer and never prints them; both now say so.
 - `clavis doctor` no longer reports a working CI or machine token as refused.
   Those tokens cannot read their own profile; doctor now checks them against
   the project instead.
