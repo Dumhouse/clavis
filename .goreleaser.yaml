@@ -5,6 +5,7 @@ project_name: clavis
 before:
   hooks:
     - go mod tidy
+    - ./scripts/completions.sh
 
 builds:
   - id: clavis
@@ -37,6 +38,7 @@ archives:
       - NOTICE
       - README.md
       - deploy/clavis.example.yaml
+      - completions/*
 
 checksum:
   name_template: checksums.txt
@@ -97,6 +99,10 @@ homebrew_casks:
       token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
     homepage: https://dumhouse.github.io/clavis/
     description: Open-source secrets management for humans, machines, and AI agents.
+    completions:
+      bash: completions/clavis.bash
+      zsh: completions/_clavis
+      fish: completions/clavis.fish
     # Skipped until the HOMEBREW_TAP_TOKEN secret exists, so releases keep working.
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
     # The binary is not notarized by Apple, so clear the download quarantine flag.
@@ -163,6 +169,19 @@ nfpms:
       - rpm
       - apk
     bindir: /usr/bin
+    contents:
+      - src: completions/clavis.bash
+        dst: /usr/share/bash-completion/completions/clavis
+        file_info:
+          mode: 0644
+      - src: completions/_clavis
+        dst: /usr/share/zsh/vendor-completions/_clavis
+        file_info:
+          mode: 0644
+      - src: completions/clavis.fish
+        dst: /usr/share/fish/vendor_completions.d/clavis.fish
+        file_info:
+          mode: 0644
 
 release:
   header: |

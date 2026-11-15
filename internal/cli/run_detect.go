@@ -16,8 +16,14 @@ func detectRunCommand(dir string) string {
 	switch {
 	case exists("package.json"):
 		return nodeRunCommand(dir, exists)
+	case exists("bin/rails") && exists("bin/dev"):
+		return "bin/dev"
 	case exists("bin/rails"):
 		return "bin/rails server"
+	case exists("Procfile.dev"):
+		return "foreman start -f Procfile.dev"
+	case exists("mix.exs"):
+		return "mix phx.server"
 	case exists("manage.py"):
 		return "python manage.py runserver"
 	case exists("artisan"):

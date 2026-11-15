@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -104,6 +107,12 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 		add(doctorCheck{Section: "CLI", Name: "Latest release", Status: doctorOK, Detail: "up to date (" + latest + ")"})
 	}
 
+	// This computer.
+	add(consoleCheck())
+	if hook := hookCheck(); hook != nil {
+		add(*hook)
+	}
+
 	// Project configuration.
 	resolved, err := opts.resolveContext(false)
 	if err != nil {
@@ -196,26 +205,46 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 		return checks
 	}
 	var me whoAmIResponse
+	limitedToken := false
 	if err := c.Get(ctx, "/api/v1/auth/me", &me); err != nil {
-		check := doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorFail,
-			Detail: "the saved token was refused (" + tokenFrom + ")", Fix: "clavis login --server " + server}
 		var p *problem.Problem
 		if !errors.As(err, &p) || (p.Status != http.StatusUnauthorized && p.Status != http.StatusForbidden) {
-			check.Detail = err.Error()
-			check.Fix = ""
+			add(doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorFail, Detail: err.Error()})
+			return checks
 		}
-		add(check)
-		return checks
+		// Machine, CI and personal tokens cannot read /auth/me (it answers
+		// 401 or 403), so a refusal there does not prove the token is bad.
+		// Try the project: only a refusal there means the token is rejected.
+		var refused bool
+		if resolved.Org != "" && resolved.Project != "" {
+			var detail projectDetail
+			probe := c.Get(ctx, projectBase(resolved), &detail)
+			var pp *problem.Problem
+			refused = probe != nil && errors.As(probe, &pp) && pp.Status == http.StatusUnauthorized
+		} else {
+			refused = p.Status == http.StatusUnauthorized
+		}
+		if refused {
+			add(doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorFail,
+				Detail: "the saved token was refused (" + tokenFrom + ")", Fix: "clavis login --server " + server})
+			return checks
+		}
+		limitedToken = true
 	}
-	who := me.User.Email
-	if who == "" {
-		who = me.User.Name
+	if limitedToken {
+		add(doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorOK,
+			Detail: fmt.Sprintf("a token that cannot read its own profile, such as a CI or machine token (token from %s)", tokenFrom)})
+	} else {
+		who := me.User.Email
+		if who == "" {
+			who = me.User.Name
+		}
+		if who == "" {
+			who = "a machine or agent token"
+		}
+		add(doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorOK,
+			Detail: fmt.Sprintf("%s (token from %s)", who, tokenFrom)})
 	}
-	if who == "" {
-		who = "a machine or agent token"
-	}
-	add(doctorCheck{Section: "Sign-in", Name: "Credential", Status: doctorOK,
-		Detail: fmt.Sprintf("%s (token from %s)", who, tokenFrom)})
 
 	// Project access.
 	if resolved.Org == "" || resolved.Project == "" {
@@ -225,6 +254,12 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 	}
 	var detail projectDetail
 	if err := c.Get(ctx, projectBase(resolved), &detail); err != nil {
+		var pp *problem.Problem
+		if limitedToken && errors.As(err, &pp) && pp.Status == http.StatusForbidden {
+			add(doctorCheck{Section: "Access", Name: "Project", Status: doctorWarn,
+				Detail: fmt.Sprintf("%s/%s: this token is not allowed to read project details, so the environment was not checked", resolved.Org, resolved.Project)})
+			return checks
+		}
 		add(doctorCheck{Section: "Access", Name: "Project", Status: doctorFail,
 			Detail: fmt.Sprintf("%s/%s: %v", resolved.Org, resolved.Project, err),
 			Fix:    "Check the slugs with clavis whoami, or ask an admin for access"})
@@ -242,12 +277,100 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 	}
 	if found {
 		add(doctorCheck{Section: "Access", Name: "Environment", Status: doctorOK, Detail: resolved.Env})
+		if check := staleSecretsCheck(ctx, c, resolved, time.Now()); check != nil {
+			add(*check)
+		}
 	} else {
 		add(doctorCheck{Section: "Access", Name: "Environment", Status: doctorFail,
 			Detail: fmt.Sprintf("%q is not in this project (it has %s)", resolved.Env, strings.Join(slugs, ", ")),
 			Fix:    "clavis init --env " + firstNonEmpty(firstSlug(slugs), "dev")})
 	}
 	return checks
+}
+
+// consoleCheck says whether `clavis run` can give interactive programs
+// (rails c, irb, psql) a terminal, so their prompts appear.
+func consoleCheck() doctorCheck {
+	check := doctorCheck{Section: "This computer", Name: "Consoles"}
+	if !ptySupported {
+		check.Status = doctorWarn
+		check.Detail = "clavis run cannot open a pseudo-terminal here, so consoles like rails c show no prompt"
+		check.Fix = "Run the console through a shell instead: clavis shell"
+		return check
+	}
+	if err := ptyAvailable(); err != nil {
+		check.Status = doctorWarn
+		check.Detail = "could not open a pseudo-terminal: " + err.Error()
+		check.Fix = "Use clavis run --no-pty <command>, or clavis shell"
+		return check
+	}
+	check.Status = doctorOK
+	check.Detail = "clavis run can give consoles a terminal (rails c, irb, psql)"
+	return check
+}
+
+// hookCheck reports whether this git repository blocks secrets at commit
+// time. It returns nil outside a git repository, where it does not apply.
+func hookCheck() *doctorCheck {
+	raw, err := exec.Command("git", "rev-parse", "--git-dir").Output()
+	if err != nil {
+		return nil
+	}
+	check := &doctorCheck{Section: "This computer", Name: "Commit hook"}
+	hookPath := filepath.Join(strings.TrimSpace(string(raw)), "hooks", "pre-commit")
+	if data, err := os.ReadFile(hookPath); err == nil && bytes.Contains(data, []byte("clavis scan")) {
+		check.Status = doctorOK
+		check.Detail = "pre-commit hook runs clavis scan"
+		return check
+	}
+	if data, err := os.ReadFile(".pre-commit-config.yaml"); err == nil && bytes.Contains(data, []byte("clavis")) {
+		check.Status = doctorOK
+		check.Detail = "pre-commit framework runs clavis scan"
+		return check
+	}
+	check.Status = doctorWarn
+	check.Detail = "this repository does not stop secrets from being committed"
+	check.Fix = "clavis scan --install-hook"
+	return check
+}
+
+// staleSecretAge is how long a secret may go unchanged before doctor asks
+// whether it should be rotated.
+const staleSecretAge = 90 * 24 * time.Hour
+
+// staleSecretsCheck lists how many of the environment's own secrets have not
+// changed in 90 days. It reads names and dates only, never values, and
+// returns nil when the list cannot be read.
+func staleSecretsCheck(ctx context.Context, c apiClient, resolved *resolvedContext, now time.Time) *doctorCheck {
+	var list secretsListResponse
+	if err := c.Get(ctx, secretsBase(resolved), &list); err != nil {
+		return nil
+	}
+	total, stale := 0, 0
+	oldestKey, oldest := "", now
+	for _, secret := range list.Secrets {
+		if secret.Inherited || secret.UpdatedAt.IsZero() {
+			continue
+		}
+		total++
+		if now.Sub(secret.UpdatedAt) > staleSecretAge {
+			stale++
+			if secret.UpdatedAt.Before(oldest) {
+				oldestKey, oldest = secret.Key, secret.UpdatedAt
+			}
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	if stale == 0 {
+		return &doctorCheck{Section: "Access", Name: "Secret age", Status: doctorOK,
+			Detail: fmt.Sprintf("all %d secrets changed in the last 90 days", total)}
+	}
+	return &doctorCheck{Section: "Access", Name: "Secret age", Status: doctorWarn,
+		Detail: fmt.Sprintf("%d of %d secrets unchanged for 90+ days (oldest: %s, %d days)",
+			stale, total, oldestKey, int(now.Sub(oldest).Hours()/24)),
+		Fix: "Rotate the old ones: clavis secrets set " + oldestKey + " (see clavis rotation for automatic rotation)"}
 }
 
 func firstSlug(slugs []string) string {

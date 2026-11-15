@@ -37,6 +37,12 @@ clavis scan
 clavis scan --staged
 ```
 
+<p class="cli-example-title">Every commit on every branch, deleted secrets included</p>
+
+```sh
+clavis scan --history
+```
+
 <p class="cli-example-title">Add a git pre-commit hook</p>
 
 ```sh
@@ -46,6 +52,7 @@ clavis scan --install-hook
 ## Flags
 
 <dl class="cli-flags">
+<div class="cli-flag" id="flag-history"><dt><code>--history</code></dt><dd>scan every line any commit on any branch ever added, so deleted secrets are found too</dd></div>
 <div class="cli-flag" id="flag-install-hook"><dt><code>--install-hook</code></dt><dd>install a pre-commit hook that runs the staged scan</dd></div>
 <div class="cli-flag" id="flag-staged"><dt><code>--staged</code></dt><dd>scan git staged files</dd></div>
 <div class="cli-flag" id="flag-values"><dt><code>--values</code></dt><dd>also match resolved secret values in memory (requires read-values) <span class="cli-default">Default: <code>true</code></span></dd></div>
@@ -54,6 +61,11 @@ clavis scan --install-hook
 ## Details
 
 Exits with code `7` when it finds a leak, so it can fail CI. `--values=false` checks token formats only.
+
+`--history` reads every line that any commit on any branch ever added, so
+a secret that was committed and later deleted is still found. Each finding
+names the commit, file and line. A secret found in history is already
+exposed: rotate it, then consider rewriting history.
 
 <details class="cli-globals"><summary>Global flags</summary>
 

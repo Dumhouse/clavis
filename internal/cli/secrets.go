@@ -71,6 +71,7 @@ func newSecretsCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newSecretsRollbackCommand(opts))
 	cmd.AddCommand(newSecretsGenerateCommand(opts))
 	cmd.AddCommand(newSecretsOverrideCommand(opts))
+	cmd.AddCommand(newSecretsDuplicatesCommand(opts))
 	return cmd
 }
 

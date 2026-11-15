@@ -82,6 +82,7 @@ func NewRootCommandWithOptions(opts *Options) *cobra.Command {
 	root.AddCommand(newUpgradeCommand(opts))
 	root.AddCommand(newUpdateCommand(opts))
 	root.AddCommand(newDoctorCommand(opts))
+	root.AddCommand(newPromptCommand(opts))
 	root.AddCommand(newRotationCommand(opts))
 	root.AddCommand(newSchemaCommand(opts))
 	root.AddCommand(newCodegenCommand(opts))

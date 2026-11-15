@@ -70,6 +70,6 @@ These work with every command.
 ## Related
 
 <div class="cli-cards">
-<a class="cli-card" href="./admin"><span class="cli-card-name"><code>clavis admin</code><span class="cli-card-meta">9 commands</span></span><span class="cli-card-text">Instance administration</span></a>
+<a class="cli-card" href="./admin"><span class="cli-card-name"><code>clavis admin</code><span class="cli-card-meta">10 commands</span></span><span class="cli-card-text">Instance administration</span></a>
 <a class="cli-card" href="./audit-ls"><span class="cli-card-name"><code>clavis audit ls</code></span><span class="cli-card-text">List recent audit events</span></a>
 </div>
