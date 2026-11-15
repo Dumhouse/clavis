@@ -17,7 +17,7 @@ func newPromptCommand(opts *Options) *cobra.Command {
 		Use:   "prompt",
 		Short: "Print the linked project and environment for your shell prompt",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			if shell != "" {
 				snippet, err := promptSnippet(shell)
 				if err != nil {
