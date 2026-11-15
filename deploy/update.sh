@@ -65,13 +65,16 @@ docker compose stop
 # The root key stays out of the copy: a file holding both the database and the
 # key that decrypts it is the one thing an attacker needs. It stays in the
 # volume, and a restore below keeps it there.
-if ! docker run --rm -v "$volume":/data:ro -v "$PWD/backups":/backups "$helper" \
-  tar czf "/backups/$file" --exclude './root.key*' -C /data .; then
+# chmod runs in the container too: the file is created there, as root.
+if ! docker run --rm -v "$volume":/data:ro -v "$PWD/backups":/backups "$helper" sh -c '
+  set -e
+  tar czf "/backups/$1" --exclude "./root.key*" -C /data .
+  chmod 600 "/backups/$1"
+' backup "$file"; then
   set_version "$old"
   docker compose up -d --wait || true
   die "backup failed; restarted $old and changed nothing"
 fi
-chmod 600 "backups/$file"
 echo "Backup: backups/$file (without the root key)"
 
 if docker compose up -d --wait; then

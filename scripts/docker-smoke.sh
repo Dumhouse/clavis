@@ -58,9 +58,11 @@ key=$(root_key_sum)
 
 echo "== update.sh to a good version"
 ./update.sh two
-backup=$(ls backups/clavis-data-one-*.tgz) || fail "no backup written"
-tar tzf "$backup" | grep -q 'clavis.db' || fail "backup has no database"
-if tar tzf "$backup" | grep -q 'root.key'; then fail "backup contains the root key"; fi
+# The backup is root-owned and mode 600, so list it from a container.
+backup=$(cd backups && ls clavis-data-one-*.tgz) || fail "no backup written"
+listing=$(docker run --rm -v "$PWD/backups":/backups:ro alpine:3 tar tzf "/backups/$backup") || fail "cannot read the backup"
+echo "$listing" | grep -q 'clavis.db' || fail "backup has no database"
+if echo "$listing" | grep -q 'root.key'; then fail "backup contains the root key"; fi
 [ "$(root_key_sum)" = "$key" ] || fail "root key changed during the update"
 grep -q '^CLAVIS_VERSION=two$' .env || fail "version not updated"
 
