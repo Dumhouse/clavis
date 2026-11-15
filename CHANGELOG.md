@@ -4,8 +4,7 @@
 
 ### Added
 
-- `clavis healthcheck` asks the server on this machine whether it is ready
-  (HTTPS when TLS is on), and the Docker image now runs it as its
+- `clavis healthcheck` asks the server on this machine whether it is ready, and the Docker image now runs it as its
   `HEALTHCHECK`, so `docker ps` and `docker compose up --wait` know when
   Clavis is healthy.
 - `deploy/compose.yaml` is a production setup: pinned version in `.env`, daily

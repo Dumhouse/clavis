@@ -93,8 +93,9 @@ docker compose up -d --wait
 ### Health check
 
 The image checks itself every 30 seconds with `clavis healthcheck`, which asks
-the server's `/readyz` (database and root key) and uses HTTPS when TLS is on.
-The image has no shell or `curl`, so the binary does the request. `docker ps`
+the server's `/readyz` (database and root key) on the plain HTTP port, which
+answers it even when TLS is on. The image has no shell or `curl`, so the binary
+does the request. `docker ps`
 shows `healthy` or `unhealthy`, `docker compose up --wait` waits for it, and you
 can run it yourself:
 

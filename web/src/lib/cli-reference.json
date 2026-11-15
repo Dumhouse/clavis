@@ -1399,7 +1399,7 @@
       "group": "server",
       "usage": "clavis healthcheck [flags]",
       "summary": "Check that the server on this machine is ready",
-      "description": "Ask the server running on this machine whether it is ready, and exit\nnon-zero if it is not. It reads the same settings as `clavis server`, so\nit finds the right port, and uses HTTPS when the server has TLS on. The\nDocker image runs it as its `HEALTHCHECK`, because the image has no shell\nor `curl`.",
+      "description": "Ask the server running on this machine whether it is ready, and exit\nnon-zero if it is not. It reads the same settings as `clavis server`, so\nit finds the right port. It asks the plain HTTP port, which answers\n`/readyz` even when the server has TLS on, so no certificate is involved.\nThe Docker image runs it as its `HEALTHCHECK`, because the image has no\nshell or `curl`.",
       "examples": [
         {
           "title": "From outside the container",

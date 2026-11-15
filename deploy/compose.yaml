@@ -1,35 +1,42 @@
-# Production-oriented compose file.
+# Clavis on one machine with Docker Compose.
 #
-# Generate a root key once and keep it OUT of the data volume and backups:
-#   echo "CLAVIS_ROOT_KEY=$(openssl rand -base64 32)" > deploy/.env && chmod 600 deploy/.env
-# Losing this key makes every stored secret unrecoverable.
+#   cp .env.example .env     # then edit it
+#   docker compose up -d --wait
+#
+# To update, run ./update.sh VERSION. See docs/self-hosting.md.
 services:
   clavis:
-    image: ghcr.io/dumhouse/clavis:${CLAVIS_VERSION:-0.3.4}
+    # Pin CLAVIS_VERSION in .env so an update is something you do on purpose.
+    image: ghcr.io/dumhouse/clavis:${CLAVIS_VERSION:-latest}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    restart: unless-stopped
     ports:
-      # Loopback only: put a TLS reverse proxy (Caddy, Traefik) in front, or
-      # change to "8080:8080" deliberately.
-      - "127.0.0.1:8080:8080"
+      - "${CLAVIS_HTTP_PORT:-80}:8080"
+      - "${CLAVIS_HTTPS_PORT:-443}:8443"
+    env_file: .env
     environment:
-      CLAVIS_SERVER_BASE_URL: ${CLAVIS_SERVER_BASE_URL:-http://localhost:8080}
       CLAVIS_LOG_FORMAT: json
-      CLAVIS_KEY_PROVIDER: env
-      CLAVIS_ROOT_KEY: ${CLAVIS_ROOT_KEY:?set CLAVIS_ROOT_KEY, see the header of this file}
+      # Daily encrypted backups to their own volume, newest 7 kept. Keep a copy
+      # of these (and of the root key) somewhere else too.
+      CLAVIS_BACKUP_ENABLED: "true"
+      CLAVIS_BACKUP_DIR: /backups
+      CLAVIS_BACKUP_INTERVAL: 24h
+      CLAVIS_BACKUP_KEEP: "7"
     volumes:
       - clavis-data:/data
-    restart: unless-stopped
+      - clavis-backups:/backups
+    # The image's HEALTHCHECK runs `clavis healthcheck`; `up --wait` waits for it.
+    stop_grace_period: 30s
     read_only: true
     tmpfs:
       - /tmp
-    cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    pids_limit: 256
-    mem_limit: 512m
-    stop_grace_period: 30s
+    cap_drop:
+      - ALL
 
 volumes:
   clavis-data:
+  clavis-backups:

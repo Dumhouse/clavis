@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -43,12 +42,10 @@ func newHealthcheckCommand(opts *Options) *cobra.Command {
 	return cmd
 }
 
-// localReadyURL is the readiness URL on this machine: HTTPS when the server
-// has TLS on (its HTTP port then only redirects), plain HTTP otherwise.
+// localReadyURL is the readiness URL on this machine. It always uses the plain
+// HTTP port: with TLS on, that port answers /healthz and /readyz itself and only
+// redirects everything else, so the probe needs no certificate.
 func localReadyURL(cfg *config.Config) string {
-	if cfg.Server.TLS.Enabled() {
-		return "https://" + loopbackAddr(cfg.Server.TLS.Addr) + "/readyz"
-	}
 	return "http://" + loopbackAddr(cfg.Server.Addr) + "/readyz"
 }
 
@@ -66,14 +63,10 @@ func loopbackAddr(listen string) string {
 	return net.JoinHostPort(host, port)
 }
 
-// probeReady asks /readyz and fails unless it answers 200. The certificate is
-// not verified: the request never leaves this machine, the endpoint carries no
-// secrets, and a self-signed certificate would otherwise always fail.
+// probeReady asks /readyz and fails unless it answers 200. A redirect is not an
+// answer: it means the request reached something other than the probe endpoint.
 func probeReady(ctx context.Context, url string) error {
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, //nolint:gosec // loopback readiness probe; see the function comment
-		},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

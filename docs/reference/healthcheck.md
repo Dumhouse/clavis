@@ -21,9 +21,10 @@ clavis healthcheck [flags]
 
 Ask the server running on this machine whether it is ready, and exit
 non-zero if it is not. It reads the same settings as `clavis server`, so
-it finds the right port, and uses HTTPS when the server has TLS on. The
-Docker image runs it as its `HEALTHCHECK`, because the image has no shell
-or `curl`.
+it finds the right port. It asks the plain HTTP port, which answers
+`/readyz` even when the server has TLS on, so no certificate is involved.
+The Docker image runs it as its `HEALTHCHECK`, because the image has no
+shell or `curl`.
 
 ## Examples
 

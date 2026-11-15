@@ -25,7 +25,8 @@ func TestLocalReadyURL(t *testing.T) {
 	secure.Server.Addr = ":8080"
 	secure.Server.TLS.Mode = config.TLSSelfSigned
 	secure.Server.TLS.Addr = "0.0.0.0:8443"
-	if got := localReadyURL(secure); got != "https://127.0.0.1:8443/readyz" {
+	// With TLS on, the HTTP port still answers /readyz, so no certificate is needed.
+	if got := localReadyURL(secure); got != "http://127.0.0.1:8080/readyz" {
 		t.Fatalf("tls: %s", got)
 	}
 }
@@ -34,12 +35,12 @@ func TestProbeReady(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ok := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ok.Close()
 	if err := probeReady(ctx, ok.URL); err != nil {
-		t.Fatalf("self-signed 200 should be ready: %v", err)
+		t.Fatalf("200 should be ready: %v", err)
 	}
 
 	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
