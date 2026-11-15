@@ -21,6 +21,12 @@ type projectConfig struct {
 	// Run is the default command for a bare `clavis run`, for example
 	// "bin/rails server". Quotes group words: `run: 'sh -c "make dev"'`.
 	Run string `yaml:"run,omitempty"`
+	// CommittedEnvFiles are .env files the team commits on purpose because
+	// they hold no secrets, such as the defaults Next.js and Vite read. Doctor
+	// does not warn about them. A pattern without a slash matches the file name
+	// in any folder; one with a slash matches the path from the repository
+	// root. Shell wildcards work: [".env", ".env.development", "config/*.env"].
+	CommittedEnvFiles []string `yaml:"committed_env_files,omitempty"`
 }
 
 const projectConfigName = ".clavis.yaml"

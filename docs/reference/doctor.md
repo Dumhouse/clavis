@@ -31,6 +31,15 @@ without a change (names and dates only, never values). A token that
 cannot read its own profile, such as a CI token, is accepted if it can
 reach the project.
 
+In a git repository it also checks `.env` files (and `.envrc`, `*.env`)
+at the repository root, in the current folder and beside `.clavis.yaml`:
+ones git would commit, ones it already tracks, and ones that were ever
+committed, since a committed key stays in the history. Only file names
+are read. Files you commit on purpose can be listed under
+`committed_env_files` in [`.clavis.yaml`](./clavis-yaml). In CI,
+untracked files are not reported, because they are usually the ones the
+pipeline just wrote.
+
 Checks stop at the first thing that blocks the rest, so the first `✗`
 is the one to fix. It changes nothing and never prints secret values.
 The exit code is 1 when a check fails, so CI can run it too.

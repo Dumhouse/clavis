@@ -130,6 +130,13 @@ func runDoctor(ctx context.Context, opts *Options) []doctorCheck {
 		add(doctorCheck{Section: "Project", Name: "Environment variables", Status: doctorOK,
 			Detail: strings.Join(names, ", ") + " (these override .clavis.yaml)"})
 	}
+	var committedEnvFiles []string
+	if cfg, _, err := loadProjectConfig("."); err == nil {
+		committedEnvFiles = cfg.CommittedEnvFiles
+	}
+	for _, check := range envFileDoctorChecks(ctx, resolved.ConfigPath, committedEnvFiles) {
+		add(check)
+	}
 
 	// Server.
 	server := resolved.Server

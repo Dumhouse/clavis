@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -87,7 +88,7 @@ func newExportCommand(opts *Options) *cobra.Command {
 			return err
 		}
 		out.Warn("Wrote secrets to %s (0600). Make sure it is listed in .gitignore.", outPath)
-		warnGitignore(out, outPath)
+		warnGitignore(cmd.Context(), out, outPath)
 		return nil
 	}
 	cmd.Flags().StringVar(&format, "format", "dotenv", "dotenv, json, yaml, shell, docker, k8s, or github-env (CI job environment on GitHub, Forgejo and Gitea)")
@@ -165,19 +166,35 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
-func warnGitignore(out *Output, path string) {
-	ignore, err := os.ReadFile(".gitignore")
+// warnGitignore says what git would do with the file export just wrote. git
+// decides, so wildcards, nested .gitignore files and negations count, and a
+// file that is already tracked (where ignoring it changes nothing) is named
+// as such. Outside a repository, or when git cannot answer, it says nothing:
+// the caller has already told the user to keep the file out of git.
+func warnGitignore(ctx context.Context, out *Output, file string) {
+	abs, err := filepath.Abs(file)
 	if err != nil {
-		out.Warn("No .gitignore found. Do not commit %s.", filepath.Base(path))
 		return
 	}
-	base := filepath.Base(path)
-	for _, line := range strings.Split(string(ignore), "\n") {
-		if strings.TrimSpace(line) == base || strings.TrimSpace(line) == "/"+base {
-			return
-		}
+	dir, base := filepath.Dir(abs), filepath.Base(abs)
+	if root, err := gitRoot(ctx, dir); err != nil || root == "" {
+		return
 	}
-	out.Warn("%s is not in .gitignore. Add it before committing.", base)
+	tracked, err := runGitNames(ctx, dir, true, "ls-files", "-z", "--cached", "--", base)
+	if err != nil {
+		return
+	}
+	if len(tracked) > 0 {
+		out.Warn("%s is tracked by git, so the next commit includes these secrets. Run: git rm --cached %s, then add it to .gitignore.", base, base)
+		return
+	}
+	ignored, err := runGitNames(ctx, dir, true, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", base)
+	if err != nil {
+		return
+	}
+	if len(ignored) == 0 {
+		out.Warn("%s is not ignored by git. Add it to .gitignore before committing.", base)
+	}
 }
 
 // exportCIEnv appends values to the job environment file of GitHub, Forgejo
