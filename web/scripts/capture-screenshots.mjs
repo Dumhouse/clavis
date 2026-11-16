@@ -2,10 +2,13 @@
  * Captures marketing screenshots from a disposable Clavis instance.
  *
  * Usage (from web/): node scripts/capture-screenshots.mjs
+ *   CAPTURE_GIF=1 node scripts/capture-screenshots.mjs   records the web UI tour
+ *   as docs/assets/readme/web-demo.gif instead of taking screenshots (needs ffmpeg)
  * Requires a current binary + web build: make build
  */
-import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -406,10 +409,92 @@ async function shoot(state) {
   await browser.close()
 }
 
+// Records a short tour of the web UI (demo data only) and turns it into a GIF.
+async function recordTour(state) {
+  const channel = process.env.PLAYWRIGHT_CHANNEL
+  const browser = await chromium.launch(channel ? { channel } : {})
+  const videoDir = mkdtempSync(join(tmpdir(), 'clavis-tour-'))
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 760 },
+    colorScheme: 'dark',
+    recordVideo: { dir: videoDir, size: { width: 1280, height: 760 } },
+  })
+  await context.addCookies(state.cookies)
+  await context.addInitScript(() => {
+    localStorage.setItem('clavis.theme', 'dark')
+    localStorage.setItem('clavis.appearance', 'classic')
+    localStorage.setItem('clavis.nav.tools', 'closed')
+  })
+  const page = await context.newPage()
+  const open = async (path) => {
+    await page.goto(base + path, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(1200)
+  }
+
+  // Click through the sidebar like a person would, so pages swap without a reload.
+  const go = async (name, fallbackPath, pause = 1600) => {
+    const link = page.getByRole('link', { name, exact: true }).first()
+    if (await link.count()) await link.click()
+    else await page.goto(base + fallbackPath, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(pause)
+  }
+
+  await open('/projects/payments-api')
+  const reveal = page.getByRole('button', { name: 'Reveal all' })
+  if (await reveal.count()) {
+    await reveal.click()
+    const dialog = page.getByRole('dialog')
+    await page.waitForTimeout(600)
+    if (await dialog.count()) {
+      const reason = dialog.getByRole('textbox')
+      if (await reason.count()) await reason.first().fill('Demo')
+      await page.waitForTimeout(500)
+      await dialog
+        .getByRole('button', { name: /reveal|confirm|continue/i })
+        .last()
+        .click()
+    }
+    await page.waitForTimeout(2200)
+  }
+  const tools = page.getByRole('button', { name: /^Tools/ }).first()
+  if (await tools.count()) await tools.click()
+  await go('Schema', '/projects/payments-api/schema', 2200)
+  await go('Promote', '/projects/payments-api/promote', 600)
+  const from = page.getByLabel('From environment')
+  if (await from.count()) {
+    await from.selectOption('dev')
+    await page.getByLabel('To environment').selectOption('staging')
+    await page.waitForTimeout(1800)
+  }
+  await go('Agents & machines', '/identities', 2200)
+  await go('Audit log', '/audit', 600)
+  const changes = page.getByRole('button', { name: 'Changes', exact: true })
+  if (await changes.count()) await changes.click()
+  await page.waitForTimeout(1600)
+
+  await context.close() // flushes the video
+  await browser.close()
+  const video = readdirSync(videoDir).find((f) => f.endsWith('.webm'))
+  if (!video) throw new Error('no video was recorded')
+  const out = join(repoRoot, 'docs', 'assets', 'readme', 'web-demo.gif')
+  const filter =
+    'fps=10,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4'
+  const result = spawnSync(
+    'ffmpeg',
+    ['-y', '-i', join(videoDir, video), '-vf', filter, '-loop', '0', out],
+    {
+      stdio: 'inherit',
+    },
+  )
+  if (result.status !== 0) throw new Error('ffmpeg failed')
+  console.log('wrote', out)
+}
+
 try {
   await waitFor(`${base}/healthz`)
   const state = await seed()
-  await shoot(state)
+  if (process.env.CAPTURE_GIF) await recordTour(state)
+  else await shoot(state)
 } finally {
   server.kill('SIGTERM')
 }

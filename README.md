@@ -39,6 +39,10 @@ and Kubernetes, and lets AI coding agents **use** secrets without ever seeing
 their values.
 
 <p align="center">
+  <img src="docs/assets/readme/web-demo.gif" alt="Recorded tour of the web UI: secrets across dev, staging and production with a reveal, the schema editor, a promotion plan from dev to staging, agent identities, and the audit log" width="760" />
+</p>
+
+<p align="center">
   <img src="docs/assets/terminal-demo.svg" alt="Terminal session: clavis login, link, run with masked secrets, check, and an agent allowlist" width="760" />
 </p>
 

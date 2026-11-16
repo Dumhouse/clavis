@@ -4,6 +4,8 @@
 
 ### Added
 
+- A recorded tour of the web UI in the README, made by
+  `CAPTURE_GIF=1 node scripts/capture-screenshots.mjs` from `web/`.
 - `clavis healthcheck` asks the server on this machine whether it is ready, and the Docker image now runs it as its
   `HEALTHCHECK`, so `docker ps` and `docker compose up --wait` know when
   Clavis is healthy.
