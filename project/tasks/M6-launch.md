@@ -25,18 +25,16 @@ Goal: trustworthy, documented, fast, and launched.
 
 ## Launch
 - [ ] **M6-16** Public roadmap + GitHub Discussions + Discord/Matrix community (S)
-- [ ] **M6-17** Launch posts: Show HN, Product Hunt, Reddit (r/selfhosted, r/devops, r/golang), dev.to, X/Bluesky (S)
-- [ ] **M6-18** Listings: awesome-selfhosted, CNCF landscape, Homebrew core, Artifact Hub (S)
+- [ ] **M6-17** Announcements and community posts (S)
+- [ ] **M6-18** Directory and package listings (S)
 - [x] **M6-19** Sustainability plan: GitHub Sponsors / Open Collective (no feature gating, ever) (S)
 
 ## Launch readiness assets
 
 - External audit scope/RFP: `project/security/audit-scope.md`
 - Secret-scanning partner packet: `project/security/secret-scanning-partner.md`
-- Show HN/Product Hunt/Reddit/dev.to drafts: `project/launch/`
-- Listing submissions: `launch/listings.md`
 - Community/issue templates: `docs/community.md`, `.github/ISSUE_TEMPLATE/`
-- Landing page and reset-enabled demo: `site/`, `deploy/demo/`
+- Landing page and local demo: `docs/`, `deploy/demo/`
 - Docs site: `docs/` (VitePress)
 
 Remaining checklist items require external accounts or third parties:

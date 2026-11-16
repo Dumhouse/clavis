@@ -52,3 +52,7 @@ docs/public/robots.txt
 /sdk/python/build/
 /sdk/python/*.egg-info/
 /sdk/node/*.tgz
+
+# Launch drafts stay local (not part of the project)
+project/launch/*
+!project/launch/artifacthub-repo.yml
