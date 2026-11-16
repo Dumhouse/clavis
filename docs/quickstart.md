@@ -16,13 +16,13 @@ or with Docker:
 
 ```sh
 docker run -d --name clavis --restart unless-stopped \
-  -p 80:8080 -v clavis-data:/data \
+  -p 8080:8080 -v clavis-data:/data \
   ghcr.io/dumhouse/clavis:latest
 ```
 
-- `-p 80:8080` publishes Clavis on port 80 of your machine, so the address is
-  plain <http://localhost>. Inside the container it listens on 8080 because it
-  runs as a non-root user. Use `-p 8080:8080` if port 80 is taken.
+- `-p 8080:8080` publishes Clavis on port 8080 of your machine, so the address is
+  <http://localhost:8080>, the same address the setup link in the log uses.
+  For port 80 or HTTPS, use the [install wizard](./install).
 - `--restart unless-stopped` brings it back after a crash or a reboot.
 - `-v clavis-data:/data` keeps the database and the root key across restarts
   and upgrades.
@@ -49,7 +49,7 @@ reaches it first cannot take it over. The easiest way: the server log prints a
 docker logs clavis 2>&1 | grep setup_url
 ```
 
-Open that link. Or open <http://localhost/setup> and paste the token, which you
+Open that link. Or open <http://localhost:8080/setup> and paste the token, which you
 can print at any time while setup is open:
 
 ```sh

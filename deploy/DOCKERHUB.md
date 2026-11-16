@@ -13,11 +13,11 @@ server that lets coding agents run commands without seeing secret values.
 
 ```sh
 docker run -d --name clavis --restart unless-stopped \
-  -p 80:8080 -v clavis-data:/data \
+  -p 8080:8080 -v clavis-data:/data \
   dumhouse/clavis:latest
 ```
 
-Open http://localhost and claim the server. The log prints a setup link with
+Open http://localhost:8080 and claim the server. The log prints a setup link with
 the one-time token built in:
 
 ```sh
@@ -30,8 +30,10 @@ or print the token itself (prefix with `ssh user@host` for a remote server):
 docker exec clavis clavis setup-token
 ```
 
-- `-p 80:8080` publishes the web UI on port 80. Without `-p` the page is not
-  reachable.
+- `-p 8080:8080` publishes the web UI on port 8080. Without `-p` the page is not
+  reachable. The setup link in the log uses this port, so keep both numbers the
+  same for a quick local try. For ports 80 and 443 use the install wizard or the
+  HTTPS guide.
 - `--restart unless-stopped` restarts Clavis after a crash or a reboot.
 - The volume holds the SQLite database **and the root key**. Back up the root
   key separately from database backups: without it the secrets cannot be
