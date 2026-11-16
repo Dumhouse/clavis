@@ -201,7 +201,22 @@ release:
 
     Open-source secrets management for humans, machines, and AI agents.
 
-    **Download**
+    **One binary, three parts.** The same `clavis` program is:
+
+    - the **server**, with the web UI built in (`clavis server`, or the Docker image),
+    - the **command-line app** you use on your laptop and in CI (`clavis run`, `clavis check`, `clavis login`),
+    - and the **MCP server** that lets coding agents run allowed commands without seeing secret values (`clavis mcp`).
+
+    **Quick start.** Run the server, open the setup link it prints, and create the owner account:
+
+    ```sh
+    docker run -d --name clavis -p 8080:8080 -v clavis-data:/data dumhouse/clavis:{{ .Version }}
+    docker logs clavis 2>&1 | grep setup_url
+    ```
+
+    Then install the command-line app below and run `clavis login`. Full guide: [quick start](https://dumhouse.github.io/clavis/quickstart). What changed in this version: [changelog](https://dumhouse.github.io/clavis/changelog).
+
+    **Download the command-line app (also the server binary)**
 
     | | x86-64 (amd64) | ARM (arm64) |
     | --- | --- | --- |
