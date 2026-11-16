@@ -50,7 +50,7 @@ their values.
 
 ```sh
 docker run -d --name clavis --restart unless-stopped \
-  -p 80:8080 -v clavis-data:/data \
+  -p 8080:8080 -v clavis-data:/data \
   dumhouse/clavis:latest
 ```
 
@@ -74,7 +74,7 @@ The same image is on `ghcr.io/dumhouse/clavis`. Pin a version such as
 All methods, including `go install`, are listed in the [CLI docs](https://dumhouse.github.io/clavis/cli).
 
 1. Open the setup link from the log (`docker logs clavis 2>&1 | grep setup_url`),
-   or open <http://localhost/setup> and paste the token from
+   or open <http://localhost:8080/setup> and paste the token from
    `docker exec clavis clavis setup-token`.
 2. Create the owner account. A welcome flow then asks for your organization,
    first project and stack, and shows the commands for your OS. Setup closes for good.
