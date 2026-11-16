@@ -201,7 +201,26 @@ release:
 
     Open-source secrets management for humans, machines, and AI agents.
 
-    **Download**
+    One `clavis` program is the **server with the web UI built in**, the **command-line app** for your laptop and CI, and the **MCP server** that lets coding agents run allowed commands without seeing secret values.
+
+    ### 1. Run the server and web UI
+
+    ```sh
+    docker run -d --name clavis -p 8080:8080 -v clavis-data:/data dumhouse/clavis:{{ .Version }}
+    docker logs clavis 2>&1 | grep setup_url
+    ```
+
+    Open the setup link the second command prints (`http://localhost:8080/setup#token=…`) and create the owner account. Wait a few seconds after starting if it prints nothing. For HTTPS or a server on your network, use the [install wizard](https://dumhouse.github.io/clavis/install).
+
+    ### 2. Install the command-line app
+
+    - macOS: `brew install dumhouse/tap/clavis`
+    - Windows: `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket && scoop install clavis`
+    - Any Linux or macOS: `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh | bash`
+
+    Then run `clavis login --server http://localhost:8080`. Full guide: [quick start](https://dumhouse.github.io/clavis/quickstart). What changed in this version: [changelog](https://dumhouse.github.io/clavis/changelog).
+
+    ### 3. Or download it manually
 
     | | x86-64 (amd64) | ARM (arm64) |
     | --- | --- | --- |
@@ -210,14 +229,7 @@ release:
     | **Windows** | [clavis_{{ .Version }}_windows_amd64.zip](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_windows_amd64.zip) | [clavis_{{ .Version }}_windows_arm64.zip](https://github.com/Dumhouse/clavis/releases/download/{{ .Tag }}/clavis_{{ .Version }}_windows_arm64.zip) |
 
     Not sure which? Apple Silicon Macs and most ARM servers are arm64; most
-    Intel and AMD machines are amd64.
-
-    **Install with a package manager**
-
-    - macOS: `brew install dumhouse/tap/clavis`
-    - Windows: `scoop bucket add dumhouse https://github.com/Dumhouse/scoop-bucket && scoop install clavis`
-    - Any Linux or macOS: `curl -fsSL https://raw.githubusercontent.com/dumhouse/clavis/main/scripts/install.sh | bash`
-    - Docker: `docker run -p 8080:8080 -v clavis-data:/data dumhouse/clavis:{{ .Version }}`
+    Intel and AMD machines are amd64. The same binary also runs the server.
   footer: |
     **Other files in this release** are for verification, not for running: `checksums.txt` (SHA-256 of everything), `*.sigstore.json` (cosign signatures), `*.sbom.json` (software bill of materials) and `multiple.intoto.jsonl` (build provenance). See the [supply chain docs](https://dumhouse.github.io/clavis/supply-chain).
 
