@@ -130,7 +130,7 @@ jobs:
             echo "::error::SQLite with replicaCount=2 must be rejected"
             exit 1
           fi
-      - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
       - name: Install into kind
         # Installs this chart with the latest released server image, so a
         # chart change that breaks a real deployment fails here, not at release.
