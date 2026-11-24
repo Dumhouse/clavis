@@ -61,6 +61,9 @@
   --engine mysql` creates a user per lease with configurable privileges and
   drops it on revoke or expiry. `clavis rotation create --provider mysql`
   rotates a user's password.
+- `clavis codegen --lang rust` generates a Rust struct and env loader with
+  `load`, `load_for` and `load_from`, using only the standard library. CI
+  compiles the generated code with `cargo check`.
 
 ### Changed
 

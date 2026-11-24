@@ -18,8 +18,9 @@ func newCodegenCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "codegen",
 		Short: "Generate typed config loaders from the project schema",
-		Long: "Generate TypeScript (zod), Go (struct + loader), or Python (pydantic) code\n" +
-			"from the project schema. Commit the generated file next to your app.",
+		Long: "Generate TypeScript (zod), Go (struct + loader), Python (pydantic), or\n" +
+			"Rust (struct + loader) code from the project schema. Commit the generated\n" +
+			"file next to your app.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := opts.output()
@@ -49,8 +50,10 @@ func newCodegenCommand(opts *Options) *cobra.Command {
 				content, err = generateGo(schema.Schema, packageName, typeName)
 			case "py", "python":
 				content, err = generatePython(schema.Schema, typeName)
+			case "rs", "rust":
+				content, err = generateRust(schema.Schema, typeName)
 			default:
-				return fmt.Errorf("unknown language %q: use ts, go, or python", lang)
+				return fmt.Errorf("unknown language %q: use ts, go, python, or rust", lang)
 			}
 			if err != nil {
 				return err
@@ -66,7 +69,7 @@ func newCodegenCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&lang, "lang", "ts", "ts, go, or python")
+	cmd.Flags().StringVar(&lang, "lang", "ts", "ts, go, python, or rust")
 	cmd.Flags().StringVarP(&outPath, "out", "o", "", "output file (default stdout)")
 	cmd.Flags().StringVar(&packageName, "package", "config", "Go package name")
 	cmd.Flags().StringVar(&typeName, "name", "Config", "generated type/class name")
@@ -531,6 +534,327 @@ func pythonFieldNames(schema []schemaJSON) []string {
 		names[i] = name
 	}
 	return names
+}
+
+func generateRust(schema []schemaJSON, typeName string) (string, error) {
+	if typeName == "" {
+		typeName = "Config"
+	}
+	names := rustFieldNames(schema)
+	enumNames := make([]string, len(schema))
+	usedTypes := map[string]int{}
+	needURL, needPatterns, needJSON := false, false, false
+	for i, entry := range schema {
+		switch schemaType(entry) {
+		case "url":
+			needURL = true
+		case "json":
+			needJSON = true
+		case "enum":
+			if len(entry.Enum) == 0 {
+				break
+			}
+			name := rustTypeName(entry.Key)
+			usedTypes[name]++
+			if usedTypes[name] > 1 {
+				name = fmt.Sprintf("%s%d", name, usedTypes[name])
+			}
+			enumNames[i] = name
+		}
+		if entry.Pattern != "" {
+			needPatterns = true
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("// Code generated from the Clavis project schema. DO NOT EDIT.\n\n")
+	b.WriteString("use std::env;\nuse std::fmt;\n\n")
+	var notes []string
+	if needPatterns {
+		notes = append(notes, "// Schema patterns are not checked: the standard library has no regex engine.")
+	}
+	if needJSON {
+		notes = append(notes, "// JSON fields keep their raw text: the standard library has no JSON decoder.")
+	}
+	if len(notes) > 0 {
+		b.WriteString("// Generated without third-party crates, so:\n")
+		for _, note := range notes {
+			b.WriteString(note + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("/// Typed configuration generated from the Clavis schema.\n")
+	b.WriteString("#[derive(Debug, Clone, Default, PartialEq, Eq)]\n")
+	fmt.Fprintf(&b, "pub struct %s {\n", typeName)
+	for i, entry := range schema {
+		description := strings.Join(strings.Fields(entry.Description), " ")
+		if description != "" {
+			fmt.Fprintf(&b, "    /// %s\n", description)
+		}
+		if schemaType(entry) == "enum" && len(entry.Enum) > 0 {
+			fmt.Fprintf(&b, "    /// Values: %s\n", strings.Join(rustEnumValues(entry), ", "))
+		}
+		fmt.Fprintf(&b, "    pub %s: %s,\n", names[i], rustType(entry, enumNames[i]))
+	}
+	b.WriteString("}\n\n")
+
+	for i, entry := range schema {
+		if schemaType(entry) != "enum" || len(entry.Enum) == 0 {
+			continue
+		}
+		values := rustEnumValues(entry)
+		variants := rustVariantNames(values)
+		enumType := enumNames[i]
+		fmt.Fprintf(&b, "/// Accepted values for %s.\n", entry.Key)
+		b.WriteString("#[derive(Debug, Clone, Copy, PartialEq, Eq)]\n")
+		fmt.Fprintf(&b, "pub enum %s {\n", enumType)
+		for _, variant := range variants {
+			fmt.Fprintf(&b, "    %s,\n", variant)
+		}
+		b.WriteString("}\n\n")
+		fmt.Fprintf(&b, "impl %s {\n", enumType)
+		b.WriteString("    fn parse(value: &str) -> Option<Self> {\n")
+		b.WriteString("        match value {\n")
+		for j, value := range values {
+			fmt.Fprintf(&b, "            %s => Some(Self::%s),\n", jsonString(value), variants[j])
+		}
+		b.WriteString("            _ => None,\n")
+		b.WriteString("        }\n    }\n}\n\n")
+		fmt.Fprintf(&b, "impl fmt::Display for %s {\n", enumType)
+		b.WriteString("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n")
+		b.WriteString("        f.write_str(match self {\n")
+		for j, value := range values {
+			fmt.Fprintf(&b, "            Self::%s => %s,\n", variants[j], jsonString(value))
+		}
+		b.WriteString("        })\n    }\n}\n\n")
+	}
+
+	b.WriteString("/// A missing or malformed configuration value.\n")
+	b.WriteString("#[derive(Debug, Clone, PartialEq, Eq)]\n")
+	b.WriteString("pub struct ConfigError {\n    pub key: &'static str,\n    pub message: String,\n}\n\n")
+	b.WriteString("impl ConfigError {\n")
+	b.WriteString("    pub fn new(key: &'static str, message: impl Into<String>) -> Self {\n")
+	b.WriteString("        Self { key, message: message.into() }\n    }\n}\n\n")
+	b.WriteString("impl fmt::Display for ConfigError {\n")
+	b.WriteString("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n")
+	b.WriteString("        write!(f, \"{}: {}\", self.key, self.message)\n    }\n}\n\n")
+	b.WriteString("impl std::error::Error for ConfigError {}\n\n")
+
+	b.WriteString("/// Load the configuration from the process environment.\n")
+	fmt.Fprintf(&b, "pub fn load() -> Result<%s, ConfigError> {\n    load_for(\"\")\n}\n\n", typeName)
+	b.WriteString("/// Load the configuration and enforce the keys required for `env_type`.\n")
+	fmt.Fprintf(&b, "pub fn load_for(env_type: &str) -> Result<%s, ConfigError> {\n", typeName)
+	b.WriteString("    let environ: Vec<(String, String)> = env::vars().collect();\n")
+	b.WriteString("    load_from(&environ, env_type)\n}\n\n")
+	b.WriteString("/// Load from KEY=VALUE pairs; required keys are checked when `env_type` is set.\n")
+	fmt.Fprintf(&b, "pub fn load_from(environ: &[(String, String)], env_type: &str) -> Result<%s, ConfigError> {\n", typeName)
+	fmt.Fprintf(&b, "    let mut cfg = %s::default();\n", typeName)
+	b.WriteString("    for (key, value) in environ {\n        match key.as_str() {\n")
+	for i, entry := range schema {
+		target := "cfg." + names[i]
+		optional := !requiredAnywhere(entry)
+		fmt.Fprintf(&b, "            %s => {\n", jsonString(entry.Key))
+		switch schemaType(entry) {
+		case "url":
+			fmt.Fprintf(&b, "                if !is_absolute_url(value) {\n")
+			fmt.Fprintf(&b, "                    return Err(ConfigError::new(%s, \"must be an absolute URL\"));\n", jsonString(entry.Key))
+			b.WriteString("                }\n")
+			fmt.Fprintf(&b, "                %s;\n", rustAssign(target, optional, "value.clone()"))
+		case "int":
+			fmt.Fprintf(&b, "                let parsed = value.parse::<i64>().map_err(|_| ConfigError::new(%s, \"must be an integer\"))?;\n", jsonString(entry.Key))
+			fmt.Fprintf(&b, "                %s;\n", rustAssign(target, optional, "parsed"))
+		case "bool":
+			b.WriteString("                match value.to_ascii_lowercase().as_str() {\n")
+			fmt.Fprintf(&b, "                    \"true\" | \"1\" | \"yes\" => %s,\n", rustAssign(target, optional, "true"))
+			fmt.Fprintf(&b, "                    \"false\" | \"0\" | \"no\" => %s,\n", rustAssign(target, optional, "false"))
+			fmt.Fprintf(&b, "                    _ => return Err(ConfigError::new(%s, \"must be a boolean\")),\n", jsonString(entry.Key))
+			b.WriteString("                }\n")
+		case "enum":
+			if len(entry.Enum) == 0 {
+				fmt.Fprintf(&b, "                %s;\n", rustAssign(target, optional, "value.clone()"))
+				break
+			}
+			fmt.Fprintf(&b, "                let parsed = %s::parse(value).ok_or_else(|| ConfigError::new(%s, \"must be one of [%s]\"))?;\n",
+				enumNames[i], jsonString(entry.Key), strings.Join(rustEnumValues(entry), ", "))
+			fmt.Fprintf(&b, "                %s;\n", rustAssign(target, optional, "parsed"))
+		default:
+			fmt.Fprintf(&b, "                %s;\n", rustAssign(target, optional, "value.clone()"))
+		}
+		b.WriteString("            }\n")
+	}
+	b.WriteString("            _ => {}\n        }\n    }\n")
+
+	required := map[string][]string{}
+	for _, entry := range schema {
+		for envType, value := range entry.Required {
+			if value {
+				required[envType] = append(required[envType], entry.Key)
+			}
+		}
+	}
+	if len(required) > 0 {
+		envTypes := make([]string, 0, len(required))
+		for envType := range required {
+			envTypes = append(envTypes, envType)
+		}
+		sort.Strings(envTypes)
+		b.WriteString("    let required: &[&str] = match env_type {\n")
+		for _, envType := range envTypes {
+			keys := required[envType]
+			sort.Strings(keys)
+			quoted := make([]string, 0, len(keys))
+			for _, key := range keys {
+				quoted = append(quoted, jsonString(key))
+			}
+			fmt.Fprintf(&b, "        %s => &[%s],\n", jsonString(envType), strings.Join(quoted, ", "))
+		}
+		b.WriteString("        _ => &[],\n    };\n")
+		b.WriteString("    for &key in required {\n")
+		b.WriteString("        if !environ.iter().any(|(name, _)| name.as_str() == key) {\n")
+		b.WriteString("            return Err(ConfigError::new(key, format!(\"required in {}\", env_type)));\n")
+		b.WriteString("        }\n    }\n")
+	} else {
+		b.WriteString("    let _ = env_type;\n")
+	}
+
+	b.WriteString("    Ok(cfg)\n}\n")
+	if needURL {
+		b.WriteString("\nfn is_absolute_url(value: &str) -> bool {\n")
+		b.WriteString("    match value.split_once(\"://\") {\n")
+		b.WriteString("        Some((scheme, rest)) => {\n")
+		b.WriteString("            !rest.is_empty()\n")
+		b.WriteString("                && scheme.chars().next().map_or(false, |c| c.is_ascii_alphabetic())\n")
+		b.WriteString("                && scheme\n")
+		b.WriteString("                    .chars()\n")
+		b.WriteString("                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))\n")
+		b.WriteString("        }\n        None => false,\n    }\n}\n")
+	}
+	return b.String(), nil
+}
+
+func rustAssign(target string, optional bool, expression string) string {
+	if optional {
+		return fmt.Sprintf("%s = Some(%s)", target, expression)
+	}
+	return fmt.Sprintf("%s = %s", target, expression)
+}
+
+func rustType(entry schemaJSON, enumName string) string {
+	var base string
+	switch schemaType(entry) {
+	case "int":
+		base = "i64"
+	case "bool":
+		base = "bool"
+	case "enum":
+		if len(entry.Enum) > 0 {
+			return "Option<" + enumName + ">"
+		}
+		base = "String"
+	default:
+		base = "String"
+	}
+	if requiredAnywhere(entry) {
+		return base
+	}
+	return "Option<" + base + ">"
+}
+
+// rustEnumValues returns the enum values in order without duplicates, which
+// would produce unreachable match arms.
+func rustEnumValues(entry schemaJSON) []string {
+	seen := map[string]struct{}{}
+	values := make([]string, 0, len(entry.Enum))
+	for _, value := range entry.Enum {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		values = append(values, value)
+	}
+	return values
+}
+
+func rustFieldNames(schema []schemaJSON) []string {
+	used := map[string]int{}
+	names := make([]string, len(schema))
+	for i, entry := range schema {
+		var b strings.Builder
+		for _, r := range strings.ToLower(entry.Key) {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+				b.WriteRune(r)
+			} else {
+				b.WriteRune('_')
+			}
+		}
+		name := strings.Trim(b.String(), "_")
+		if name == "" {
+			name = "field"
+		}
+		if unicode.IsDigit([]rune(name)[0]) {
+			name = "_" + name
+		}
+		if _, ok := rustKeywords[name]; ok {
+			name += "_"
+		}
+		used[name]++
+		if used[name] > 1 {
+			name = fmt.Sprintf("%s_%d", name, used[name])
+		}
+		names[i] = name
+	}
+	return names
+}
+
+func rustTypeName(key string) string {
+	return rustPascalCase(key, "Value")
+}
+
+func rustVariantNames(values []string) []string {
+	used := map[string]int{}
+	names := make([]string, len(values))
+	for i, value := range values {
+		name := rustPascalCase(value, "Value")
+		used[name]++
+		if used[name] > 1 {
+			name = fmt.Sprintf("%s%d", name, used[name])
+		}
+		names[i] = name
+	}
+	return names
+}
+
+func rustPascalCase(value, fallback string) string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	var b strings.Builder
+	for _, part := range parts {
+		runes := []rune(strings.ToLower(part))
+		if len(runes) == 0 {
+			continue
+		}
+		runes[0] = unicode.ToUpper(runes[0])
+		b.WriteString(string(runes))
+	}
+	name := b.String()
+	if name == "" {
+		return fallback
+	}
+	if unicode.IsDigit([]rune(name)[0]) {
+		name = "V" + name
+	}
+	return name
+}
+
+var rustKeywords = map[string]struct{}{
+	"as": {}, "async": {}, "await": {}, "box": {}, "break": {}, "const": {}, "continue": {},
+	"crate": {}, "dyn": {}, "else": {}, "enum": {}, "extern": {}, "false": {}, "fn": {}, "for": {},
+	"if": {}, "impl": {}, "in": {}, "let": {}, "loop": {}, "match": {}, "mod": {}, "move": {},
+	"mut": {}, "pub": {}, "ref": {}, "return": {}, "self": {}, "static": {}, "struct": {},
+	"super": {}, "trait": {}, "true": {}, "type": {}, "union": {}, "unsafe": {}, "use": {},
+	"where": {}, "while": {}, "yield": {},
 }
 
 func lowerFirst(name string) string {

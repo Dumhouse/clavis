@@ -361,14 +361,20 @@ commands:
         run: "clavis codegen --lang go --package config -o internal/config/config.go"
       - title: "Python (pydantic)"
         run: "clavis codegen --lang python -o app/config.py"
+      - title: "Rust"
+        run: "clavis codegen --lang rust -o src/config.rs"
     notes: |-
       - TypeScript exports a zod schema, the inferred type and `loadConfig`.
       - Go exports a struct, `Load`, `LoadFor(envType)` and `LoadFrom(environ)`.
       - Python exports a pydantic `Config` and `load_config`.
+      - Rust exports a struct, `load`, `load_for(env_type)` and `load_from(environ, env_type)`.
 
       Loaders parse env-style strings: integers become numbers, booleans accept
       `true/false/1/0/yes/no`, JSON fields are decoded, enums and patterns are
       checked. Keys required in any environment type are required fields.
+
+      The Rust output uses only the standard library, so it keeps JSON fields as
+      raw strings and does not enforce schema patterns.
     related: [schema, check]
 
   share:
