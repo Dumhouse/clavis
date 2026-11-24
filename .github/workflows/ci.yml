@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
       - name: Lint and render
         run: |
           chart=deploy/helm/clavis
@@ -130,7 +130,7 @@ jobs:
             echo "::error::SQLite with replicaCount=2 must be rejected"
             exit 1
           fi
-      - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
       - name: Install into kind
         # Installs this chart with the latest released server image, so a
         # chart change that breaks a real deployment fails here, not at release.
@@ -213,7 +213,7 @@ jobs:
         working-directory: sdk/node
       - run: npm pack --dry-run
         working-directory: sdk/node
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - run: python -m unittest -v test_clavis_client
