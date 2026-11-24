@@ -37,6 +37,15 @@ data:
       gcp_service_account_file: "/etc/clavis/gcp-service-account.json"
       gcp_kms_endpoint: {{ .Values.keys.gcpKMSEndpoint | quote }}
       {{- end }}
+      {{- if eq .Values.keys.provider "azure-kv" }}
+      azure_key_vault_url: {{ .Values.keys.azureKeyVaultURL | quote }}
+      azure_key_vault_key: {{ .Values.keys.azureKeyVaultKey | quote }}
+      azure_key_vault_key_version: {{ .Values.keys.azureKeyVaultKeyVersion | quote }}
+      azure_tenant_id: {{ .Values.keys.azureTenantID | quote }}
+      azure_client_id: {{ .Values.keys.azureClientID | quote }}
+      azure_federated_token_file: {{ .Values.keys.azureFederatedTokenFile | quote }}
+      azure_login_endpoint: {{ .Values.keys.azureLoginEndpoint | quote }}
+      {{- end }}
     log:
       level: {{ .Values.log.level | quote }}
       format: {{ .Values.log.format | quote }}

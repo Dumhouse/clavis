@@ -4,6 +4,11 @@
 
 ### Added
 
+- The root key can be wrapped by Azure Key Vault (`keys.provider: azure-kv`).
+  Clavis uses workload identity (AKS, GitHub Actions), the App Service and
+  Container Apps identity endpoint, or managed identity, with no static
+  secrets in the configuration. The wrapped key file records the Key Vault
+  key id, so rotating the key version does not lock the database out.
 - A recorded tour of the web UI in the README, made by
   `CAPTURE_GIF=1 node scripts/capture-screenshots.mjs` from `web/`.
 - `clavis healthcheck` asks the server on this machine whether it is ready, and the Docker image now runs it as its

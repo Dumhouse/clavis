@@ -203,7 +203,7 @@ type BackupConfig struct {
 
 // KeysConfig controls the root key provider.
 type KeysConfig struct {
-	Provider    string `yaml:"provider"` // file | env | aws-kms | gcp-kms
+	Provider    string `yaml:"provider"` // file | env | aws-kms | gcp-kms | azure-kv
 	RootKeyFile string `yaml:"root_key_file"`
 	RootKeyEnv  string `yaml:"root_key_env"`
 
@@ -217,6 +217,14 @@ type KeysConfig struct {
 	GCPKey      string `yaml:"gcp_kms_key"`
 	GCPKeyFile  string `yaml:"gcp_service_account_file"`
 	GCPEndpoint string `yaml:"gcp_kms_endpoint"`
+
+	AzureVaultURL           string `yaml:"azure_key_vault_url"`
+	AzureKey                string `yaml:"azure_key_vault_key"`
+	AzureKeyVersion         string `yaml:"azure_key_vault_key_version"`
+	AzureTenantID           string `yaml:"azure_tenant_id"`
+	AzureClientID           string `yaml:"azure_client_id"`
+	AzureFederatedTokenFile string `yaml:"azure_federated_token_file"`
+	AzureLoginEndpoint      string `yaml:"azure_login_endpoint"`
 }
 
 // LogConfig controls structured logging.
@@ -408,6 +416,29 @@ func applyEnv(c *Config) error {
 	setString("CLAVIS_GCP_KMS_KEY", &c.Keys.GCPKey)
 	setString("CLAVIS_GCP_SERVICE_ACCOUNT_FILE", &c.Keys.GCPKeyFile)
 	setString("CLAVIS_GCP_KMS_ENDPOINT", &c.Keys.GCPEndpoint)
+	setString("CLAVIS_AZURE_KEY_VAULT_URL", &c.Keys.AzureVaultURL)
+	setString("CLAVIS_AZURE_KEY_VAULT_KEY", &c.Keys.AzureKey)
+	setString("CLAVIS_AZURE_KEY_VAULT_KEY_VERSION", &c.Keys.AzureKeyVersion)
+	setString("CLAVIS_AZURE_TENANT_ID", &c.Keys.AzureTenantID)
+	setString("CLAVIS_AZURE_CLIENT_ID", &c.Keys.AzureClientID)
+	setString("CLAVIS_AZURE_FEDERATED_TOKEN_FILE", &c.Keys.AzureFederatedTokenFile)
+	setString("CLAVIS_AZURE_LOGIN_ENDPOINT", &c.Keys.AzureLoginEndpoint)
+	if c.Keys.AzureFederatedTokenFile == "" {
+		c.Keys.AzureFederatedTokenFile = os.Getenv("AZURE_FEDERATED_TOKEN_FILE")
+	}
+	if c.Keys.AzureFederatedTokenFile != "" {
+		// AKS and GitHub Actions set these next to the federated token file.
+		if c.Keys.AzureTenantID == "" {
+			c.Keys.AzureTenantID = os.Getenv("AZURE_TENANT_ID")
+		}
+		if c.Keys.AzureClientID == "" {
+			c.Keys.AzureClientID = os.Getenv("AZURE_CLIENT_ID")
+		}
+	}
+	if c.Keys.AzureClientID == "" {
+		// A user-assigned managed identity, without workload identity.
+		c.Keys.AzureClientID = os.Getenv("AZURE_CLIENT_ID")
+	}
 	setString("CLAVIS_LOG_LEVEL", &c.Log.Level)
 	setString("CLAVIS_LOG_FORMAT", &c.Log.Format)
 	setString("CLAVIS_EMAIL_HOST", &c.Email.Host)
@@ -610,8 +641,18 @@ func (c *Config) Validate() error {
 		if c.Keys.RootKeyFile == "" || c.Keys.GCPKey == "" || c.Keys.GCPKeyFile == "" {
 			return fmt.Errorf("config: gcp-kms requires root_key_file, gcp_kms_key, and gcp_service_account_file")
 		}
+	case "azure-kv":
+		if c.Keys.RootKeyFile == "" || c.Keys.AzureVaultURL == "" || c.Keys.AzureKey == "" {
+			return fmt.Errorf("config: azure-kv requires root_key_file, azure_key_vault_url, and azure_key_vault_key")
+		}
+		if c.Keys.AzureFederatedTokenFile != "" && (c.Keys.AzureTenantID == "" || c.Keys.AzureClientID == "") {
+			return fmt.Errorf("config: azure workload identity requires azure_tenant_id, azure_client_id, and azure_federated_token_file together")
+		}
+		if c.Keys.AzureTenantID != "" && c.Keys.AzureFederatedTokenFile == "" {
+			return fmt.Errorf("config: azure_tenant_id requires azure_federated_token_file; drop it to use managed identity")
+		}
 	default:
-		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env, aws-kms, gcp-kms)", c.Keys.Provider)
+		return fmt.Errorf("config: unknown keys.provider %q (supported: file, env, aws-kms, gcp-kms, azure-kv)", c.Keys.Provider)
 	}
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":

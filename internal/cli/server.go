@@ -127,13 +127,17 @@ func rootKeyProvider(cfg *config.Config) (crypto.Provider, error) {
 		return crypto.NewFileProvider(cfg.Keys.RootKeyFile, true), nil
 	case "env":
 		return crypto.NewEnvProvider(cfg.Keys.RootKeyEnv), nil
-	case "aws-kms", "gcp-kms":
+	case "aws-kms", "gcp-kms", "azure-kv":
 		return crypto.NewKMSProvider(crypto.KMSConfig{
 			Path: cfg.Keys.RootKeyFile, Provider: cfg.Keys.Provider,
 			AWSRegion: cfg.Keys.AWSRegion, AWSKeyID: cfg.Keys.AWSKeyID,
 			AWSAccessKey: cfg.Keys.AWSAccessKey, AWSSecretKey: cfg.Keys.AWSSecretKey,
 			AWSSession: cfg.Keys.AWSSession, AWSEndpoint: cfg.Keys.AWSEndpoint,
 			GCPKey: cfg.Keys.GCPKey, GCPSAFile: cfg.Keys.GCPKeyFile, GCPEndpoint: cfg.Keys.GCPEndpoint,
+			AzureVaultURL: cfg.Keys.AzureVaultURL, AzureKey: cfg.Keys.AzureKey,
+			AzureKeyVersion: cfg.Keys.AzureKeyVersion, AzureTenantID: cfg.Keys.AzureTenantID,
+			AzureClientID: cfg.Keys.AzureClientID, AzureFederatedTokenFile: cfg.Keys.AzureFederatedTokenFile,
+			AzureLoginEndpoint: cfg.Keys.AzureLoginEndpoint,
 		}), nil
 	default:
 		return nil, fmt.Errorf("server: unsupported root key provider %q", cfg.Keys.Provider)

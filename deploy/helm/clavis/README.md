@@ -98,6 +98,29 @@ keys:
   gcpServiceAccountKey: gcp-service-account.json
 ```
 
+Azure Key Vault:
+
+```yaml
+keys:
+  provider: azure-kv
+  azureKeyVaultURL: https://my-vault.vault.azure.net
+  azureKeyVaultKey: clavis-root
+  # Optional: azureKeyVaultKeyVersion, azureLoginEndpoint (sovereign clouds)
+```
+
+Grant the workload's identity the **Key Vault Crypto Service Encryption User**
+role on the vault. Credentials come from the Azure identity chain, so there is
+no chart-managed secret:
+
+- AKS workload identity: annotate `serviceAccount` for the federated
+  credential and set `podLabels["azure.workload.identity/use"]: "true"`. The
+  `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_FEDERATED_TOKEN_FILE`
+  variables AKS injects are picked up automatically.
+- App Service, Container Apps and Functions: Clavis uses the injected
+  `IDENTITY_ENDPOINT` and `IDENTITY_HEADER`.
+- Anywhere else: managed identity through the instance metadata service.
+  Set `azureClientID` for a user-assigned identity.
+
 The wrapped root key file still lives on `/data`; use shared storage if several
 replicas must read it. KMS protects the plaintext key, not the wrapped blob.
 

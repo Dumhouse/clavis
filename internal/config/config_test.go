@@ -199,10 +199,31 @@ func TestValidate(t *testing.T) {
 		"unknown provider":  func(c *Config) { c.Keys.Provider = "kms" },
 		"empty key file":    func(c *Config) { c.Keys.Provider = "file"; c.Keys.RootKeyFile = "" },
 		"empty key env":     func(c *Config) { c.Keys.Provider = "env"; c.Keys.RootKeyEnv = "" },
-		"bad log level":     func(c *Config) { c.Log.Level = "trace" },
-		"bad log format":    func(c *Config) { c.Log.Format = "xml" },
-		"email no host":     func(c *Config) { c.Email.Enabled = true; c.Email.From = "x@example.com" },
-		"email no from":     func(c *Config) { c.Email.Enabled = true; c.Email.Host = "smtp.example.com" },
+		"azure no url": func(c *Config) {
+			c.Keys.Provider = "azure-kv"
+			c.Keys.AzureKey = "root"
+		},
+		"azure no key": func(c *Config) {
+			c.Keys.Provider = "azure-kv"
+			c.Keys.AzureVaultURL = "https://vault.example.net"
+		},
+		"azure partial workload identity": func(c *Config) {
+			c.Keys.Provider = "azure-kv"
+			c.Keys.AzureVaultURL = "https://vault.example.net"
+			c.Keys.AzureKey = "root"
+			c.Keys.AzureTenantID = "tenant"
+			c.Keys.AzureFederatedTokenFile = "/var/run/token"
+		},
+		"azure tenant without token": func(c *Config) {
+			c.Keys.Provider = "azure-kv"
+			c.Keys.AzureVaultURL = "https://vault.example.net"
+			c.Keys.AzureKey = "root"
+			c.Keys.AzureTenantID = "tenant"
+		},
+		"bad log level":  func(c *Config) { c.Log.Level = "trace" },
+		"bad log format": func(c *Config) { c.Log.Format = "xml" },
+		"email no host":  func(c *Config) { c.Email.Enabled = true; c.Email.From = "x@example.com" },
+		"email no from":  func(c *Config) { c.Email.Enabled = true; c.Email.Host = "smtp.example.com" },
 		"email bad port": func(c *Config) {
 			c.Email.Enabled = true
 			c.Email.Host = "smtp.example.com"
@@ -356,5 +377,56 @@ func TestDSNImpliesPostgres(t *testing.T) {
 	}
 	if cfg.Database.Driver != "sqlite" {
 		t.Fatalf("explicit driver = %q, want sqlite", cfg.Database.Driver)
+	}
+}
+
+func TestAzureKeyVaultEnv(t *testing.T) {
+	t.Setenv("CLAVIS_KEY_PROVIDER", "azure-kv")
+	t.Setenv("CLAVIS_AZURE_KEY_VAULT_URL", "https://vault.example.net")
+	t.Setenv("CLAVIS_AZURE_KEY_VAULT_KEY", "root")
+	t.Setenv("CLAVIS_AZURE_KEY_VAULT_KEY_VERSION", "v1")
+	t.Setenv("CLAVIS_AZURE_TENANT_ID", "tenant-1")
+	t.Setenv("CLAVIS_AZURE_CLIENT_ID", "client-1")
+	t.Setenv("CLAVIS_AZURE_FEDERATED_TOKEN_FILE", "/var/run/token")
+	t.Setenv("CLAVIS_AZURE_LOGIN_ENDPOINT", "https://login.example.net")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := cfg.Keys
+	if keys.Provider != "azure-kv" || keys.AzureVaultURL != "https://vault.example.net" ||
+		keys.AzureKey != "root" || keys.AzureKeyVersion != "v1" ||
+		keys.AzureTenantID != "tenant-1" || keys.AzureClientID != "client-1" ||
+		keys.AzureFederatedTokenFile != "/var/run/token" ||
+		keys.AzureLoginEndpoint != "https://login.example.net" {
+		t.Fatalf("azure keys: %+v", keys)
+	}
+}
+
+func TestAzureFederatedTokenFileDefaultsToAzureEnv(t *testing.T) {
+	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "/var/run/azure/token")
+	t.Setenv("AZURE_TENANT_ID", "env-tenant")
+	t.Setenv("AZURE_CLIENT_ID", "env-client")
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Keys.AzureFederatedTokenFile != "/var/run/azure/token" ||
+		cfg.Keys.AzureTenantID != "env-tenant" || cfg.Keys.AzureClientID != "env-client" {
+		t.Fatalf("azure env: %+v", cfg.Keys)
+	}
+}
+
+func TestAzureTenantEnvIgnoredWithoutWorkloadIdentity(t *testing.T) {
+	t.Setenv("AZURE_TENANT_ID", "env-tenant")
+	t.Setenv("AZURE_CLIENT_ID", "")
+	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Keys.AzureTenantID != "" {
+		t.Fatalf("tenant should not default without a federated token file: %q", cfg.Keys.AzureTenantID)
 	}
 }

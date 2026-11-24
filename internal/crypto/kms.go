@@ -29,7 +29,7 @@ import (
 // stores only KMS ciphertext; the plaintext key never leaves the process.
 type KMSConfig struct {
 	Path         string
-	Provider     string // aws-kms | gcp-kms
+	Provider     string // aws-kms | gcp-kms | azure-kv
 	AWSRegion    string
 	AWSKeyID     string
 	AWSAccessKey string
@@ -39,25 +39,49 @@ type KMSConfig struct {
 	GCPKey       string
 	GCPSAFile    string
 	GCPEndpoint  string
+
+	AzureVaultURL           string
+	AzureKey                string
+	AzureKeyVersion         string
+	AzureTenantID           string
+	AzureClientID           string
+	AzureFederatedTokenFile string
+	AzureLoginEndpoint      string
+
+	// azureIMDSEndpoint overrides the instance metadata endpoint in tests.
+	azureIMDSEndpoint string
 }
 
-// KMSProvider loads a root data key protected by AWS KMS or GCP KMS.
+// KMSProvider loads a root data key protected by AWS KMS, GCP KMS, or Azure
+// Key Vault.
 type KMSProvider struct {
 	cfg    KMSConfig
 	client *http.Client
 }
 
+const azureKeyVaultScope = "https://vault.azure.net"
+
 // NewKMSProvider builds a KMS root key provider.
 func NewKMSProvider(cfg KMSConfig) *KMSProvider {
 	provider := &KMSProvider{cfg: cfg}
-	if provider.cfg.Provider != "aws-kms" && provider.cfg.Provider != "gcp-kms" {
+	switch cfg.Provider {
+	case "aws-kms", "gcp-kms", "azure-kv":
+	default:
 		return provider
 	}
 	allow := []string(nil)
-	for _, endpoint := range []string{cfg.AWSEndpoint, cfg.GCPEndpoint} {
+	endpoints := []string{
+		cfg.AWSEndpoint, cfg.GCPEndpoint, cfg.AzureVaultURL, cfg.AzureLoginEndpoint,
+		cfg.azureIMDSEndpoint, os.Getenv("IDENTITY_ENDPOINT"),
+	}
+	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "127.0.0.1") || strings.Contains(endpoint, "localhost") {
 			allow = []string{"127.0.0.1/32", "::1/128"}
 		}
+	}
+	if cfg.Provider == "azure-kv" {
+		// Managed identity authenticates against the link-local metadata service.
+		allow = append(allow, "169.254.169.254/32")
 	}
 	guardian, err := netguard.New(allow)
 	if err == nil {
@@ -84,6 +108,19 @@ func (p *KMSProvider) Load(ctx context.Context) (Key, error) {
 	case "gcp-kms":
 		if p.cfg.GCPKey == "" || p.cfg.GCPSAFile == "" {
 			return Key{}, fmt.Errorf("crypto: GCP KMS requires a key resource name and service account file")
+		}
+	case "azure-kv":
+		if p.cfg.AzureVaultURL == "" || p.cfg.AzureKey == "" {
+			return Key{}, fmt.Errorf("crypto: Azure Key Vault requires a vault URL and key name")
+		}
+		if p.cfg.AzureFederatedTokenFile != "" && (p.cfg.AzureTenantID == "" || p.cfg.AzureClientID == "") {
+			return Key{}, fmt.Errorf("crypto: Azure workload identity requires a tenant ID, client ID, and federated token file")
+		}
+		if p.cfg.AzureTenantID != "" && p.cfg.AzureFederatedTokenFile == "" {
+			return Key{}, fmt.Errorf("crypto: Azure tenant ID requires a federated token file; remove it to use managed identity")
+		}
+		if parsed, err := url.Parse(p.cfg.AzureVaultURL); err != nil || parsed.Host == "" {
+			return Key{}, fmt.Errorf("crypto: invalid Azure Key Vault URL %q", p.cfg.AzureVaultURL)
 		}
 	default:
 		return Key{}, fmt.Errorf("crypto: unsupported KMS provider %q", p.cfg.Provider)
@@ -126,12 +163,32 @@ func (p *KMSProvider) encrypt(ctx context.Context, key Key) ([]byte, error) {
 	switch p.cfg.Provider {
 	case "aws-kms":
 		return p.awsKMS(ctx, "Encrypt", key[:])
+	case "azure-kv":
+		wrapped, kid, err := p.azureKV(ctx, "wrapkey", p.cfg.AzureKeyVersion, key[:])
+		if err != nil {
+			return nil, err
+		}
+		// Keep the key id: Key Vault needs the exact key version to unwrap, so
+		// rotating the Key Vault key must not lock the data out.
+		record, err := json.Marshal(azureWrappedKey{KeyID: kid, Value: base64.StdEncoding.EncodeToString(wrapped)})
+		if err != nil {
+			return nil, err
+		}
+		return record, nil
 	default:
 		return p.gcpKMS(ctx, "encrypt", key[:])
 	}
 }
 
+type azureWrappedKey struct {
+	KeyID string `json:"kid"`
+	Value string `json:"value"`
+}
+
 func (p *KMSProvider) decrypt(ctx context.Context, encoded string) (Key, error) {
+	if p.cfg.Provider == "azure-kv" {
+		return p.azureUnwrap(ctx, encoded)
+	}
 	ciphertext, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return Key{}, fmt.Errorf("crypto: invalid wrapped root key")
@@ -147,6 +204,52 @@ func (p *KMSProvider) decrypt(ctx context.Context, encoded string) (Key, error) 
 		return Key{}, err
 	}
 	return NewKeyFromBytes(plaintext)
+}
+
+func (p *KMSProvider) azureUnwrap(ctx context.Context, encoded string) (Key, error) {
+	var record azureWrappedKey
+	if err := json.Unmarshal([]byte(encoded), &record); err != nil || record.Value == "" {
+		return Key{}, fmt.Errorf("crypto: invalid wrapped root key")
+	}
+	ciphertext, err := decodeAzureValue(record.Value)
+	if err != nil {
+		return Key{}, err
+	}
+	return p.azureUnwrapValue(ctx, record.KeyID, ciphertext)
+}
+
+func (p *KMSProvider) azureUnwrapValue(ctx context.Context, kid string, ciphertext []byte) (Key, error) {
+	version := p.cfg.AzureKeyVersion
+	if kid != "" {
+		version = azureKeyVersion(kid, p.cfg.AzureKey, version)
+	}
+	plaintext, _, err := p.azureKV(ctx, "unwrapkey", version, ciphertext)
+	if err != nil {
+		return Key{}, err
+	}
+	return NewKeyFromBytes(plaintext)
+}
+
+// azureKeyVersion extracts the key version from a Key Vault key id such as
+// https://vault.vault.azure.net/keys/name/version.
+func azureKeyVersion(kid, keyName, fallback string) string {
+	parsed, err := url.Parse(kid)
+	if err != nil {
+		return fallback
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 3 || parts[0] != "keys" {
+		return fallback
+	}
+	name, nameErr := url.PathUnescape(parts[1])
+	version, versionErr := url.PathUnescape(parts[2])
+	if nameErr != nil || versionErr != nil || version == "" {
+		return fallback
+	}
+	if keyName != "" && name != keyName {
+		return fallback
+	}
+	return version
 }
 
 func (p *KMSProvider) awsKMS(ctx context.Context, operation string, input []byte) ([]byte, error) {
@@ -262,6 +365,153 @@ func (p *KMSProvider) gcpKMS(ctx context.Context, operation string, input []byte
 		return []byte(base64.StdEncoding.EncodeToString(decoded)), nil
 	}
 	return base64.StdEncoding.DecodeString(result.Plaintext)
+}
+
+func (p *KMSProvider) azureKV(ctx context.Context, operation, keyVersion string, input []byte) ([]byte, string, error) {
+	token, err := p.azureToken(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	endpoint := strings.TrimRight(p.cfg.AzureVaultURL, "/") +
+		"/keys/" + url.PathEscape(p.cfg.AzureKey) + "/" + url.PathEscape(keyVersion) +
+		"/" + operation + "?api-version=7.4"
+	payload, _ := json.Marshal(map[string]string{
+		"alg":   "RSA-OAEP-256",
+		"value": base64.RawURLEncoding.EncodeToString(input),
+	})
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, "", err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+	response, err := p.httpClient().Do(request)
+	if err != nil {
+		return nil, "", fmt.Errorf("crypto: Azure Key Vault request failed: %w", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("crypto: Azure Key Vault %s returned %d: %s", operation, response.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var result struct {
+		KeyID string `json:"kid"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, "", err
+	}
+	value, err := decodeAzureValue(result.Value)
+	if err != nil {
+		return nil, "", err
+	}
+	return value, result.KeyID, nil
+}
+
+// decodeAzureValue accepts both base64url (what the API returns) and standard
+// base64 (what some docs and older clients show).
+func decodeAzureValue(encoded string) ([]byte, error) {
+	for _, encoding := range []*base64.Encoding{
+		base64.RawURLEncoding, base64.URLEncoding, base64.RawStdEncoding, base64.StdEncoding,
+	} {
+		if decoded, err := encoding.DecodeString(encoded); err == nil {
+			return decoded, nil
+		}
+	}
+	return nil, fmt.Errorf("crypto: Azure Key Vault returned an invalid value")
+}
+
+func (p *KMSProvider) azureToken(ctx context.Context) (string, error) {
+	if p.cfg.AzureFederatedTokenFile != "" {
+		return p.azureWorkloadIdentityToken(ctx)
+	}
+	if endpoint, header := os.Getenv("IDENTITY_ENDPOINT"), os.Getenv("IDENTITY_HEADER"); endpoint != "" && header != "" {
+		return p.azureIdentityEndpointToken(ctx, endpoint, header)
+	}
+	return p.azureManagedIdentityToken(ctx)
+}
+
+func (p *KMSProvider) azureWorkloadIdentityToken(ctx context.Context) (string, error) {
+	raw, err := os.ReadFile(p.cfg.AzureFederatedTokenFile)
+	if err != nil {
+		return "", fmt.Errorf("crypto: read Azure federated token: %w", err)
+	}
+	assertion := strings.TrimSpace(string(raw))
+	if assertion == "" {
+		return "", fmt.Errorf("crypto: Azure federated token file is empty")
+	}
+	login := p.cfg.AzureLoginEndpoint
+	if login == "" {
+		login = "https://login.microsoftonline.com"
+	}
+	form := url.Values{}
+	form.Set("client_id", p.cfg.AzureClientID)
+	form.Set("scope", azureKeyVaultScope+"/.default")
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Set("client_assertion", assertion)
+	endpoint := strings.TrimRight(login, "/") + "/" + url.PathEscape(p.cfg.AzureTenantID) + "/oauth2/v2.0/token"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return p.azureTokenResponse(request)
+}
+
+func (p *KMSProvider) azureIdentityEndpointToken(ctx context.Context, endpoint, header string) (string, error) {
+	query := url.Values{}
+	query.Set("api-version", "2019-08-01")
+	query.Set("resource", azureKeyVaultScope)
+	if p.cfg.AzureClientID != "" {
+		query.Set("client_id", p.cfg.AzureClientID)
+	}
+	uri := strings.TrimRight(endpoint, "/") + "?" + query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil) //nolint:gosec // G704: IDENTITY_ENDPOINT is injected by the platform; the client is netguard-hardened
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("X-IDENTITY-HEADER", header)
+	return p.azureTokenResponse(request)
+}
+
+func (p *KMSProvider) azureManagedIdentityToken(ctx context.Context) (string, error) {
+	endpoint := p.cfg.azureIMDSEndpoint
+	if endpoint == "" {
+		endpoint = "http://169.254.169.254"
+	}
+	query := url.Values{}
+	query.Set("api-version", "2018-02-01")
+	query.Set("resource", azureKeyVaultScope)
+	if p.cfg.AzureClientID != "" {
+		query.Set("client_id", p.cfg.AzureClientID)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		strings.TrimRight(endpoint, "/")+"/metadata/identity/oauth2/token?"+query.Encode(), nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Metadata", "true")
+	return p.azureTokenResponse(request)
+}
+
+func (p *KMSProvider) azureTokenResponse(request *http.Request) (string, error) {
+	response, err := p.httpClient().Do(request) //nolint:gosec // G704: netguard blocks private, loopback and metadata addresses outside the allowlist
+	if err != nil {
+		return "", fmt.Errorf("crypto: Azure identity request failed: %w", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("crypto: Azure identity endpoint returned %d", response.StatusCode)
+	}
+	var token struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(body, &token); err != nil || token.AccessToken == "" {
+		return "", fmt.Errorf("crypto: Azure identity response missing access_token")
+	}
+	return token.AccessToken, nil
 }
 
 func (p *KMSProvider) httpClient() *http.Client {
