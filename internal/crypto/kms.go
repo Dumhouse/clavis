@@ -466,8 +466,8 @@ func (p *KMSProvider) azureIdentityEndpointToken(ctx context.Context, endpoint, 
 	if p.cfg.AzureClientID != "" {
 		query.Set("client_id", p.cfg.AzureClientID)
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		strings.TrimRight(endpoint, "/")+"?"+query.Encode(), nil)
+	uri := strings.TrimRight(endpoint, "/") + "?" + query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil) //nolint:gosec // G704: IDENTITY_ENDPOINT is injected by the platform; the client is netguard-hardened
 	if err != nil {
 		return "", err
 	}
@@ -496,7 +496,7 @@ func (p *KMSProvider) azureManagedIdentityToken(ctx context.Context) (string, er
 }
 
 func (p *KMSProvider) azureTokenResponse(request *http.Request) (string, error) {
-	response, err := p.httpClient().Do(request)
+	response, err := p.httpClient().Do(request) //nolint:gosec // G704: netguard blocks private, loopback and metadata addresses outside the allowlist
 	if err != nil {
 		return "", fmt.Errorf("crypto: Azure identity request failed: %w", err)
 	}
