@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -84,6 +85,54 @@ func FuzzParseDotenv(f *testing.F) {
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		_, _ = ParseDotenv(data)
 	})
+}
+
+func TestBitwardenImportDryRun(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake bws CLI is a shell script")
+	}
+	dir := t.TempDir()
+	script := `#!/bin/sh
+printf '%s' '[{"key":"API_TOKEN","value":"new-value"}]'
+`
+	if err := os.WriteFile(filepath.Join(dir, "bws"), []byte(script), 0o700); err != nil { //nolint:gosec // G306: executable test fixture
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("CLAVIS_TOKEN", "tok")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/secrets:resolve") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"secrets": []map[string]any{}})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	var out, errOut bytes.Buffer
+	opts := &Options{
+		JSON: true, ServerURL: server.URL, Org: "acme", Project: "web-app", Env: "dev",
+		Output: NewTestOutput(&out, &errOut, true, false),
+	}
+	cmd := newImportCommand(opts)
+	cmd.SetArgs([]string{
+		"--provider", "bitwarden", "--remote-project", "project-1", "--dry-run",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatalf("decode dry run: %v (%s)", err, out.String())
+	}
+	if len(rows) != 1 || rows[0]["key"] != "API_TOKEN" || rows[0]["action"] != "new" {
+		t.Fatalf("rows = %#v", rows)
+	}
+	if strings.Contains(out.String(), "new-value") {
+		t.Fatalf("dry run leaked a value: %s", out.String())
+	}
 }
 
 func TestProviderImportDryRunAndMapping(t *testing.T) {

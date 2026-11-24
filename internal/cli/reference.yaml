@@ -533,6 +533,10 @@ commands:
         run: |-
           clavis import --provider gcp --gcp-project my-project \
             --gcp-service-account service-account.json --gcp-prefix APP_ --dry-run
+      - title: "Bitwarden Secrets Manager"
+        run: |-
+          clavis import --provider bitwarden --remote-project "$BWS_PROJECT_ID" \
+            --token "$BWS_ACCESS_TOKEN" --dry-run
     notes: |-
       A map file renames keys and folders; an empty target drops the key:
 

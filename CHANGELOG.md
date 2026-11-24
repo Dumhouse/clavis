@@ -43,6 +43,9 @@
   staying silent.
 - `committed_env_files` in `.clavis.yaml` lists `.env` files committed on
   purpose (for example Next.js defaults), so doctor does not warn about them.
+- `clavis import --provider bitwarden` imports from Bitwarden Secrets Manager
+  through the user's own `bws` CLI and `BWS_ACCESS_TOKEN`, with the same dry
+  run and conflict handling as the other providers.
 
 ### Changed
 

@@ -91,6 +91,13 @@ clavis import --provider gcp --gcp-project my-project \
   --gcp-service-account service-account.json --gcp-prefix APP_ --dry-run
 ```
 
+<p class="cli-example-title">Bitwarden Secrets Manager</p>
+
+```sh
+clavis import --provider bitwarden --remote-project "$BWS_PROJECT_ID" \
+  --token "$BWS_ACCESS_TOKEN" --dry-run
+```
+
 ## Flags
 
 <dl class="cli-flags">
@@ -110,7 +117,7 @@ clavis import --provider gcp --gcp-project my-project \
 <div class="cli-flag" id="flag-map"><dt><code>--map string</code></dt><dd>YAML/JSON key and folder mapping file</dd></div>
 <div class="cli-flag" id="flag-message"><dt><code>--message string</code></dt><dd>change message recorded in history</dd></div>
 <div class="cli-flag" id="flag-op-vault"><dt><code>--op-vault string</code></dt><dd>1Password vault ID</dd></div>
-<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>file, infisical, doppler, vault, onepassword, aws, or gcp <span class="cli-default">Default: <code>file</code></span></dd></div>
+<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>file, infisical, doppler, vault, onepassword, aws, gcp, or bitwarden <span class="cli-default">Default: <code>file</code></span></dd></div>
 <div class="cli-flag" id="flag-remote-env"><dt><code>--remote-env string</code></dt><dd>remote environment/config name</dd></div>
 <div class="cli-flag" id="flag-remote-path"><dt><code>--remote-path string</code></dt><dd>remote secret path</dd></div>
 <div class="cli-flag" id="flag-remote-project"><dt><code>--remote-project string</code></dt><dd>remote project/workspace ID</dd></div>

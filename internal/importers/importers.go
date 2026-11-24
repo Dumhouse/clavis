@@ -69,6 +69,8 @@ func Load(ctx context.Context, opts Options) ([]Entry, error) {
 		entries, err = loadAWS(ctx, opts)
 	case "gcp", "gcp-secret-manager":
 		entries, err = loadGCP(ctx, opts)
+	case "bitwarden", "bws", "bitwarden-secrets-manager":
+		entries, err = loadBitwarden(ctx, opts)
 	default:
 		return nil, fmt.Errorf("unsupported import provider %q", opts.Provider)
 	}

@@ -33,7 +33,8 @@ func newImportCommand(opts *Options) *cobra.Command {
 		Short: "Import secrets from files or external providers",
 		Long: "Import .env, JSON, or YAML files, dotenv directories, or pull from\n" +
 			"Infisical, Doppler, Vault/OpenBao, 1Password Connect, AWS Secrets Manager,\n" +
-			"or GCP Secret Manager. Dry runs preview new, changed, and unchanged keys.",
+			"GCP Secret Manager, or Bitwarden Secrets Manager. Dry runs preview new,\n" +
+			"changed, and unchanged keys.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := opts.output()
@@ -133,7 +134,7 @@ func newImportCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&provider, "provider", "file", "file, infisical, doppler, vault, onepassword, aws, or gcp")
+	cmd.Flags().StringVar(&provider, "provider", "file", "file, infisical, doppler, vault, onepassword, aws, gcp, or bitwarden")
 	cmd.Flags().StringVar(&kind, "kind", "", "secret, variable, or file (default: preserve provider kind, else secret)")
 	cmd.Flags().StringVar(&message, "message", "", "change message recorded in history")
 	cmd.Flags().StringVar(&folder, "folder", "", "target folder for imported keys")
@@ -220,6 +221,8 @@ func importProviderOptions(provider string, flags importProviderFlags) (importer
 		if !strings.EqualFold(flags.AWSService, "secretsmanager") {
 			return options, fmt.Errorf("only the secretsmanager AWS service is supported for imports")
 		}
+	case "bitwarden", "bws", "bitwarden-secrets-manager":
+		options.Token = firstNonEmpty(options.Token, os.Getenv("BWS_ACCESS_TOKEN"))
 	case "gcp", "gcp-secret-manager":
 		options.GCPProject = firstNonEmpty(options.GCPProject, os.Getenv("GCP_PROJECT"), os.Getenv("GOOGLE_CLOUD_PROJECT"))
 		accountFile := firstNonEmpty(flags.GCPServiceAccountFile, os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
