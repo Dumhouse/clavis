@@ -107,7 +107,7 @@ func mysqlTestConfig(t *testing.T) *mysqlDynamicConfig {
 	}
 }
 
-func mysqlConnect(base *mysqlDynamicConfig, user, password string) (*sql.DB, error) {
+func mysqlConnect(base *mysqlDynamicConfig, user, password, database string) (*sql.DB, error) {
 	port := base.Port
 	if port == 0 {
 		port = 3306
@@ -117,7 +117,7 @@ func mysqlConnect(base *mysqlDynamicConfig, user, password string) (*sql.DB, err
 	dsn.Passwd = password
 	dsn.Net = "tcp"
 	dsn.Addr = net.JoinHostPort(base.Host, strconv.Itoa(port))
-	dsn.DBName = base.Database
+	dsn.DBName = database
 	dsn.Timeout = 5 * time.Second
 	db, err := sql.Open("mysql", dsn.FormatDSN())
 	if err != nil {
@@ -147,21 +147,33 @@ func TestMySQLDynamicCredentials(t *testing.T) {
 		t.Fatalf("lease data = %#v", data)
 	}
 
-	db, err := mysqlConnect(config, username, data["password"])
+	db, err := mysqlConnect(config, username, data["password"], config.Database)
 	if err != nil {
 		t.Fatalf("generated user cannot log in: %v", err)
 	}
-	var grants string
-	if err := db.QueryRowContext(ctx, "SHOW GRANTS FOR CURRENT_USER()").Scan(&grants); err != nil {
+	rows, err := db.QueryContext(ctx, "SHOW GRANTS FOR CURRENT_USER()")
+	if err != nil {
 		t.Fatalf("show grants: %v", err)
 	}
+	var grants strings.Builder
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			t.Fatalf("scan grant: %v", err)
+		}
+		grants.WriteString(line + "\n")
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read grants: %v", err)
+	}
+	_ = rows.Close()
 	_ = db.Close()
-	if !strings.Contains(grants, "SELECT") {
-		t.Fatalf("grants = %q", grants)
+	if !strings.Contains(grants.String(), "SELECT") {
+		t.Fatalf("grants = %q", grants.String())
 	}
 
 	service.revokeMySQLUser(ctx, config, username)
-	if db, err := mysqlConnect(config, username, data["password"]); err == nil {
+	if db, err := mysqlConnect(config, username, data["password"], config.Database); err == nil {
 		_ = db.Close()
 		t.Fatal("revoked user can still log in")
 	}
@@ -172,7 +184,7 @@ func TestMySQLRotation(t *testing.T) {
 	ctx := context.Background()
 	service := &Service{}
 
-	admin, err := mysqlConnect(config, config.Username, config.Password)
+	admin, err := mysqlConnect(config, config.Username, config.Password, config.Database)
 	if err != nil {
 		t.Fatalf("admin login: %v", err)
 	}
@@ -191,11 +203,11 @@ func TestMySQLRotation(t *testing.T) {
 	if err := service.setMySQLPassword(ctx, rotation, "new-password"); err != nil {
 		t.Fatalf("rotate: %v", err)
 	}
-	if db, err := mysqlConnect(config, role, "old-password"); err == nil {
+	if db, err := mysqlConnect(config, role, "old-password", ""); err == nil {
 		_ = db.Close()
 		t.Fatal("old password still works after rotation")
 	}
-	db, err := mysqlConnect(config, role, "new-password")
+	db, err := mysqlConnect(config, role, "new-password", "")
 	if err != nil {
 		t.Fatalf("new password does not work: %v", err)
 	}
