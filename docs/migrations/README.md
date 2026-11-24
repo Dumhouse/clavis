@@ -3,6 +3,7 @@
 - [Infisical](infisical.md)
 - [Doppler](doppler.md)
 - [Vault / OpenBao](vault.md)
+- [Bitwarden Secrets Manager](bitwarden.md)
 - [.env files and directories](dotenv.md)
 
 Every guide starts with `--dry-run`, verifies the diff, then applies. Keep the

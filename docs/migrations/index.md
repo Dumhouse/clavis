@@ -7,6 +7,7 @@ keeps the source system readable until you cut over.
 - [Infisical](infisical.md)
 - [Doppler](doppler.md)
 - [Vault / OpenBao](vault.md)
+- [Bitwarden Secrets Manager](bitwarden.md)
 - [`.env` files and directories](dotenv.md)
 
 The importer CLI supports the same providers; see
