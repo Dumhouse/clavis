@@ -29,6 +29,16 @@ type rotationPostgresConfig struct {
 	Role     string `json:"role"`
 }
 
+type rotationMySQLConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	TLS      string `json:"tls"`
+	Role     string `json:"role"`
+}
+
 type rotationAWSConfig struct {
 	Region       string `json:"region"`
 	AccessKey    string `json:"access_key"`
@@ -60,6 +70,20 @@ func (s *Service) rotateCreate(ctx context.Context, provider, rawConfig, oldValu
 		}
 		password := base64.RawURLEncoding.EncodeToString(passwordBytes)
 		if err := s.setPostgresPassword(ctx, config, password); err != nil {
+			return nil, err
+		}
+		return &rotationResult{Value: password}, nil
+	case "mysql":
+		var config rotationMySQLConfig
+		if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
+			return nil, err
+		}
+		passwordBytes := make([]byte, 24)
+		if _, err := rand.Read(passwordBytes); err != nil {
+			return nil, err
+		}
+		password := base64.RawURLEncoding.EncodeToString(passwordBytes)
+		if err := s.setMySQLPassword(ctx, config, password); err != nil {
 			return nil, err
 		}
 		return &rotationResult{Value: password}, nil
@@ -103,6 +127,14 @@ func (s *Service) rotateRollback(ctx context.Context, provider, rawConfig, oldVa
 		if oldValue != "" {
 			return s.setPostgresPassword(ctx, config, oldValue)
 		}
+	case "mysql":
+		var config rotationMySQLConfig
+		if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
+			return err
+		}
+		if oldValue != "" {
+			return s.setMySQLPassword(ctx, config, oldValue)
+		}
 	case "aws":
 		var config rotationAWSConfig
 		if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
@@ -128,6 +160,8 @@ func (s *Service) rotateRevokeOld(ctx context.Context, provider, rawConfig, oldV
 	switch provider {
 	case "postgres":
 		return nil // ALTER ROLE invalidated the old password
+	case "mysql":
+		return nil // ALTER USER invalidated the old password
 	case "aws":
 		var config rotationAWSConfig
 		if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
@@ -170,6 +204,23 @@ func (s *Service) setPostgresPassword(ctx context.Context, config rotationPostgr
 	defer func() { _ = db.Close() }()
 	statement := `ALTER ROLE "` + strings.ReplaceAll(config.Role, `"`, `""`) + //nolint:gosec // G202: Postgres cannot bind identifiers; they are quoted with embedded quotes doubled
 		`" WITH PASSWORD '` + strings.ReplaceAll(password, "'", "''") + `'`
+	_, err = db.ExecContext(ctx, statement)
+	return err
+}
+
+func (s *Service) setMySQLPassword(ctx context.Context, config rotationMySQLConfig, password string) error {
+	if !safeRoleName(config.Role) {
+		return fmt.Errorf("invalid role name")
+	}
+	db, err := s.mysqlAdminClient(&mysqlDynamicConfig{
+		Host: config.Host, Port: config.Port, Database: config.Database,
+		Username: config.Username, Password: config.Password, TLS: config.TLS,
+	})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	statement := "ALTER USER " + mysqlQuotedUser(config.Role) + " IDENTIFIED BY " + mysqlQuotedString(password) //nolint:gosec // G202: the user is quoted and the password literal is escaped
 	_, err = db.ExecContext(ctx, statement)
 	return err
 }

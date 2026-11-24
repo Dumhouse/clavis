@@ -57,6 +57,10 @@
   run and conflict handling as the other providers.
 - A dependency-free Ruby client in `sdk/ruby`, with `Clavis.fetch_secrets` and
   `Clavis.load_secrets` matching the Node.js and Python clients.
+- Dynamic credentials can target MySQL and MariaDB: `clavis lease setup
+  --engine mysql` creates a user per lease with configurable privileges and
+  drops it on revoke or expiry. `clavis rotation create --provider mysql`
+  rotates a user's password.
 
 ### Changed
 

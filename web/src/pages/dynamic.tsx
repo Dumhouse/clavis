@@ -321,6 +321,7 @@ function CreateDynamicConfigDialog({
   onClose: () => void
   onCreated: () => Promise<void>
 }) {
+  const [engine, setEngine] = useState('postgres')
   const [host, setHost] = useState('localhost')
   const [port, setPort] = useState(5432)
   const [database, setDatabase] = useState('postgres')
@@ -336,15 +337,16 @@ function CreateDynamicConfigDialog({
     const result = await api.POST('/api/v1/orgs/{org}/projects/{project}/dynamic-configs', {
       params: { path: { org: orgSlug, project: projectSlug } },
       body: {
-        engine: 'postgres',
+        engine: engine as 'postgres' | 'mysql' | 'mariadb' | 'aws',
         config: {
           host,
           port,
           database,
           username,
           password,
-          sslmode: 'disable',
-          grant_role: grantRole,
+          ...(engine === 'postgres'
+            ? { sslmode: 'disable', grant_role: grantRole }
+            : { tls: 'false', grant_privileges: grantRole }),
         },
       },
     })
@@ -360,10 +362,10 @@ function CreateDynamicConfigDialog({
     <Modal onClose={onClose} className="max-w-lg">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-head text-lg font-semibold">New PostgreSQL config</h2>
+          <h2 className="font-head text-lg font-semibold">New credential source</h2>
           <p className="mt-0.5 text-sm text-muted">
-            Clavis connects with these admin credentials to create a role for each lease. Role
-            grants, TTL, and revocation are managed by the lease.
+            Clavis connects with these admin credentials to create a user for each lease. Grants,
+            TTL, and revocation are managed by the lease.
           </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -371,12 +373,29 @@ function CreateDynamicConfigDialog({
         </Button>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-muted">Engine</span>
+          <Select
+            className="h-9"
+            value={engine}
+            onChange={(event) => {
+              const next = event.target.value
+              setEngine(next)
+              setPort(next === 'postgres' ? 5432 : 3306)
+              if (next !== 'postgres' && grantRole === '') setGrantRole('SELECT')
+            }}
+          >
+            <option value="postgres">PostgreSQL</option>
+            <option value="mysql">MySQL</option>
+            <option value="mariadb">MariaDB</option>
+          </Select>
+        </label>
         {[
           ['Host', host, setHost],
           ['Database', database, setDatabase],
           ['Admin user', username, setUsername],
           ['Admin password', password, setPassword],
-          ['Grant role', grantRole, setGrantRole],
+          [engine === 'postgres' ? 'Grant role' : 'Grant privileges', grantRole, setGrantRole],
         ].map(([label, value, setter]) => (
           <label key={String(label)} className="block">
             <span className="mb-1 block text-xs font-medium text-muted">{String(label)}</span>

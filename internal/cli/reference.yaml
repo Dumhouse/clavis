@@ -975,15 +975,21 @@ commands:
           clavis rotation create DATABASE_PASSWORD --provider postgres \
             --pg-host db.internal --pg-database app --pg-username admin \
             --pg-password "$PGPASSWORD" --pg-role app_user --interval 24h
+      - title: "MySQL user password, weekly"
+        run: |-
+          clavis rotation create MYSQL_PASSWORD --provider mysql \
+            --mysql-host db.internal --mysql-database app --mysql-username admin \
+            --mysql-password "$MYSQL_PASSWORD" --mysql-role app_user --interval 168h
       - title: "Your own webhook, monthly"
         run: |-
           clavis rotation create PARTNER_API_KEY --provider webhook \
             --webhook-url https://rotate.example.com/partner --webhook-secret "$HMAC_SECRET" \
             --interval 720h
     notes: |-
-      Providers: `postgres` (role password), `aws` (IAM access key; the secret
-      stores JSON with `access_key_id` and `secret_access_key`), and `webhook`
-      (`create`, `rollback` and `revoke` calls, HMAC-signed).
+      Providers: `postgres` (role password), `mysql`/`mariadb` (user password),
+      `aws` (IAM access key; the secret stores JSON with `access_key_id` and
+      `secret_access_key`), and `webhook` (`create`, `rollback` and `revoke`
+      calls, HMAC-signed).
   "rotation ls":
     description: "List policies with their interval, next run and last status."
     examples:
@@ -1017,25 +1023,35 @@ commands:
   lease:
     description: |-
       Dynamic secrets: instead of one shared database password, issue a fresh
-      Postgres role or AWS STS credentials per use, which expire on their own.
+      Postgres role, MySQL user, or AWS STS credentials per use, which expire on
+      their own.
     examples:
       - run: "clavis lease run 4a1c… -- psql"
     related: [rotation]
 
   "lease setup":
-    description: "Set up a credential source: a Postgres server and the role to grant, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)"
+    description: "Set up a credential source: a Postgres or MySQL server and the grant to apply, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)"
     examples:
       - title: "Postgres"
         run: |-
           clavis lease setup --host db.internal --database app \
             --username clavis_admin --password "$PGPASSWORD" \
             --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400
+      - title: "MySQL or MariaDB"
+        run: |-
+          clavis lease setup --engine mysql --host db.internal --port 3306 \
+            --database app --username clavis_admin --password "$MYSQL_PASSWORD" \
+            --grant-privileges "SELECT, INSERT, UPDATE" --default-ttl 3600
       - title: "AWS STS"
         run: |-
           clavis lease setup --engine aws --aws-region eu-central-1 \
             --aws-access-key "$AWS_ACCESS_KEY_ID" --aws-secret-key "$AWS_SECRET_ACCESS_KEY" \
             --aws-role-arn arn:aws:iam::123456789012:role/deploy
-    notes: "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease."
+    notes: |-
+      AWS leases return `access_key_id`, `secret_access_key`, `session_token`
+      and `expiration`; STS credentials can't be renewed, so create a new
+      lease. MySQL users have no database-side expiry: Clavis drops them when
+      the lease is revoked or when the expiry job runs.
   "lease configs":
     description: "List credential sources set up with `lease setup`."
     examples:
@@ -1047,8 +1063,9 @@ commands:
   "lease run":
     description: |-
       Issue credentials, run a command with them (`PGHOST`, `PGPORT`,
-      `PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres), then revoke them,
-      even if the command fails.
+      `PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres; `MYSQL_HOST`,
+      `MYSQL_TCP_PORT`, `MYSQL_USER`, `MYSQL_PWD`, `MYSQL_DATABASE` for MySQL),
+      then revoke them, even if the command fails.
     examples:
       - run: "clavis lease run 4a1c… -- psql"
       - run: "clavis lease run 4a1c… --ttl 900 -- ./migrate.sh"

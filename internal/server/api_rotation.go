@@ -24,7 +24,7 @@ type createRotationInput struct {
 	Env     string `path:"env"`
 	Body    struct {
 		Key      string         `json:"key" minLength:"1" maxLength:"256"`
-		Provider string         `json:"provider" enum:"postgres,aws,webhook"`
+		Provider string         `json:"provider" enum:"postgres,mysql,aws,webhook"`
 		Config   map[string]any `json:"config"`
 		Interval int            `json:"interval_seconds" minimum:"60" maximum:"7776000"`
 		Enabled  bool           `json:"enabled,omitempty" default:"true"`

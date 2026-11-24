@@ -31,6 +31,14 @@ clavis rotation create DATABASE_PASSWORD --provider postgres \
   --pg-password "$PGPASSWORD" --pg-role app_user --interval 24h
 ```
 
+<p class="cli-example-title">MySQL user password, weekly</p>
+
+```sh
+clavis rotation create MYSQL_PASSWORD --provider mysql \
+  --mysql-host db.internal --mysql-database app --mysql-username admin \
+  --mysql-password "$MYSQL_PASSWORD" --mysql-role app_user --interval 168h
+```
+
 <p class="cli-example-title">Your own webhook, monthly</p>
 
 ```sh
@@ -48,6 +56,13 @@ clavis rotation create PARTNER_API_KEY --provider webhook \
 <div class="cli-flag" id="flag-aws-user"><dt><code>--aws-user string</code></dt><dd>IAM user whose access key rotates</dd></div>
 <div class="cli-flag" id="flag-enabled"><dt><code>--enabled</code></dt><dd>enable the schedule <span class="cli-default">Default: <code>true</code></span></dd></div>
 <div class="cli-flag" id="flag-interval"><dt><code>--interval duration</code></dt><dd>rotation interval <span class="cli-default">Default: <code>24h</code></span></dd></div>
+<div class="cli-flag" id="flag-mysql-database"><dt><code>--mysql-database string</code></dt><dd>MySQL database</dd></div>
+<div class="cli-flag" id="flag-mysql-host"><dt><code>--mysql-host string</code></dt><dd>MySQL host <span class="cli-default">Default: <code>localhost</code></span></dd></div>
+<div class="cli-flag" id="flag-mysql-password"><dt><code>--mysql-password string</code></dt><dd>MySQL admin password</dd></div>
+<div class="cli-flag" id="flag-mysql-port"><dt><code>--mysql-port int</code></dt><dd>MySQL port <span class="cli-default">Default: <code>3306</code></span></dd></div>
+<div class="cli-flag" id="flag-mysql-role"><dt><code>--mysql-role string</code></dt><dd>MySQL user whose password rotates</dd></div>
+<div class="cli-flag" id="flag-mysql-tls"><dt><code>--mysql-tls string</code></dt><dd>MySQL TLS: false, true, skip-verify, or preferred</dd></div>
+<div class="cli-flag" id="flag-mysql-username"><dt><code>--mysql-username string</code></dt><dd>MySQL admin user</dd></div>
 <div class="cli-flag" id="flag-pg-database"><dt><code>--pg-database string</code></dt><dd>PostgreSQL database</dd></div>
 <div class="cli-flag" id="flag-pg-host"><dt><code>--pg-host string</code></dt><dd>PostgreSQL host <span class="cli-default">Default: <code>localhost</code></span></dd></div>
 <div class="cli-flag" id="flag-pg-password"><dt><code>--pg-password string</code></dt><dd>PostgreSQL admin password</dd></div>
@@ -55,16 +70,17 @@ clavis rotation create PARTNER_API_KEY --provider webhook \
 <div class="cli-flag" id="flag-pg-role"><dt><code>--pg-role string</code></dt><dd>PostgreSQL role whose password rotates</dd></div>
 <div class="cli-flag" id="flag-pg-sslmode"><dt><code>--pg-sslmode string</code></dt><dd>PostgreSQL sslmode <span class="cli-default">Default: <code>disable</code></span></dd></div>
 <div class="cli-flag" id="flag-pg-username"><dt><code>--pg-username string</code></dt><dd>PostgreSQL admin user</dd></div>
-<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>postgres, aws, or webhook <span class="cli-default">Default: <code>postgres</code></span></dd></div>
+<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>postgres, mysql, aws, or webhook <span class="cli-default">Default: <code>postgres</code></span></dd></div>
 <div class="cli-flag" id="flag-webhook-secret"><dt><code>--webhook-secret string</code></dt><dd>webhook HMAC secret</dd></div>
 <div class="cli-flag" id="flag-webhook-url"><dt><code>--webhook-url string</code></dt><dd>rotation webhook URL</dd></div>
 </dl>
 
 ## Details
 
-Providers: `postgres` (role password), `aws` (IAM access key; the secret
-stores JSON with `access_key_id` and `secret_access_key`), and `webhook`
-(`create`, `rollback` and `revoke` calls, HMAC-signed).
+Providers: `postgres` (role password), `mysql`/`mariadb` (user password),
+`aws` (IAM access key; the secret stores JSON with `access_key_id` and
+`secret_access_key`), and `webhook` (`create`, `rollback` and `revoke`
+calls, HMAC-signed).
 
 <details class="cli-globals"><summary>Global flags</summary>
 

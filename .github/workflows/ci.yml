@@ -83,6 +83,32 @@ jobs:
           cache: true
       - run: go test ./internal/server ./internal/cli ./internal/jobs ./internal/store
 
+  mysql:
+    name: Go tests (MySQL)
+    runs-on: ubuntu-26.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: clavis
+          MYSQL_DATABASE: clavis_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pclavis"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CLAVIS_TEST_MYSQL: root:clavis@tcp(127.0.0.1:3306)/clavis_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./internal/service -run MySQL -count=1 -v
+
   operator:
     name: Kubernetes operator
     runs-on: ubuntu-26.04

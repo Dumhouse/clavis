@@ -20,8 +20,9 @@ clavis lease run CONFIG_ID -- COMMAND [ARGS...] [flags]
 </div>
 
 Issue credentials, run a command with them (`PGHOST`, `PGPORT`,
-`PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres), then revoke them,
-even if the command fails.
+`PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres; `MYSQL_HOST`,
+`MYSQL_TCP_PORT`, `MYSQL_USER`, `MYSQL_PWD`, `MYSQL_DATABASE` for MySQL),
+then revoke them, even if the command fails.
 
 ## Examples
 

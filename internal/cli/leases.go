@@ -101,13 +101,13 @@ func newLeaseConfigsCommand(opts *Options) *cobra.Command {
 }
 
 func newLeaseConfigCreateCommand(opts *Options) *cobra.Command {
-	var engine, host, database, username, password, sslmode, grantRole string
+	var engine, host, database, username, password, sslmode, grantRole, tlsMode, grantPrivileges string
 	var port, defaultTTL, maxTTL int
 	var awsRegion, awsAccessKey, awsSecretKey, awsRoleARN, awsExternalID, awsSessionName string
 	cmd := &cobra.Command{
 		Use:     "setup",
 		Aliases: []string{"config-create"}, // the old name
-		Short:   "Set up a PostgreSQL or AWS STS credential source",
+		Short:   "Set up a PostgreSQL, MySQL, or AWS STS credential source",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := opts.output()
@@ -126,7 +126,16 @@ func newLeaseConfigCreateCommand(opts *Options) *cobra.Command {
 				"host": host, "port": port, "database": database, "username": username,
 				"password": password, "sslmode": sslmode, "grant_role": grantRole,
 			}
-			if engine == "aws" {
+			switch engine {
+			case "mysql", "mariadb":
+				if !cmd.Flags().Changed("port") {
+					port = 3306
+				}
+				config = map[string]any{
+					"host": host, "port": port, "database": database, "username": username,
+					"password": password, "tls": tlsMode, "grant_privileges": grantPrivileges,
+				}
+			case "aws":
 				config = map[string]any{
 					"region": awsRegion, "access_key": awsAccessKey, "secret_key": awsSecretKey,
 					"role_arn": awsRoleARN, "external_id": awsExternalID, "session_name": awsSessionName,
@@ -146,14 +155,16 @@ func newLeaseConfigCreateCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&engine, "engine", "postgres", "dynamic engine (postgres)")
-	cmd.Flags().StringVar(&host, "host", "localhost", "PostgreSQL host")
-	cmd.Flags().IntVar(&port, "port", 5432, "PostgreSQL port")
-	cmd.Flags().StringVar(&database, "database", "", "PostgreSQL database")
+	cmd.Flags().StringVar(&engine, "engine", "postgres", "dynamic engine (postgres, mysql, mariadb, aws)")
+	cmd.Flags().StringVar(&host, "host", "localhost", "database host")
+	cmd.Flags().IntVar(&port, "port", 5432, "database port (3306 for MySQL)")
+	cmd.Flags().StringVar(&database, "database", "", "database name")
 	cmd.Flags().StringVar(&username, "username", "", "admin username")
 	cmd.Flags().StringVar(&password, "password", "", "admin password")
 	cmd.Flags().StringVar(&sslmode, "sslmode", "disable", "PostgreSQL sslmode")
 	cmd.Flags().StringVar(&grantRole, "grant-role", "", "role granted to generated users")
+	cmd.Flags().StringVar(&tlsMode, "tls", "false", "MySQL TLS: false, true, skip-verify, or preferred")
+	cmd.Flags().StringVar(&grantPrivileges, "grant-privileges", "SELECT", "MySQL privileges granted on the database")
 	cmd.Flags().StringVar(&awsRegion, "aws-region", "us-east-1", "AWS region")
 	cmd.Flags().StringVar(&awsAccessKey, "aws-access-key", "", "AWS access key ID")
 	cmd.Flags().StringVar(&awsSecretKey, "aws-secret-key", "", "AWS secret access key")
@@ -336,6 +347,15 @@ func newLeaseRunCommand(opts *Options) *cobra.Command {
 				"PGPASSWORD="+result.Secrets["password"],
 				"PGDATABASE="+result.Secrets["database"],
 			)
+			if result.Secrets["engine"] == "mysql" {
+				child.Env = append(child.Env,
+					"MYSQL_HOST="+result.Secrets["host"],
+					"MYSQL_TCP_PORT="+result.Secrets["port"],
+					"MYSQL_USER="+result.Secrets["username"],
+					"MYSQL_PWD="+result.Secrets["password"],
+					"MYSQL_DATABASE="+result.Secrets["database"],
+				)
+			}
 			child.Stdin = os.Stdin
 			child.Stdout = os.Stdout
 			child.Stderr = os.Stderr

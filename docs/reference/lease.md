@@ -20,7 +20,8 @@ clavis lease <command>
 </div>
 
 Dynamic secrets: instead of one shared database password, issue a fresh
-Postgres role or AWS STS credentials per use, which expire on their own.
+Postgres role, MySQL user, or AWS STS credentials per use, which expire on
+their own.
 
 ## Commands
 
@@ -31,7 +32,7 @@ Postgres role or AWS STS credentials per use, which expire on their own.
 <a class="cli-card" href="./lease-renew"><span class="cli-card-name"><code>clavis lease renew</code></span><span class="cli-card-text">Renew a lease</span></a>
 <a class="cli-card" href="./lease-revoke"><span class="cli-card-name"><code>clavis lease revoke</code></span><span class="cli-card-text">Revoke a lease and drop its credentials</span></a>
 <a class="cli-card" href="./lease-run"><span class="cli-card-name"><code>clavis lease run</code></span><span class="cli-card-text">Run a command with dynamic credentials and auto-revoke</span></a>
-<a class="cli-card" href="./lease-setup"><span class="cli-card-name"><code>clavis lease setup</code></span><span class="cli-card-text">Set up a PostgreSQL or AWS STS credential source</span></a>
+<a class="cli-card" href="./lease-setup"><span class="cli-card-name"><code>clavis lease setup</code></span><span class="cli-card-text">Set up a PostgreSQL, MySQL, or AWS STS credential source</span></a>
 </div>
 
 ## Examples
