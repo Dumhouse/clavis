@@ -1,12 +1,12 @@
 ---
-description: "Fetch Clavis secrets from a Node.js or Python app at start-up with a tiny dependency-free client, instead of installing the CLI."
+description: "Fetch Clavis secrets from a Node.js, Python or Ruby app at start-up with a tiny dependency-free client, instead of installing the CLI."
 ---
 
-# Node.js and Python clients
+# Node.js, Python and Ruby clients
 
 If you can run `clavis run`, do: it needs no code changes. When you can't
 install the CLI (a serverless function, a slim container), these single-file
-clients fetch an environment's secrets at start-up. Both have no dependencies.
+clients fetch an environment's secrets at start-up. All have no dependencies.
 
 You need a token with the `secrets:read-values` permission for the environment,
 for example a machine identity limited to it:
@@ -53,6 +53,20 @@ clavis_client.load_secrets()  # fills os.environ; values already set win
 
 `fetch_secrets()` returns a dict, and both functions accept `server`, `token`,
 `org`, `project`, `env` and `timeout`.
+
+## Ruby (3.1 or later)
+
+Copy [`sdk/ruby/clavis_client.rb`](https://github.com/Dumhouse/clavis/blob/main/sdk/ruby/clavis_client.rb)
+into your project and require it:
+
+```ruby
+require_relative "clavis_client"
+
+Clavis.load_secrets # fills ENV; values already set win
+```
+
+`fetch_secrets` returns a hash instead, and both methods accept `server`,
+`token`, `org`, `project`, `env` and `timeout` keyword arguments.
 
 ## Things to know
 
