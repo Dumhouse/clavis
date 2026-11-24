@@ -73,6 +73,16 @@ keys:
   gcpServiceAccountExistingSecret: ""
   gcpServiceAccountKey: gcp-service-account.json
   gcpKMSEndpoint: ""
+  # azure-kv: no secrets. Use workload identity (AKS sets the AZURE_* variables
+  # and needs podLabels azure.workload.identity/use: "true"), App Service or
+  # Container Apps identity, or managed identity.
+  azureKeyVaultURL: ""
+  azureKeyVaultKey: ""
+  azureKeyVaultKeyVersion: ""
+  azureTenantID: ""
+  azureClientID: ""
+  azureFederatedTokenFile: ""
+  azureLoginEndpoint: ""
 
 log:
   level: info

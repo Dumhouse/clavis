@@ -10,6 +10,7 @@ task checklists in [project/tasks/](project/tasks/).
 
 ## Done recently
 
+- Azure Key Vault root keys, with workload identity and managed identity.
 - Shell completions in every package, and `clavis prompt` for your shell prompt.
 - `clavis run --reveal KEY` for consoles, and a masked-output hint.
 - `clavis doctor` checks consoles, the commit hook and old secrets.
@@ -22,7 +23,6 @@ task checklists in [project/tasks/](project/tasks/).
 ## Next
 
 - E2EE project mode (post-1.0).
-- Azure Key Vault root keys.
 - More rotation providers.
 - Richer health automation and one-click fixes.
 - Community importer/sync providers.

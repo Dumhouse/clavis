@@ -20,7 +20,7 @@ Reference: [security.md](security.md).
 |---|---|
 | Security doc claimed agent production `use` was policy-gated, but the implementation hard-denies staging and production. | Documentation now matches the stricter behavior. |
 | Security doc claimed all protected writes need an approved change request, while Admin/Owner writes are allowed. | Documented the actual Admin/Owner exception. |
-| Root-key provider list mentioned Azure Key Vault, which is not implemented. | Documented `file`, `env`, `aws-kms`, `gcp-kms`, and Shamir sealing only. |
+| Root-key provider list mentioned Azure Key Vault, which was not implemented. | Documented the implemented providers (`file`, `env`, `aws-kms`, `gcp-kms`, `azure-kv`, Shamir sealing); `azure-kv` later shipped. |
 | Share-link password handling was underspecified. | Documented ciphertext-only storage and bcrypt password hashing. |
 | Fuzzing was described but had no committed targets or CI smoke pass. | Added token, dotenv, and reference-expansion fuzz targets plus CI. |
 | Supply-chain claims were not backed by a verification guide. | Added supply-chain and reproducible-build documentation. |

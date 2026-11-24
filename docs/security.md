@@ -52,7 +52,7 @@ Secret ciphertexts
 - **Rotation:**
   - Root key rotation re-wraps org keys only (fast).
   - Org/project key rotation creates a new key version; a background job re-encrypts ciphertexts lazily, and old versions are destroyed after completion.
-- **Root key providers:** `file` (default, auto-generated on first start, 0600 permissions, with a loud warning to back it up), `env`, `aws-kms`, `gcp-kms`, and optional Shamir sealing for the file provider. Manual unseal uses M-of-N shares and a sealed marker.
+- **Root key providers:** `file` (default, auto-generated on first start, 0600 permissions, with a loud warning to back it up), `env`, `aws-kms`, `gcp-kms`, `azure-kv`, and optional Shamir sealing for the file provider. Manual unseal uses M-of-N shares and a sealed marker.
 - **Memory hygiene:** decrypted values are held for the shortest possible time and are never logged. Byte slices are zeroed best-effort. Core dumps are disabled in the server process.
 
 ### Future: optional E2EE projects

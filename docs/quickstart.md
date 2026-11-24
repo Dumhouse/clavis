@@ -212,7 +212,7 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_DB_PATH` | `<data>/clavis.db` | SQLite file |
 | `CLAVIS_DB_DRIVER` | `sqlite` | `sqlite` or `postgres`. Setting `CLAVIS_DB_DSN` alone selects `postgres`. |
 | `CLAVIS_DB_DSN` | — | Postgres connection string |
-| `CLAVIS_KEY_PROVIDER` | `file` | `file` or `env` root key |
+| `CLAVIS_KEY_PROVIDER` | `file` | Root key source: `file`, `env`, `aws-kms`, `gcp-kms`, or `azure-kv` |
 | `CLAVIS_ROOT_KEY_FILE` | `<data>/root.key` | File provider path |
 | `CLAVIS_ROOT_KEY` | — | Base64 32-byte key for the `env` provider |
 | `CLAVIS_ROOT_KEY_ENV` | `CLAVIS_ROOT_KEY` | Name of the variable that holds the root key, if your platform injects it under another name |
@@ -225,6 +225,13 @@ CLI's target). CLI context variables are covered in [ci.md](ci.md) and
 | `CLAVIS_GCP_KMS_KEY` | — | GCP KMS crypto key resource name |
 | `CLAVIS_GCP_SERVICE_ACCOUNT_FILE` | — | Service account JSON for GCP KMS |
 | `CLAVIS_GCP_KMS_ENDPOINT` | Google default | Cloud KMS endpoint override |
+| `CLAVIS_AZURE_KEY_VAULT_URL` | — | Key Vault URL for `azure-kv` |
+| `CLAVIS_AZURE_KEY_VAULT_KEY` | — | Key Vault key name |
+| `CLAVIS_AZURE_KEY_VAULT_KEY_VERSION` | latest | Key Vault key version |
+| `CLAVIS_AZURE_TENANT_ID` | — | Tenant for Azure workload identity (falls back to `AZURE_TENANT_ID` with a federated token) |
+| `CLAVIS_AZURE_CLIENT_ID` | `AZURE_CLIENT_ID` | Workload or user-assigned identity client ID |
+| `CLAVIS_AZURE_FEDERATED_TOKEN_FILE` | `AZURE_FEDERATED_TOKEN_FILE` | Federated token for workload identity |
+| `CLAVIS_AZURE_LOGIN_ENDPOINT` | `https://login.microsoftonline.com` | Login endpoint override for sovereign clouds |
 | `CLAVIS_DEV` | `false` | Dev cookies at `http://localhost` and Vite proxy |
 | `CLAVIS_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CLAVIS_LOG_FORMAT` | `json` | `json` or `console` (readable, for a terminal) |

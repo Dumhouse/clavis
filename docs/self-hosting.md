@@ -215,8 +215,44 @@ Choose one:
 
 - `file`: mounted secret volume, 0600; back it up separately.
 - `env`: injected by the platform secret manager.
-- `aws-kms` / `gcp-kms`: no root key at rest in the app.
+- `aws-kms` / `gcp-kms` / `azure-kv`: no root key at rest in the app.
 - Shamir sealing: `clavis admin shamir split --seal`; unseal before start.
+
+### Azure Key Vault
+
+Use a Key Vault key (RSA, 2048-bit or larger) to wrap the root key. Clavis
+generates a data key locally, wraps it with Key Vault, and stores only the
+wrapped bytes in `keys.root_key_file`:
+
+```sh
+CLAVIS_KEY_PROVIDER=azure-kv
+CLAVIS_AZURE_KEY_VAULT_URL=https://my-vault.vault.azure.net
+CLAVIS_AZURE_KEY_VAULT_KEY=clavis-root
+# Options: the empty version uses the latest Key Vault key version.
+CLAVIS_AZURE_KEY_VAULT_KEY_VERSION=
+```
+
+Give the workload the built-in **Key Vault Crypto Service Encryption User**
+role on the vault. It grants `keys/wrapKey` and `keys/unwrapKey` and nothing
+else.
+
+Credentials come from the Azure identity chain, with no static secrets in the
+configuration:
+
+1. **Workload identity** (AKS, GitHub Actions): set
+   `CLAVIS_AZURE_FEDERATED_TOKEN_FILE`, or let it default to
+   `AZURE_FEDERATED_TOKEN_FILE`. `AZURE_TENANT_ID` and `AZURE_CLIENT_ID` are
+   picked up too, so pod identity alone is often enough.
+2. **App Service, Container Apps, Functions**: Clavis uses
+   `IDENTITY_ENDPOINT` and `IDENTITY_HEADER` when both are set.
+3. **Managed identity everywhere else**: the instance metadata service.
+   `CLAVIS_AZURE_CLIENT_ID` selects a user-assigned identity.
+
+For sovereign clouds set `CLAVIS_AZURE_LOGIN_ENDPOINT`, for example
+`https://login.microsoftonline.us`. The wrapped key file still lives on the
+data volume: keep it, since a new key cannot decrypt the existing database.
+Rotating the Key Vault key is safe: the wrapped file records the key id it
+was wrapped with, so older key versions keep working.
 
 ## Backups
 
