@@ -19,7 +19,7 @@ clavis syncs drift ID
 
 </div>
 
-Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables and Cloudflare Pages.
+Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables, Cloudflare Pages and Fly.io secret names.
 
 ## Examples
 

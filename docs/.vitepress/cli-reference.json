@@ -3570,7 +3570,7 @@
       "group": "automation",
       "usage": "clavis syncs \u003ccommand\u003e",
       "summary": "Push secrets to external systems",
-      "description": "Push an environment's values to the platforms that run your code:\nGitHub and Forgejo Actions, GitLab CI, Vercel, Netlify, Cloudflare,\nAWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows when\nsomeone changed the other side by hand.",
+      "description": "Push an environment's values to the platforms that run your code:\nGitHub and Forgejo Actions, GitLab CI, Vercel, Netlify, Cloudflare,\nFly.io, AWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows\nwhen someone changed the other side by hand.",
       "examples": [],
       "flags": [],
       "subcommands": [
@@ -3644,6 +3644,10 @@
         {
           "title": "Forgejo, Gitea or Codeberg",
           "run": "clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com \\\n  --forgejo-repo team/web --forgejo-token \"$FORGEJO_TOKEN\""
+        },
+        {
+          "title": "Fly.io app secrets",
+          "run": "clavis syncs create production --provider flyio --flyio-app my-app \\\n  --flyio-token \"$FLY_API_TOKEN\" --delete-missing"
         },
         {
           "title": "AWS SSM Parameter Store",
@@ -3730,6 +3734,16 @@
           "name": "endpoint",
           "type": "string",
           "usage": "receiver URL for generic HTTP"
+        },
+        {
+          "name": "flyio-app",
+          "type": "string",
+          "usage": "Fly.io app name"
+        },
+        {
+          "name": "flyio-token",
+          "type": "string",
+          "usage": "Fly.io API token that can manage app secrets"
         },
         {
           "name": "forgejo-repo",
@@ -3848,7 +3862,7 @@
           "name": "provider",
           "type": "string",
           "default": "http",
-          "usage": "sync provider: http, gitlab, github, forgejo, vercel, aws, gcp, netlify, cloudflare, or vault"
+          "usage": "sync provider: http, gitlab, github, forgejo, flyio, vercel, aws, gcp, netlify, cloudflare, or vault"
         },
         {
           "name": "secret",
@@ -3911,7 +3925,7 @@
       "group": "automation",
       "usage": "clavis syncs drift ID",
       "summary": "Check provider drift for a sync",
-      "description": "Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables and Cloudflare Pages.",
+      "description": "Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables, Cloudflare Pages and Fly.io secret names.",
       "examples": [
         {
           "run": "clavis syncs drift 123e4567"
@@ -4021,7 +4035,7 @@
       "group": "automation",
       "usage": "clavis tokens \u003ccommand\u003e",
       "summary": "Manage org-wide platform tokens that syncs share",
-      "description": "A connection stores one provider credential for the whole organization:\na Forgejo or GitHub token, AWS keys, a service account. Syncs created\nwith `--connection` reuse it, so you paste a token once and rotating it\nupdates every sync that uses it. Credentials are never shown again.",
+      "description": "A connection stores one provider credential for the whole organization:\na Forgejo, GitHub, GitLab, or Fly.io token, AWS keys, a service account. Syncs created\nwith `--connection` reuse it, so you paste a token once and rotating it\nupdates every sync that uses it. Credentials are never shown again.",
       "examples": [
         {
           "run": "clavis tokens create \"Home Forgejo\" --provider forgejo --url https://git.example.com --token -"
@@ -4098,7 +4112,7 @@
         {
           "name": "provider",
           "type": "string",
-          "usage": "forgejo, github, gitlab, vercel, netlify, cloudflare, vault, aws, or gcp"
+          "usage": "forgejo, github, gitlab, flyio, vercel, netlify, cloudflare, vault, aws, or gcp"
         },
         {
           "name": "token",

@@ -1,5 +1,5 @@
 ---
-description: "Save a Forgejo, GitHub, GitLab, or cloud credential once per organization and reuse it across Clavis syncs; rotate it in one place."
+description: "Save a Forgejo, GitHub, GitLab, Fly.io, or cloud credential once per organization and reuse it across Clavis syncs; rotate it in one place."
 ---
 
 # Platform tokens for syncs
@@ -7,7 +7,7 @@ description: "Save a Forgejo, GitHub, GitLab, or cloud credential once per organ
 ::: tip Push or fetch?
 Clavis gets secrets to other systems in two ways:
 
-- **Sync (push):** Clavis writes values into GitHub, Forgejo, Vercel, AWS and
+- **Sync (push):** Clavis writes values into GitHub, Forgejo, Fly.io, Vercel, AWS and
   others, using *that platform's* access token. This page is about those
   tokens, shown as **Platform tokens** in the app (`clavis tokens` in
   the CLI).
@@ -21,8 +21,9 @@ use and suggests one of the two, with the reasons.
 :::
 
 A **platform token** (a *connection* in the API and CLI) is a provider credential saved once for the organization: a
-Forgejo, GitHub, or GitLab token, a GitHub App, Vercel, Netlify, Cloudflare or
-Vault tokens, AWS access keys, or a GCP service account, plus the instance URL.
+Forgejo, GitHub, GitLab, or Fly.io token, a GitHub App, Vercel, Netlify,
+Cloudflare or Vault tokens, AWS access keys, or a GCP service account, plus the
+instance URL.
 Syncs pick a connection instead of carrying their own token, so the second sync
 to the same Forgejo server only asks for the repository and environment.
 
@@ -35,9 +36,9 @@ to the same Forgejo server only asks for the repository and environment.
 ## In the web UI
 
 **Integrations → Platform tokens → Add connection.** Use **Test** to make one cheap
-authenticated call (for Forgejo, `GET /api/v1/user`; for AWS, STS
-`GetCallerIdentity`) and see a clear error if the token is rejected or the
-server is unreachable.
+authenticated call (for Forgejo, `GET /api/v1/user`; for Fly.io, an app's
+secret list when a sync uses the connection; for AWS, STS `GetCallerIdentity`)
+and see a clear error if the token is rejected or the server is unreachable.
 
 When you add a sync, step 2 lists the platform tokens for that provider. Pick
 one, or choose **Enter an access token**: it is saved for other syncs unless you

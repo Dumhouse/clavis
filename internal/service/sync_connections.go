@@ -40,6 +40,7 @@ var connectionDefaultURLs = map[string]string{
 	"vault":      "",
 	"aws":        "",
 	"gcp":        "",
+	"flyio":      flyioDefaultURL,
 }
 
 // ConnectionProviders returns the providers that support connections, sorted.
@@ -667,6 +668,9 @@ func (s *Service) TestSyncConnection(ctx context.Context, actor authz.Actor, org
 	defer cancel()
 	if conn.Provider == "forgejo" {
 		return s.testForgejoConnection(ctx, org, conn, config, target)
+	}
+	if conn.Provider == "flyio" {
+		return s.testFlyioConnection(ctx, org, conn, config)
 	}
 	identity, err := s.probeConnection(ctx, org, conn, config)
 	if err != nil {

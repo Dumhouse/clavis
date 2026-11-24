@@ -225,7 +225,7 @@ SSO, RBAC, approvals, rotation, and dynamic secrets ship in the same Apache-2.0
 build as everything else.
 
 <table>
-<tr><td width="33%">✅ Encrypted share links</td><td width="33%">✅ Syncs to GitHub, Vercel, AWS, GCP, Netlify, Cloudflare, Vault, Forgejo</td><td width="33%">✅ Importers for Infisical, Doppler, Vault, 1Password, <code>.env</code></td></tr>
+<tr><td width="33%">✅ Encrypted share links</td><td width="33%">✅ Syncs to GitHub, Vercel, Fly.io, AWS, GCP, Netlify, Cloudflare, Vault, Forgejo</td><td width="33%">✅ Importers for Infisical, Doppler, Vault, 1Password, <code>.env</code></td></tr>
 <tr><td width="33%">✅ <a href="operator/README.md">Kubernetes operator</a> + <a href="csi/README.md">CSI driver</a></td><td width="33%">✅ <a href="integrations/eso/README.md">External Secrets</a> webhook</td><td width="33%">✅ OIDC + SAML SSO, SCIM</td></tr>
 <tr><td width="33%">✅ PostgreSQL HA</td><td width="33%">✅ Encrypted scheduled backups</td><td width="33%">✅ Secret scanning</td></tr>
 <tr><td width="33%">✅ Offline encrypted cache</td><td width="33%">✅ OpenAPI 3.1</td><td width="33%">✅ Hash-chained, verifiable audit log</td></tr>

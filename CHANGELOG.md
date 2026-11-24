@@ -4,6 +4,10 @@
 
 ### Added
 
+- Fly.io app secrets can be synced with `clavis syncs create --provider
+  flyio --flyio-app <app>` through the Machines API, with drift checks on
+  secret names and reusable platform tokens. Running Machines keep the values
+  they booted with until the app is redeployed.
 - The root key can be wrapped by Azure Key Vault (`keys.provider: azure-kv`).
   Clavis uses workload identity (AKS, GitHub Actions), the App Service and
   Container Apps identity endpoint, or managed identity, with no static

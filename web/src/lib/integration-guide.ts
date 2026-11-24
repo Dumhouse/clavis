@@ -83,6 +83,19 @@ export const platforms: Platform[] = [
     limits: ['Values are copies; run the sync (or schedule it) after changes.'],
   },
   {
+    id: 'flyio',
+    name: 'Fly.io',
+    mark: 'FLY',
+    color: '#8b5cf6',
+    sync: 'flyio',
+    recommend: 'push',
+    why: 'Fly apps read their own app secrets as environment variables. Clavis pushes one environment into one app with the Machines API.',
+    limits: [
+      'Running Machines keep the values they booted with until you redeploy the app.',
+      'Secret values are write-only: drift checks compare names only.',
+    ],
+  },
+  {
     id: 'netlify',
     name: 'Netlify',
     mark: 'N',

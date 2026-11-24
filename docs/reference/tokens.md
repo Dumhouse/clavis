@@ -22,7 +22,7 @@ clavis tokens <command>
 Also available as `connections`.
 
 A connection stores one provider credential for the whole organization:
-a Forgejo or GitHub token, AWS keys, a service account. Syncs created
+a Forgejo, GitHub, GitLab, or Fly.io token, AWS keys, a service account. Syncs created
 with `--connection` reuse it, so you paste a token once and rotating it
 updates every sync that uses it. Credentials are never shown again.
 

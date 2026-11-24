@@ -229,6 +229,25 @@ export const providers: Provider[] = [
     ],
   },
   {
+    id: 'flyio',
+    tokenUrl: () => 'https://fly.io/user/personal_access_tokens',
+    name: 'Fly.io',
+    blurb: 'App secrets through the Machines API.',
+    mark: 'FLY',
+    color: '#8b5cf6',
+    docs: 'Create a Fly.io API token. An app-scoped deploy token is enough for this app; an organization token works across apps.',
+    fields: [
+      { key: 'flyio_app', label: 'App name', placeholder: 'my-app', required: true },
+      {
+        key: 'base_url',
+        label: 'API URL',
+        placeholder: 'https://api.machines.dev',
+        hint: 'Only for a proxy in front of the Fly.io Machines API.',
+      },
+      { key: 'token', label: 'API token', secret: true, required: true },
+    ],
+  },
+  {
     id: 'netlify',
     tokenUrl: () => 'https://app.netlify.com/user/applications#personal-access-tokens',
     name: 'Netlify',

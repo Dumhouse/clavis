@@ -21,8 +21,8 @@ clavis syncs <command>
 
 Push an environment's values to the platforms that run your code:
 GitHub and Forgejo Actions, GitLab CI, Vercel, Netlify, Cloudflare,
-AWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows when
-someone changed the other side by hand.
+Fly.io, AWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows
+when someone changed the other side by hand.
 
 ## Commands
 

@@ -74,6 +74,13 @@ clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com
   --forgejo-repo team/web --forgejo-token "$FORGEJO_TOKEN"
 ```
 
+<p class="cli-example-title">Fly.io app secrets</p>
+
+```sh
+clavis syncs create production --provider flyio --flyio-app my-app \
+  --flyio-token "$FLY_API_TOKEN" --delete-missing
+```
+
 <p class="cli-example-title">AWS SSM Parameter Store</p>
 
 ```sh
@@ -112,6 +119,8 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 <div class="cli-flag" id="flag-connection"><dt><code>--connection clavis tokens ls</code></dt><dd>use a saved connection&#39;s credential instead of a token flag (see clavis tokens ls)</dd></div>
 <div class="cli-flag" id="flag-delete-missing"><dt><code>--delete-missing</code></dt><dd>delete remote keys not present in Clavis</dd></div>
 <div class="cli-flag" id="flag-endpoint"><dt><code>--endpoint string</code></dt><dd>receiver URL for generic HTTP</dd></div>
+<div class="cli-flag" id="flag-flyio-app"><dt><code>--flyio-app string</code></dt><dd>Fly.io app name</dd></div>
+<div class="cli-flag" id="flag-flyio-token"><dt><code>--flyio-token string</code></dt><dd>Fly.io API token that can manage app secrets</dd></div>
 <div class="cli-flag" id="flag-forgejo-repo"><dt><code>--forgejo-repo string</code></dt><dd>Forgejo repository (owner/name) or organization for org scope</dd></div>
 <div class="cli-flag" id="flag-forgejo-scope"><dt><code>--forgejo-scope string</code></dt><dd>Forgejo scope: repo or org <span class="cli-default">Default: <code>repo</code></span></dd></div>
 <div class="cli-flag" id="flag-forgejo-token"><dt><code>--forgejo-token string</code></dt><dd>Forgejo access token with write:repository (or write:organization)</dd></div>
@@ -134,7 +143,7 @@ clavis syncs create dev --endpoint https://deploy.example.com/hooks/clavis --sec
 <div class="cli-flag" id="flag-netlify-site"><dt><code>--netlify-site string</code></dt><dd>Netlify site ID</dd></div>
 <div class="cli-flag" id="flag-netlify-token"><dt><code>--netlify-token string</code></dt><dd>Netlify personal access token</dd></div>
 <div class="cli-flag" id="flag-protected"><dt><code>--protected</code></dt><dd>mark GitLab variables protected</dd></div>
-<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>sync provider: http, gitlab, github, forgejo, vercel, aws, gcp, netlify, cloudflare, or vault <span class="cli-default">Default: <code>http</code></span></dd></div>
+<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>sync provider: http, gitlab, github, forgejo, flyio, vercel, aws, gcp, netlify, cloudflare, or vault <span class="cli-default">Default: <code>http</code></span></dd></div>
 <div class="cli-flag" id="flag-secret"><dt><code>--secret string</code></dt><dd>HMAC signing secret for generic HTTP</dd></div>
 <div class="cli-flag" id="flag-vault-mount"><dt><code>--vault-mount string</code></dt><dd>Vault KV mount <span class="cli-default">Default: <code>secret</code></span></dd></div>
 <div class="cli-flag" id="flag-vault-path"><dt><code>--vault-path string</code></dt><dd>Vault path prefix (one secret per key)</dd></div>

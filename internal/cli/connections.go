@@ -182,7 +182,7 @@ func newConnectionsCreateCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&provider, "provider", "", "forgejo, github, gitlab, vercel, netlify, cloudflare, vault, aws, or gcp")
+	cmd.Flags().StringVar(&provider, "provider", "", "forgejo, github, gitlab, flyio, vercel, netlify, cloudflare, vault, aws, or gcp")
 	cmd.Flags().StringVar(&baseURL, "url", "", "instance or API URL (defaults to the public service)")
 	connectionCredentialFlags(cmd, fields)
 	_ = cmd.MarkFlagRequired("provider")
