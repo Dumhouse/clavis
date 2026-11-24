@@ -152,6 +152,8 @@ func newRotationCreateCommand(opts *Options) *cobra.Command {
 	var enabled bool
 	var pgHost, pgDatabase, pgUser, pgPassword, pgSSL, pgRole string
 	var pgPort int
+	var myHost, myDatabase, myUser, myPassword, myTLS, myRole string
+	var myPort int
 	var awsRegion, awsAccessKey, awsSecretKey, awsUser string
 	var webhookURL, webhookSecret string
 	cmd := &cobra.Command{
@@ -180,10 +182,15 @@ func newRotationCreateCommand(opts *Options) *cobra.Command {
 					"region": awsRegion, "access_key": awsAccessKey,
 					"secret_key": awsSecretKey, "user_name": awsUser,
 				}
+			case "mysql":
+				config = map[string]any{
+					"host": myHost, "port": myPort, "database": myDatabase,
+					"username": myUser, "password": myPassword, "tls": myTLS, "role": myRole,
+				}
 			case "webhook":
 				config = map[string]any{"url": webhookURL, "secret": webhookSecret}
 			default:
-				return fmt.Errorf("provider must be postgres, aws, or webhook")
+				return fmt.Errorf("provider must be postgres, mysql, aws, or webhook")
 			}
 			var created rotationPolicyJSON
 			if err := c.Post(cmd.Context(), rotationBase(resolved), map[string]any{
@@ -199,7 +206,7 @@ func newRotationCreateCommand(opts *Options) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&provider, "provider", "postgres", "postgres, aws, or webhook")
+	cmd.Flags().StringVar(&provider, "provider", "postgres", "postgres, mysql, aws, or webhook")
 	cmd.Flags().DurationVar(&interval, "interval", 24*time.Hour, "rotation interval")
 	cmd.Flags().BoolVar(&enabled, "enabled", true, "enable the schedule")
 	cmd.Flags().StringVar(&pgHost, "pg-host", "localhost", "PostgreSQL host")
@@ -209,6 +216,13 @@ func newRotationCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&pgPassword, "pg-password", "", "PostgreSQL admin password")
 	cmd.Flags().StringVar(&pgSSL, "pg-sslmode", "disable", "PostgreSQL sslmode")
 	cmd.Flags().StringVar(&pgRole, "pg-role", "", "PostgreSQL role whose password rotates")
+	cmd.Flags().StringVar(&myHost, "mysql-host", "localhost", "MySQL host")
+	cmd.Flags().IntVar(&myPort, "mysql-port", 3306, "MySQL port")
+	cmd.Flags().StringVar(&myDatabase, "mysql-database", "", "MySQL database")
+	cmd.Flags().StringVar(&myUser, "mysql-username", "", "MySQL admin user")
+	cmd.Flags().StringVar(&myPassword, "mysql-password", "", "MySQL admin password")
+	cmd.Flags().StringVar(&myTLS, "mysql-tls", "false", "MySQL TLS: false, true, skip-verify, or preferred")
+	cmd.Flags().StringVar(&myRole, "mysql-role", "", "MySQL user whose password rotates")
 	cmd.Flags().StringVar(&awsRegion, "aws-region", "us-east-1", "AWS region")
 	cmd.Flags().StringVar(&awsAccessKey, "aws-access-key", "", "AWS access key ID")
 	cmd.Flags().StringVar(&awsSecretKey, "aws-secret-key", "", "AWS secret access key")

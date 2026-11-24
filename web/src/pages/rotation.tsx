@@ -441,16 +441,18 @@ function CreateRotationDialog({
     const config =
       provider === 'postgres'
         ? { host, port, database, username, password, sslmode: 'disable', role }
-        : provider === 'webhook'
-          ? { url }
-          : {}
+        : provider === 'mysql'
+          ? { host, port, database, username, password, tls: 'false', role }
+          : provider === 'webhook'
+            ? { url }
+            : {}
     const result = await api.POST(
       '/api/v1/orgs/{org}/projects/{project}/environments/{env}/rotations',
       {
         params: { path: { org: orgSlug, project: projectSlug, env } },
         body: {
           key,
-          provider: provider as 'postgres' | 'aws' | 'webhook',
+          provider: provider as 'postgres' | 'mysql' | 'aws' | 'webhook',
           config,
           interval_seconds: Math.max(60, Math.round(hours * 3600)),
           enabled: true,
@@ -497,10 +499,13 @@ function CreateRotationDialog({
             className="h-9"
             value={provider}
             onChange={(e) => {
-              setProvider(e.target.value)
+              const next = e.target.value
+              setProvider(next)
+              setPort(next === 'mysql' ? 3306 : 5432)
             }}
           >
             <option value="postgres">PostgreSQL</option>
+            <option value="mysql">MySQL</option>
             <option value="webhook">Webhook</option>
           </Select>
         </label>
@@ -515,7 +520,7 @@ function CreateRotationDialog({
             }}
           />
         </label>
-        {provider === 'postgres' ? (
+        {provider === 'postgres' || provider === 'mysql' ? (
           <>
             <label className="block">
               <span className="mb-1 block text-xs text-muted">Host</span>

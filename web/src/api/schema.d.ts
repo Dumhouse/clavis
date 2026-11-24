@@ -2860,7 +2860,7 @@ export interface components {
             /** Format: int64 */
             default_ttl_seconds?: number;
             /** @enum {string} */
-            engine: "postgres" | "aws";
+            engine: "postgres" | "mysql" | "mariadb" | "aws";
             /** Format: int64 */
             max_ttl_seconds?: number;
         };
@@ -2962,7 +2962,7 @@ export interface components {
             interval_seconds: number;
             key: string;
             /** @enum {string} */
-            provider: "postgres" | "aws" | "webhook";
+            provider: "postgres" | "mysql" | "aws" | "webhook";
         };
         CreateSecretInputBody: {
             comment?: string;

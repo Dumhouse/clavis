@@ -57,9 +57,9 @@ func (s *Service) CreateRotationPolicy(ctx context.Context, actor authz.Actor, o
 	}
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	switch provider {
-	case "postgres", "aws", "webhook":
+	case "postgres", "mysql", "aws", "webhook":
 	default:
-		return nil, fmt.Errorf("%w: rotation provider must be postgres, aws, or webhook", ErrValidation)
+		return nil, fmt.Errorf("%w: rotation provider must be postgres, mysql, aws, or webhook", ErrValidation)
 	}
 	if interval < 60 {
 		interval = 60
@@ -99,12 +99,18 @@ func (s *Service) CreateRotationPolicy(ctx context.Context, actor authz.Actor, o
 func validateRotationConfig(provider string, config map[string]any) error {
 	required := map[string][]string{
 		"postgres": {"host", "database", "username", "password", "role"},
+		"mysql":    {"host", "database", "username", "password", "role"},
 		"aws":      {"region", "access_key", "secret_key", "user_name"},
 		"webhook":  {"url"},
 	}
 	for _, key := range required[provider] {
 		if value, _ := config[key].(string); strings.TrimSpace(value) == "" {
 			return fmt.Errorf("%w: %s rotation needs %s", ErrValidation, provider, key)
+		}
+	}
+	if provider == "mysql" {
+		if value, _ := config["tls"].(string); !safeMySQLTLS(value) {
+			return fmt.Errorf("%w: tls must be false, true, skip-verify, or preferred", ErrValidation)
 		}
 	}
 	if provider == "webhook" {

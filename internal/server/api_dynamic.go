@@ -21,7 +21,7 @@ type createDynamicConfigInput struct {
 	Org     string `path:"org"`
 	Project string `path:"project"`
 	Body    struct {
-		Engine     string         `json:"engine" enum:"postgres,aws"`
+		Engine     string         `json:"engine" enum:"postgres,mysql,mariadb,aws"`
 		Config     map[string]any `json:"config"`
 		DefaultTTL int            `json:"default_ttl_seconds,omitempty" minimum:"60" maximum:"604800"`
 		MaxTTL     int            `json:"max_ttl_seconds,omitempty" minimum:"60" maximum:"604800"`

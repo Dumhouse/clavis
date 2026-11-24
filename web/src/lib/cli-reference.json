@@ -1838,7 +1838,7 @@
       "group": "automation",
       "usage": "clavis lease \u003ccommand\u003e",
       "summary": "Create and manage dynamic secret leases",
-      "description": "Dynamic secrets: instead of one shared database password, issue a fresh\nPostgres role or AWS STS credentials per use, which expire on their own.",
+      "description": "Dynamic secrets: instead of one shared database password, issue a fresh\nPostgres role, MySQL user, or AWS STS credentials per use, which expire on\ntheir own.",
       "examples": [
         {
           "run": "clavis lease run 4a1c… -- psql"
@@ -1962,7 +1962,7 @@
       "group": "automation",
       "usage": "clavis lease run CONFIG_ID -- COMMAND [ARGS...] [flags]",
       "summary": "Run a command with dynamic credentials and auto-revoke",
-      "description": "Issue credentials, run a command with them (`PGHOST`, `PGPORT`,\n`PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres), then revoke them,\neven if the command fails.",
+      "description": "Issue credentials, run a command with them (`PGHOST`, `PGPORT`,\n`PGUSER`, `PGPASSWORD`, `PGDATABASE` for Postgres; `MYSQL_HOST`,\n`MYSQL_TCP_PORT`, `MYSQL_USER`, `MYSQL_PWD`, `MYSQL_DATABASE` for MySQL),\nthen revoke them, even if the command fails.",
       "examples": [
         {
           "run": "clavis lease run 4a1c… -- psql"
@@ -1987,19 +1987,23 @@
       "parent": "lease",
       "group": "automation",
       "usage": "clavis lease setup [flags]",
-      "summary": "Set up a PostgreSQL or AWS STS credential source",
-      "description": "Set up a credential source: a Postgres server and the role to grant, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)",
+      "summary": "Set up a PostgreSQL, MySQL, or AWS STS credential source",
+      "description": "Set up a credential source: a Postgres or MySQL server and the grant to apply, or an AWS role to assume. Prints the config ID that `lease create` and `lease run` take. (Formerly `lease config-create`, which still works.)",
       "examples": [
         {
           "title": "Postgres",
           "run": "clavis lease setup --host db.internal --database app \\\n  --username clavis_admin --password \"$PGPASSWORD\" \\\n  --grant-role app_readwrite --default-ttl 3600 --max-ttl 86400"
         },
         {
+          "title": "MySQL or MariaDB",
+          "run": "clavis lease setup --engine mysql --host db.internal --port 3306 \\\n  --database app --username clavis_admin --password \"$MYSQL_PASSWORD\" \\\n  --grant-privileges \"SELECT, INSERT, UPDATE\" --default-ttl 3600"
+        },
+        {
           "title": "AWS STS",
           "run": "clavis lease setup --engine aws --aws-region eu-central-1 \\\n  --aws-access-key \"$AWS_ACCESS_KEY_ID\" --aws-secret-key \"$AWS_SECRET_ACCESS_KEY\" \\\n  --aws-role-arn arn:aws:iam::123456789012:role/deploy"
         }
       ],
-      "notes": "AWS leases return `access_key_id`, `secret_access_key`, `session_token` and `expiration`. STS credentials can't be renewed; create a new lease.",
+      "notes": "AWS leases return `access_key_id`, `secret_access_key`, `session_token`\nand `expiration`; STS credentials can't be renewed, so create a new\nlease. MySQL users have no database-side expiry: Clavis drops them when\nthe lease is revoked or when the expiry job runs.",
       "flags": [
         {
           "name": "aws-access-key",
@@ -2035,7 +2039,7 @@
         {
           "name": "database",
           "type": "string",
-          "usage": "PostgreSQL database"
+          "usage": "database name"
         },
         {
           "name": "default-ttl",
@@ -2047,7 +2051,13 @@
           "name": "engine",
           "type": "string",
           "default": "postgres",
-          "usage": "dynamic engine (postgres)"
+          "usage": "dynamic engine (postgres, mysql, mariadb, aws)"
+        },
+        {
+          "name": "grant-privileges",
+          "type": "string",
+          "default": "SELECT",
+          "usage": "MySQL privileges granted on the database"
         },
         {
           "name": "grant-role",
@@ -2058,7 +2068,7 @@
           "name": "host",
           "type": "string",
           "default": "localhost",
-          "usage": "PostgreSQL host"
+          "usage": "database host"
         },
         {
           "name": "max-ttl",
@@ -2075,13 +2085,18 @@
           "name": "port",
           "type": "int",
           "default": "5432",
-          "usage": "PostgreSQL port"
+          "usage": "database port (3306 for MySQL)"
         },
         {
           "name": "sslmode",
           "type": "string",
           "default": "disable",
           "usage": "PostgreSQL sslmode"
+        },
+        {
+          "name": "tls",
+          "type": "string",
+          "usage": "MySQL TLS: false, true, skip-verify, or preferred"
         },
         {
           "name": "username",
@@ -2418,11 +2433,15 @@
           "run": "clavis rotation create DATABASE_PASSWORD --provider postgres \\\n  --pg-host db.internal --pg-database app --pg-username admin \\\n  --pg-password \"$PGPASSWORD\" --pg-role app_user --interval 24h"
         },
         {
+          "title": "MySQL user password, weekly",
+          "run": "clavis rotation create MYSQL_PASSWORD --provider mysql \\\n  --mysql-host db.internal --mysql-database app --mysql-username admin \\\n  --mysql-password \"$MYSQL_PASSWORD\" --mysql-role app_user --interval 168h"
+        },
+        {
           "title": "Your own webhook, monthly",
           "run": "clavis rotation create PARTNER_API_KEY --provider webhook \\\n  --webhook-url https://rotate.example.com/partner --webhook-secret \"$HMAC_SECRET\" \\\n  --interval 720h"
         }
       ],
-      "notes": "Providers: `postgres` (role password), `aws` (IAM access key; the secret\nstores JSON with `access_key_id` and `secret_access_key`), and `webhook`\n(`create`, `rollback` and `revoke` calls, HMAC-signed).",
+      "notes": "Providers: `postgres` (role password), `mysql`/`mariadb` (user password),\n`aws` (IAM access key; the secret stores JSON with `access_key_id` and\n`secret_access_key`), and `webhook` (`create`, `rollback` and `revoke`\ncalls, HMAC-signed).",
       "flags": [
         {
           "name": "aws-access-key",
@@ -2455,6 +2474,43 @@
           "type": "duration",
           "default": "24h",
           "usage": "rotation interval"
+        },
+        {
+          "name": "mysql-database",
+          "type": "string",
+          "usage": "MySQL database"
+        },
+        {
+          "name": "mysql-host",
+          "type": "string",
+          "default": "localhost",
+          "usage": "MySQL host"
+        },
+        {
+          "name": "mysql-password",
+          "type": "string",
+          "usage": "MySQL admin password"
+        },
+        {
+          "name": "mysql-port",
+          "type": "int",
+          "default": "3306",
+          "usage": "MySQL port"
+        },
+        {
+          "name": "mysql-role",
+          "type": "string",
+          "usage": "MySQL user whose password rotates"
+        },
+        {
+          "name": "mysql-tls",
+          "type": "string",
+          "usage": "MySQL TLS: false, true, skip-verify, or preferred"
+        },
+        {
+          "name": "mysql-username",
+          "type": "string",
+          "usage": "MySQL admin user"
         },
         {
           "name": "pg-database",
@@ -2498,7 +2554,7 @@
           "name": "provider",
           "type": "string",
           "default": "postgres",
-          "usage": "postgres, aws, or webhook"
+          "usage": "postgres, mysql, aws, or webhook"
         },
         {
           "name": "webhook-secret",

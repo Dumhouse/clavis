@@ -76,8 +76,13 @@ func (s *Service) CreateDynamicConfig(ctx context.Context, actor authz.Actor, or
 		if err := validateAWSDynamic(config); err != nil {
 			return nil, err
 		}
+	case "mysql", "mariadb":
+		engine = "mysql"
+		if err := validateMySQLDynamic(config); err != nil {
+			return nil, err
+		}
 	default:
-		return nil, fmt.Errorf("%w: supported dynamic engines are postgres and aws", ErrValidation)
+		return nil, fmt.Errorf("%w: supported dynamic engines are postgres, mysql, and aws", ErrValidation)
 	}
 	if defaultTTL <= 0 {
 		defaultTTL = 3600
@@ -180,7 +185,8 @@ func (s *Service) CreateLease(ctx context.Context, actor authz.Actor, orgSlug, p
 	leaseID := uuid.NewString()
 	expires := s.Now().UTC().Add(time.Duration(ttlSeconds) * time.Second)
 	var data map[string]string
-	if config.Engine == "aws" {
+	switch config.Engine {
+	case "aws":
 		settings, err := s.decryptAWSDynamicConfig(org, config)
 		if err != nil {
 			return nil, err
@@ -189,7 +195,16 @@ func (s *Service) CreateLease(ctx context.Context, actor authz.Actor, orgSlug, p
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	case "mysql":
+		settings, err := s.decryptMySQLDynamicConfig(org, config)
+		if err != nil {
+			return nil, err
+		}
+		data, err = s.createMySQLCredentials(ctx, leaseID, expires, settings)
+		if err != nil {
+			return nil, err
+		}
+	default:
 		settings, err := s.decryptDynamicConfig(org, config)
 		if err != nil {
 			return nil, err
@@ -335,25 +350,28 @@ func (s *Service) RenewLease(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if !expires.After(s.Now().UTC()) {
 		return nil, fmt.Errorf("%w: lease has reached its maximum TTL", ErrConflict)
 	}
-	settings, err := s.decryptDynamicConfig(org, config)
-	if err != nil {
-		return nil, err
+	if config.Engine == "aws" {
+		return nil, fmt.Errorf("%w: AWS STS leases cannot be renewed; create a new lease", ErrConflict)
 	}
-	valueKey, _, err := s.ProjectKeys(ctx, org, project)
-	if err != nil {
-		return nil, err
-	}
-	defer valueKey.Zero()
-	raw, _, err := valueKey.Decrypt(lease.LeaseData,
-		crypto.BindAAD(org.ID, project.ID, config.ID, lease.ID, "lease", 1))
-	if err != nil {
-		return nil, err
-	}
-	var data map[string]string
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil, err
-	}
-	if settings.Host != "" {
+	if config.Engine == "postgres" {
+		settings, err := s.decryptDynamicConfig(org, config)
+		if err != nil {
+			return nil, err
+		}
+		valueKey, _, err := s.ProjectKeys(ctx, org, project)
+		if err != nil {
+			return nil, err
+		}
+		defer valueKey.Zero()
+		raw, _, err := valueKey.Decrypt(lease.LeaseData,
+			crypto.BindAAD(org.ID, project.ID, config.ID, lease.ID, "lease", 1))
+		if err != nil {
+			return nil, err
+		}
+		var data map[string]string
+		if err := json.Unmarshal(raw, &data); err != nil {
+			return nil, err
+		}
 		statement := `ALTER ROLE "` + strings.ReplaceAll(data["username"], `"`, `""`) + //nolint:gosec // G202: Postgres cannot bind identifiers; they are quoted with embedded quotes doubled
 			`" VALID UNTIL '` + expires.Format(time.RFC3339) + `'`
 		db, err := s.postgresAdminClient(settings)
@@ -366,9 +384,8 @@ func (s *Service) RenewLease(ctx context.Context, actor authz.Actor, orgSlug, pr
 			return nil, execErr
 		}
 	}
-	if config.Engine == "aws" {
-		return nil, fmt.Errorf("%w: AWS STS leases cannot be renewed; create a new lease", ErrConflict)
-	}
+	// MySQL users have no database-side expiry: the revocation job drops them,
+	// so renewal only extends the lease record.
 	if err := s.Store.UpdateLeaseExpiry(ctx, lease.ID, expires); err != nil {
 		return nil, err
 	}
@@ -406,10 +423,6 @@ func (s *Service) revokeLease(ctx context.Context, org *store.Org, project *stor
 			audit.Resource{Type: "project", ID: project.ID, Name: project.Slug, ProjectID: project.ID},
 			audit.Details{Count: 1}, meta)
 	}
-	settings, err := s.decryptDynamicConfig(org, config)
-	if err != nil {
-		return err
-	}
 	valueKey, _, err := s.ProjectKeys(ctx, org, project)
 	if err != nil {
 		return err
@@ -425,7 +438,17 @@ func (s *Service) revokeLease(ctx context.Context, org *store.Org, project *stor
 		return err
 	}
 	username := data["username"]
-	if username != "" {
+	if username != "" && config.Engine == "mysql" {
+		settings, err := s.decryptMySQLDynamicConfig(org, config)
+		if err != nil {
+			return err
+		}
+		s.revokeMySQLUser(ctx, settings, username)
+	} else if username != "" {
+		settings, err := s.decryptDynamicConfig(org, config)
+		if err != nil {
+			return err
+		}
 		template := settings.RevokeTemplate
 		if template == "" {
 			template = `DROP ROLE IF EXISTS {{name}}`
