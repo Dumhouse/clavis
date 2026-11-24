@@ -114,6 +114,7 @@ type createSyncInput struct {
 		VaultVersion       int    `json:"vault_version,omitempty" enum:"1,2"`
 		ForgejoRepo        string `json:"forgejo_repo,omitempty" maxLength:"500" doc:"owner/name for repo scope, or the organization for org scope"`
 		ForgejoScope       string `json:"forgejo_scope,omitempty" enum:"repo,org"`
+		FlyioApp           string `json:"flyio_app,omitempty" maxLength:"200" doc:"Fly.io app name"`
 		ConnectionID       string `json:"connection_id,omitempty" maxLength:"100" doc:"Use an org connection's credential and base URL instead of an inline token"`
 	}
 }
@@ -226,6 +227,7 @@ func (s *Server) registerSyncRoutes() error {
 			CloudflareScript: in.Body.CloudflareScript, CloudflareMode: in.Body.CloudflareMode,
 			VaultMount: in.Body.VaultMount, VaultPath: in.Body.VaultPath, VaultVersion: in.Body.VaultVersion,
 			ForgejoRepo: in.Body.ForgejoRepo, ForgejoScope: in.Body.ForgejoScope,
+			FlyioApp:     in.Body.FlyioApp,
 			ConnectionID: in.Body.ConnectionID,
 		}, metaFrom(ctx))
 		if err != nil {

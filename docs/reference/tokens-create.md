@@ -38,7 +38,7 @@ clavis tokens create "GitHub org" --provider github --token "$GITHUB_TOKEN"
 <div class="cli-flag" id="flag-github-app-id"><dt><code>--github-app-id string</code></dt><dd>GitHub App ID</dd></div>
 <div class="cli-flag" id="flag-github-installation-id"><dt><code>--github-installation-id string</code></dt><dd>GitHub App installation ID</dd></div>
 <div class="cli-flag" id="flag-github-private-key"><dt><code>--github-private-key string</code></dt><dd>GitHub App private key PEM or @file</dd></div>
-<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>forgejo, github, gitlab, vercel, netlify, cloudflare, vault, aws, or gcp</dd></div>
+<div class="cli-flag" id="flag-provider"><dt><code>--provider string</code></dt><dd>forgejo, github, gitlab, flyio, vercel, netlify, cloudflare, vault, aws, or gcp</dd></div>
 <div class="cli-flag" id="flag-token"><dt><code>--token string</code></dt><dd>access token (Forgejo, GitHub, GitLab, Vercel, Netlify, Cloudflare, Vault); - reads stdin</dd></div>
 <div class="cli-flag" id="flag-url"><dt><code>--url string</code></dt><dd>instance or API URL (defaults to the public service)</dd></div>
 </dl>

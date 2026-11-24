@@ -39,7 +39,7 @@ Each milestone ends in something usable and releasable. Estimates assume **2 ful
 Cut to keep 1.0 achievable. Each is still planned:
 
 - Azure: Key Vault sync
-- Fly.io, Railway, Render syncs
+- Railway, Render syncs
 - Terraform provider
 - VS Code extension
 - MySQL/MariaDB dynamic engine and rotation

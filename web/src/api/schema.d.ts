@@ -2850,7 +2850,7 @@ export interface components {
             github_private_key?: string;
             name: string;
             /** @enum {string} */
-            provider: "aws" | "cloudflare" | "forgejo" | "gcp" | "github" | "gitlab" | "netlify" | "vault" | "vercel";
+            provider: "aws" | "cloudflare" | "flyio" | "forgejo" | "gcp" | "github" | "gitlab" | "netlify" | "vault" | "vercel";
             token?: string;
         };
         CreateDynamicConfigInputBody: {
@@ -3023,6 +3023,8 @@ export interface components {
             delete_missing?: boolean;
             endpoint?: string;
             environment: string;
+            /** @description Fly.io app name */
+            flyio_app?: string;
             /** @description owner/name for repo scope, or the organization for org scope */
             forgejo_repo?: string;
             /** @enum {string} */

@@ -77,6 +77,7 @@ type syncConfig struct {
 	VaultVersion       int    `json:"vault_version,omitempty"`
 	ForgejoRepo        string `json:"forgejo_repo,omitempty"`
 	ForgejoScope       string `json:"forgejo_scope,omitempty"`
+	FlyioApp           string `json:"flyio_app,omitempty"`
 }
 
 // SyncInput creates a sync definition.
@@ -118,6 +119,7 @@ type SyncInput struct {
 	VaultVersion       int
 	ForgejoRepo        string
 	ForgejoScope       string
+	FlyioApp           string
 	DeleteMissing      bool
 	// ConnectionID uses an org connection's credential (and base URL) instead
 	// of an inline token. Inline credential fields must then be empty.
@@ -163,7 +165,7 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 	if provider == "" {
 		provider = "http"
 	}
-	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" && provider != "forgejo" {
+	if provider != "http" && provider != "gitlab" && provider != "github" && provider != "vercel" && provider != "aws" && provider != "gcp" && provider != "netlify" && provider != "cloudflare" && provider != "vault" && provider != "forgejo" && provider != "flyio" {
 		return nil, fmt.Errorf("%w: unsupported sync provider %q", ErrValidation, provider)
 	}
 	var conn *store.SyncConnection
@@ -202,6 +204,13 @@ func (s *Service) CreateSync(ctx context.Context, actor authz.Actor, orgSlug, pr
 		}
 	case "forgejo":
 		if err := validateForgejoConfig(&config, in, inline); err != nil {
+			return nil, err
+		}
+		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
+			return nil, err
+		}
+	case "flyio":
+		if err := validateFlyioConfig(&config, in, inline); err != nil {
 			return nil, err
 		}
 		if config.Token, err = encrypt("sync_token", in.Token); err != nil {
@@ -508,6 +517,9 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 	if sync.Provider == "forgejo" {
 		destination = forgejoDestination(config)
 	}
+	if sync.Provider == "flyio" {
+		destination = flyioDestination(config)
+	}
 	if sync.Provider == "vault" {
 		destination = "vault:" + config.BaseURL + "/" + config.VaultMount + "/" + config.VaultPath
 	}
@@ -562,6 +574,8 @@ func (s *Service) RunSync(ctx context.Context, actor authz.Actor, orgSlug, proje
 		err2 = s.postVault(ctx, org, sync, config, values)
 	case "forgejo":
 		err2 = s.postForgejo(ctx, org, sync, config, values, kinds)
+	case "flyio":
+		err2 = s.postFlyio(ctx, org, sync, config, values)
 	default:
 		secret, err := s.decryptOrgSecret(org, syncCredentialOwner(sync), "sync_secret", config.Secret)
 		if err != nil {
@@ -1858,6 +1872,9 @@ func (s *Service) CheckSyncDrift(ctx context.Context, actor authz.Actor, orgSlug
 	case "forgejo":
 		keys, err = s.driftForgejo(ctx, org, sync, config, values, kinds)
 		result.Detail = "Forgejo variables compared; secrets checked for presence"
+	case "flyio":
+		keys, err = s.driftFlyio(ctx, org, sync, config, values)
+		result.Detail = "Fly.io secrets are write-only; keys checked for presence"
 	case "cloudflare":
 		if config.CFMode == "pages" {
 			keys, err = s.driftCloudflare(ctx, org, sync, config, env, values)

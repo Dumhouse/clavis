@@ -50,7 +50,7 @@ type connectionOutput struct {
 type createConnectionInput struct {
 	Org  string `path:"org"`
 	Body struct {
-		Provider           string `json:"provider" enum:"aws,cloudflare,forgejo,gcp,github,gitlab,netlify,vault,vercel"`
+		Provider           string `json:"provider" enum:"aws,cloudflare,flyio,forgejo,gcp,github,gitlab,netlify,vault,vercel"`
 		Name               string `json:"name" minLength:"1" maxLength:"100"`
 		BaseURL            string `json:"base_url,omitempty" maxLength:"500" doc:"Provider API or instance URL; defaults to the public service"`
 		Token              string `json:"token,omitempty" maxLength:"1000"`

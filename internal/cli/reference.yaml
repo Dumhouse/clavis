@@ -1069,8 +1069,8 @@ commands:
     description: |-
       Push an environment's values to the platforms that run your code:
       GitHub and Forgejo Actions, GitLab CI, Vercel, Netlify, Cloudflare,
-      AWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows when
-      someone changed the other side by hand.
+      Fly.io, AWS, Google Cloud, Vault, or any HTTP endpoint. `drift` shows
+      when someone changed the other side by hand.
     related: [export]
 
   "syncs create":
@@ -1106,6 +1106,10 @@ commands:
         run: |-
           clavis syncs create dev --provider forgejo --forgejo-url https://git.example.com \
             --forgejo-repo team/web --forgejo-token "$FORGEJO_TOKEN"
+      - title: "Fly.io app secrets"
+        run: |-
+          clavis syncs create production --provider flyio --flyio-app my-app \
+            --flyio-token "$FLY_API_TOKEN" --delete-missing
       - title: "AWS SSM Parameter Store"
         run: |-
           clavis syncs create prod --provider aws --aws-region eu-central-1 \
@@ -1130,7 +1134,7 @@ commands:
       - run: "clavis syncs run 123e4567 --dry-run"
       - run: "clavis syncs run 123e4567 --yes"
   "syncs drift":
-    description: "Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables and Cloudflare Pages."
+    description: "Compare the remote values with Clavis. Works with GitLab, AWS, GCP, Netlify, Vercel, GitHub variables, Cloudflare Pages and Fly.io secret names."
     examples:
       - run: "clavis syncs drift 123e4567"
   "syncs logs":
@@ -1145,7 +1149,7 @@ commands:
   tokens:
     description: |-
       A connection stores one provider credential for the whole organization:
-      a Forgejo or GitHub token, AWS keys, a service account. Syncs created
+      a Forgejo, GitHub, GitLab, or Fly.io token, AWS keys, a service account. Syncs created
       with `--connection` reuse it, so you paste a token once and rotating it
       updates every sync that uses it. Credentials are never shown again.
     examples:

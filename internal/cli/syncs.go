@@ -114,6 +114,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	var netlifyAccount, netlifySite, cfAccount, cfProject, cfScript, cfMode string
 	var vaultMount, vaultPath string
 	var forgejoURL, forgejoRepo, forgejoScope string
+	var flyioApp string
 	var connection string
 	var vaultVersion int
 	var protected, masked, deleteMissing bool
@@ -171,7 +172,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 				"cloudflare_account": cfAccount, "cloudflare_project": cfProject,
 				"cloudflare_script": cfScript, "cloudflare_mode": cfMode,
 				"vault_mount": vaultMount, "vault_path": vaultPath, "vault_version": vaultVersion,
-				"forgejo_repo": forgejoRepo, "forgejo_scope": forgejoScope,
+				"forgejo_repo": forgejoRepo, "forgejo_scope": forgejoScope, "flyio_app": flyioApp,
 				"delete_missing": deleteMissing,
 			}
 			if connection != "" {
@@ -198,7 +199,7 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&endpoint, "endpoint", "", "receiver URL for generic HTTP")
 	cmd.Flags().StringVar(&secret, "secret", "", "HMAC signing secret for generic HTTP")
-	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http, gitlab, github, forgejo, vercel, aws, gcp, netlify, cloudflare, or vault")
+	cmd.Flags().StringVar(&provider, "provider", "http", "sync provider: http, gitlab, github, forgejo, flyio, vercel, aws, gcp, netlify, cloudflare, or vault")
 	cmd.Flags().StringVar(&baseURL, "gitlab-url", "https://gitlab.com", "GitLab base URL")
 	cmd.Flags().StringVar(&gitlabProject, "gitlab-project", "", "GitLab project path or ID")
 	cmd.Flags().StringVar(&token, "gitlab-token", "", "GitLab access token with api scope")
@@ -215,6 +216,8 @@ func newSyncsCreateCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&forgejoRepo, "forgejo-repo", "", "Forgejo repository (owner/name) or organization for org scope")
 	cmd.Flags().StringVar(&forgejoScope, "forgejo-scope", "repo", "Forgejo scope: repo or org")
 	cmd.Flags().StringVar(&token, "forgejo-token", "", "Forgejo access token with write:repository (or write:organization)")
+	cmd.Flags().StringVar(&flyioApp, "flyio-app", "", "Fly.io app name")
+	cmd.Flags().StringVar(&token, "flyio-token", "", "Fly.io API token that can manage app secrets")
 	cmd.Flags().StringVar(&token, "vercel-token", "", "Vercel access token")
 	cmd.Flags().StringVar(&vercelProject, "vercel-project", "", "Vercel project ID or name")
 	cmd.Flags().StringVar(&vercelTeamID, "vercel-team", "", "Vercel team ID")
