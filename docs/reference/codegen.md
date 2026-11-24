@@ -43,10 +43,16 @@ clavis codegen --lang go --package config -o internal/config/config.go
 clavis codegen --lang python -o app/config.py
 ```
 
+<p class="cli-example-title">Rust</p>
+
+```sh
+clavis codegen --lang rust -o src/config.rs
+```
+
 ## Flags
 
 <dl class="cli-flags">
-<div class="cli-flag" id="flag-lang"><dt><code>--lang string</code></dt><dd>ts, go, or python <span class="cli-default">Default: <code>ts</code></span></dd></div>
+<div class="cli-flag" id="flag-lang"><dt><code>--lang string</code></dt><dd>ts, go, python, or rust <span class="cli-default">Default: <code>ts</code></span></dd></div>
 <div class="cli-flag" id="flag-name"><dt><code>--name string</code></dt><dd>generated type/class name <span class="cli-default">Default: <code>Config</code></span></dd></div>
 <div class="cli-flag" id="flag-out"><dt><code>-o, --out string</code></dt><dd>output file (default stdout)</dd></div>
 <div class="cli-flag" id="flag-package"><dt><code>--package string</code></dt><dd>Go package name <span class="cli-default">Default: <code>config</code></span></dd></div>
@@ -57,10 +63,14 @@ clavis codegen --lang python -o app/config.py
 - TypeScript exports a zod schema, the inferred type and `loadConfig`.
 - Go exports a struct, `Load`, `LoadFor(envType)` and `LoadFrom(environ)`.
 - Python exports a pydantic `Config` and `load_config`.
+- Rust exports a struct, `load`, `load_for(env_type)` and `load_from(environ, env_type)`.
 
 Loaders parse env-style strings: integers become numbers, booleans accept
 `true/false/1/0/yes/no`, JSON fields are decoded, enums and patterns are
 checked. Keys required in any environment type are required fields.
+
+The Rust output uses only the standard library, so it keeps JSON fields as
+raw strings and does not enforce schema patterns.
 
 <details class="cli-globals"><summary>Global flags</summary>
 
