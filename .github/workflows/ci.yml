@@ -220,6 +220,11 @@ jobs:
         working-directory: sdk/python
       - run: python -m pip install build && python -m build
         working-directory: sdk/python
+      - uses: ruby/setup-ruby@78c62f2208e480ce3d5ae4dfd9b9e181acf48b63 # v1
+        with:
+          ruby-version: "3.1"
+      - run: ruby -I. test_clavis_client.rb
+        working-directory: sdk/ruby
 
   build:
     name: Build binary

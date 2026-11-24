@@ -46,6 +46,8 @@
 - `clavis import --provider bitwarden` imports from Bitwarden Secrets Manager
   through the user's own `bws` CLI and `BWS_ACCESS_TOKEN`, with the same dry
   run and conflict handling as the other providers.
+- A dependency-free Ruby client in `sdk/ruby`, with `Clavis.fetch_secrets` and
+  `Clavis.load_secrets` matching the Node.js and Python clients.
 
 ### Changed
 
